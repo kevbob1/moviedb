@@ -27,4 +27,4 @@ config.action_mailer.delivery_method = :test
 # like if you have constraints or database-specific column types
 # config.active_record.schema_format = :sql
 
-DB_NAME=movies_test
+DB_NAME='movies_test'
