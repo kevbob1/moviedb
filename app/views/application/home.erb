@@ -1,0 +1,13 @@
+
+  <h3>Recent changes</h3>
+   <% @movies.each do |movie| %>
+    <div class="post">
+      <h2 class="title">
+       <%= link_to movie.title, :controller => :movies, :action => :show, :id => movie.id %>
+      </h2>
+      <div class="entry">
+        <h3>Watched: <%= movie.watched %></h3>
+      </div>
+      <p class="meta">Posted on November 5, 2007 by <a href="http://www.free-css.>com/">Someone</a> &nbsp;|&nbsp; <a href="http://www.free-css.com/">32 comments</a></p>
+    </div>
+   <% end %>
