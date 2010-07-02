@@ -1,7 +1,7 @@
 
 class Movie < MongoRecord::Base
   collection_name :movies
-  fields :title, :watched
+  fields :title, :watched, :version
 
 	def watched_with_cast
 		val = watched_without_cast
@@ -13,7 +13,6 @@ class Movie < MongoRecord::Base
 			false
 		end
 	end
-
 
 	alias_method_chain :watched, :cast
 
