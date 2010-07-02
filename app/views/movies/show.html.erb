@@ -1,3 +1,8 @@
+	<%= periodically_call_remote(
+	 :url => {:action => "version", :id => @movie.id},
+	 :frequency => '5',
+   :complete => "movie_update_handler(#{@movie.version}, request);") %>
+
 <p>
   <b>Title:</b>
   <%=h @movie.title %>
@@ -6,6 +11,11 @@
 <p>
   <b>Watched:</b>
   <%=h @movie.watched %>
+</p>
+
+<p>
+  <b>Version:</b>
+  <%=h @movie.version %>
 </p>
 
 

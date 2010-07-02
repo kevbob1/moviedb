@@ -86,6 +86,13 @@ class MoviesController < ApplicationController
     end
   end
 
+	def version
+    @movie = Movie.find(params[:id])
+		respond_to do |format|
+			format.js {render :text =>  @movie.version.to_json}
+		end
+	end
+
 	def search
 		
 	end

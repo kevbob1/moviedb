@@ -19,5 +19,27 @@ class Movie < MongoRecord::Base
 	def errors
 		@errors ||= ActiveResource::Errors.new(self)
 	end
+
+	def save_with_version
+		RAILS_DEFAULT_LOGGER.debug "save called: #{self.id}"
+		if self.version.nil?
+			self.version = 1
+		else
+			self.version = self.version + 1
+		end
+
+		save_without_version
+	end
+
+	alias_method_chain :save, :version
+
+	def update_attributes_with_stuff(attributes)
+		attributes.each do |name, value|
+			self[name] = value
+		end
+		save
+  end
+
+	alias_method_chain :update_attributes, :stuff
 end
 

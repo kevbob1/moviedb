@@ -4,12 +4,14 @@
   <tr>
     <th>Title</th>
     <th>Watched</th>
+		<th>version</th>
   </tr>
 
 <% @movies.each do |movie| %>
   <tr>
     <td><%=h movie.title %></td>
     <td><%=h movie.watched %></td>
+		<td><%=h movie.version %></td>
     <td><%= link_to 'Show', movie %></td>
     <td><%= link_to 'Edit', edit_movie_path(movie) %></td>
     <td><%= link_to 'Destroy', movie, :confirm => 'Are you sure?', :method => :delete %></td>
