@@ -1,0 +1,18 @@
+# Riak connection config for ripple ORM gem
+
+development:
+  http_port: 8098
+  pb_port: 8087
+  host: localhost
+
+test:
+  http_port: 9000
+  pb_port: 9002
+  host: localhost
+#  bin_dir: /usr/local/bin   # Default for Homebrew.
+#  js_source_dir: <%%= Rails.root + "app/mapreduce" %>
+
+production:
+  http_port: 8098
+  pb_port: 8087
+  host: localhost

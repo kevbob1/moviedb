@@ -2,10 +2,7 @@ class MoviesController < ApplicationController
   # GET /movies
   # GET /movies.xml
   def index
-    @movies = []
-		Movie.all.each do |row|
-			@movies << Movie.new(row)
-		end
+    @movies = Movie.all
 
     respond_to do |format|
       format.html # index.html.erb
