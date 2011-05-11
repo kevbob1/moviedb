@@ -24,5 +24,7 @@ Moviedb::Application.configure do
   config.action_dispatch.best_standards_support = :builtin
 
 	DB_NAME='movies_dev'
+	
+	IMDB_URL="http://www.imdbapi.com/"
 end
 
