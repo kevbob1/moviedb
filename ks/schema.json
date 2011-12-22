@@ -1,0 +1,61 @@
+{
+  "name": "moviedb_development",
+  "replication_factor": 1,
+  "strategy_class": "org.apache.cassandra.locator.SimpleStrategy",
+  "durable_writes": true,
+  "strategy_options": {
+    "replication_factor": "1"
+  },
+  "cf_defs": [
+    {
+      "name": "schema_migrations",
+      "comment": "",
+      "gc_grace_seconds": 864000,
+      "key_cache_size": 200000.0,
+      "column_metadata": [
+
+      ],
+      "row_cache_size": 0.0,
+      "merge_shards_chance": 0.1,
+      "default_validation_class": "org.apache.cassandra.db.marshal.BytesType",
+      "comparator_type": "org.apache.cassandra.db.marshal.LongType",
+      "max_compaction_threshold": 32,
+      "column_type": "Standard",
+      "id": 1000,
+      "keyspace": "moviedb_development",
+      "row_cache_save_period_in_seconds": 0,
+      "key_alias": "KEY",
+      "min_compaction_threshold": 4,
+      "key_validation_class": "org.apache.cassandra.db.marshal.BytesType",
+      "read_repair_chance": 1.0,
+      "row_cache_provider": "org.apache.cassandra.cache.ConcurrentLinkedHashCacheProvider",
+      "replicate_on_write": true,
+      "key_cache_save_period_in_seconds": 14400
+    },
+    {
+      "name": "movies",
+      "comment": "movies for something",
+      "gc_grace_seconds": 864000,
+      "key_cache_size": 200000.0,
+      "column_metadata": [
+
+      ],
+      "row_cache_size": 0.0,
+      "merge_shards_chance": 0.1,
+      "default_validation_class": "org.apache.cassandra.db.marshal.BytesType",
+      "comparator_type": "org.apache.cassandra.db.marshal.UTF8Type",
+      "max_compaction_threshold": 32,
+      "column_type": "Standard",
+      "id": 1001,
+      "keyspace": "moviedb_development",
+      "row_cache_save_period_in_seconds": 0,
+      "key_alias": "KEY",
+      "min_compaction_threshold": 4,
+      "key_validation_class": "org.apache.cassandra.db.marshal.BytesType",
+      "read_repair_chance": 1.0,
+      "row_cache_provider": "org.apache.cassandra.cache.ConcurrentLinkedHashCacheProvider",
+      "replicate_on_write": true,
+      "key_cache_save_period_in_seconds": 14400
+    }
+  ]
+}
