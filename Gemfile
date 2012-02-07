@@ -18,15 +18,22 @@ group :assets do
 end
 
 gem 'jquery-rails'
+<<<<<<< HEAD
 gem 'cassandra-cql'
+=======
+>>>>>>> 2ca1e986012f40a746c237cc080b33b8511668ea
 gem 'therubyracer'
+gem 'cassandra-cql'
 
 # To use ActiveModel has_secure_password
 # gem 'bcrypt-ruby', '~> 3.0.0'
 
 # Use unicorn as the web server
 gem 'unicorn'
+<<<<<<< HEAD
 #gem 'mongrel'
+=======
+>>>>>>> 2ca1e986012f40a746c237cc080b33b8511668ea
 
 # Deploy with Capistrano
 # gem 'capistrano'
