@@ -6,4 +6,6 @@ cqlsh create keyspaces
 
 create keyspace moviedb_test with strategy_class='org.apache.cassandra.locator.SimpleStrategy' and strategy_options:replication_factor=1;
 
+cqlsh create tables
 
+create columnfamily movies (title varchar PRIMARY KEY, description varchar, watched boolean, version int, created_at timestamp, updated_at timestamp);

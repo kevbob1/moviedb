@@ -2,7 +2,7 @@ require 'test_helper'
 
 class MoviesControllerTest < ActionController::TestCase
   setup do
-    @movie = movies(:one)
+    @movie = Movie.new
   end
 
   test "should get index" do
