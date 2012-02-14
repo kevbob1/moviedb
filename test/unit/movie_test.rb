@@ -1,7 +1,11 @@
 require 'test_helper'
 
 class MovieTest < ActiveSupport::TestCase
-  # test "the truth" do
-  #   assert true
-  # end
+  include ActiveModel::Lint::Tests
+  
+  def setup
+    @model = Movie.new
+  end
+  
+  
 end
