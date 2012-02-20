@@ -28,6 +28,8 @@ class Movie
     result = []
     
     connection.execute("SELECT * FROM movies WHERE title=?", title).fetch do |row|
+      # avoid returning ghost rows by checking one of the required column values
+      next if row["version"].nil?
       movie = Movie.new(row)
       movie.new_record = false
       result << movie
@@ -58,6 +60,9 @@ class Movie
     @title = args["title"]
     @description = args["description"]
     @watched = args["watched"]
+    @version = args["version"]
+    @created_at = args["created_at"]
+    @updated_at = args["updated_at"]
     @new_record = true
   end
 
@@ -103,6 +108,7 @@ class Movie
     else
       @updated_at = Time.now
       @created_at = Time.now
+      @verson = 1
     end
     
     self.class.connection.execute("INSERT INTO movies (title, description, watched, version, created_at, updated_at)
