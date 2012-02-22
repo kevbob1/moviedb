@@ -3,6 +3,10 @@ require 'test_helper'
 class MoviesControllerTest < ActionController::TestCase
   setup do
     @movie = Movie.new
+    @movie.title = "test movie name"
+    @movie.description = "test description"
+    @movie.watched = true
+    @movie.save
   end
 
   test "should get index" do
