@@ -7,6 +7,7 @@ class MoviesController < ApplicationController
     respond_to do |format|
       format.html # index.html.erb
       format.json { render :json => @movies }
+      format.xml { render :xml => @movies }
     end
   end
 
@@ -18,6 +19,7 @@ class MoviesController < ApplicationController
     respond_to do |format|
       format.html # show.html.erb
       format.json { render :json => @movie }
+      format.xml { render :xml => @movie }
     end
   end
 
@@ -29,6 +31,7 @@ class MoviesController < ApplicationController
     respond_to do |format|
       format.html # new.html.erb
       format.json { render :json => @movie }
+      format.xml { render :xml => @movie }
     end
   end
 
@@ -40,15 +43,26 @@ class MoviesController < ApplicationController
   # POST /movies
   # POST /movies.json
   def create
+    
+    if params[:movie][:watched] == '1'
+      params[:movie][:watched] = true
+    else
+      params[:movie][:watched] = false
+    end
+    
     @movie = Movie.new(params[:movie])
 
     respond_to do |format|
       if @movie.save
         format.html { redirect_to @movie, :notice => 'Movie was successfully created.' }
         format.json { render :json => @movie, :status => :created, :location => @movie }
+        format.xml { render :xml => @movie, :status => :created, :location => @movie }
+        
       else
         format.html { render :action => "new" }
         format.json { render :json => @movie.errors, :status => :unprocessable_entity }
+        format.xml { render :xml => @movie.errors, :status => :unprocessable_entity }
+        
       end
     end
   end
@@ -58,13 +72,23 @@ class MoviesController < ApplicationController
   def update
     @movie = Movie.find(params[:id])
 
+    if params[:movie][:watched] == '1'
+      params[:movie][:watched] = true
+    else
+      params[:movie][:watched] = false
+    end    
+    
     respond_to do |format|
       if @movie.update_attributes(params[:movie])
         format.html { redirect_to @movie, :notice => 'Movie was successfully updated.' }
         format.json { head :ok }
+        format.xml { head :ok }
+
       else
         format.html { render :action => "edit" }
         format.json { render :json => @movie.errors, :status => :unprocessable_entity }
+        format.xml { render :xml => @movie.errors, :status => :unprocessable_entity }
+
       end
     end
   end
@@ -78,6 +102,7 @@ class MoviesController < ApplicationController
     respond_to do |format|
       format.html { redirect_to movies_url }
       format.json { head :ok }
+      format.xml { head :ok }
     end
   end
 end

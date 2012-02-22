@@ -19,12 +19,14 @@ gem 'jquery-rails'
 gem 'cassandra-cql'
 gem 'therubyracer'
 gem 'cassandra-cql'
+gem 'uuid'
 
 # To use ActiveModel has_secure_password
 # gem 'bcrypt-ruby', '~> 3.0.0'
 
 # Use unicorn as the web server
-gem 'unicorn'
+#gem 'unicorn'
+gem 'thin'
 #gem 'mongrel'
 
 # Deploy with Capistrano

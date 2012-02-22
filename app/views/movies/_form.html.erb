@@ -16,13 +16,15 @@
     <%= f.text_field :title %>
   </div>
   <div class="field">
+    <%= f.label :description %><br />
+    <%= f.text_field :description %>
+  </div>
+
+  <div class="field">
     <%= f.label :watched %><br />
     <%= f.check_box :watched %>
   </div>
-  <div class="field">
-    <%= f.label :version %><br />
-    <%= f.number_field :version %>
-  </div>
+
   <div class="actions">
     <%= f.submit %>
   </div>

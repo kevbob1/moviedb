@@ -8,4 +8,5 @@ create keyspace moviedb_test with strategy_class='org.apache.cassandra.locator.S
 
 cqlsh create tables
 
-create columnfamily movies (title varchar PRIMARY KEY, description varchar, watched boolean, version int, created_at timestamp, updated_at timestamp);
+create columnfamily movies (KEY varchar PRIMARY KEY, title varchar, description varchar, watched boolean, version int, created_at timestamp, updated_at timestamp);
+CREATE INDEX movies_title_idx ON movies (title);
