@@ -20,6 +20,7 @@ gem 'cassandra-cql'
 gem 'therubyracer'
 gem 'cassandra-cql'
 gem 'uuid'
+gem 'active_attr'
 
 # To use ActiveModel has_secure_password
 # gem 'bcrypt-ruby', '~> 3.0.0'
