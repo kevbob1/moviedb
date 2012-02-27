@@ -4,9 +4,15 @@ Run "rake doc:app" to generate API documentation for your models, controllers, h
 
 cqlsh create keyspaces
 
+
+drop keyspace moviedb_test;
+drop keyspace moviedb_development;
 create keyspace moviedb_test with strategy_class='org.apache.cassandra.locator.SimpleStrategy' and strategy_options:replication_factor=1;
+create keyspace moviedb_development with strategy_class='org.apache.cassandra.locator.SimpleStrategy' and strategy_options:replication_factor=1;
+
 
 cqlsh create tables
 
+use moviedb_test;
 create columnfamily movies (KEY varchar PRIMARY KEY, title varchar, description varchar, watched boolean, version int, created_at timestamp, updated_at timestamp);
 CREATE INDEX movies_title_idx ON movies (title);
