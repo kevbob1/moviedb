@@ -15,6 +15,7 @@ group :assets do
 end
 
 gem 'jquery-rails'
+gem 'gritter'
 gem 'cassandra-cql', '~> 1.0.0'
 gem 'mustang'
 gem 'uuid'
