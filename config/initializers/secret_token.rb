@@ -4,4 +4,4 @@
 # If you change this key, all old signed cookies will become invalid!
 # Make sure the secret is at least 30 characters and all random,
 # no regular words or you'll be exposed to dictionary attacks.
-Moviedb::Application.config.secret_token = '9f634205a9217c6b0d31095f030d5b8f7685fd37a63619bda897208d2753f21acfbbc327fd68bc08ed9c890fa35e096ba911eb5c6fee60ca5864d020e9df5dee'
+Moviedb::Application.config.secret_token = '9ed83a4edf1a6229ffb9245e81a3faa2efa1ca6d45ebbb0416453c04de406fb9570b09db32646df18df166bbd0708770e9bd8d0c842e5e45e9cd4d30daa8154a'
