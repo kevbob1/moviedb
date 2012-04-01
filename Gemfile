@@ -20,6 +20,8 @@ gem 'cassandra-cql', '~> 1.0.0'
 gem 'mustang'
 gem 'uuid'
 gem 'active_attr'
+gem "private_pub"
+
 
 # To use ActiveModel has_secure_password
 # gem 'bcrypt-ruby', '~> 3.0.0'

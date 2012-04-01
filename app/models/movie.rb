@@ -1,6 +1,8 @@
 class Movie
   include ActiveAttr::Model
   
+	self.include_root_in_json = false
+	
   attribute :title
   attribute :description
   attribute :watched
