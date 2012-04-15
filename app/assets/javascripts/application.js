@@ -13,5 +13,17 @@
 //= require jquery
 //= require jquery_ujs
 //= require gritter
-//= require private_pub
+// require private_pub
 //= require_tree .
+
+/* for the light (white) version of the gritter notice */
+.gritter-light .gritter-item,
+.gritter-light .gritter-bottom,
+.gritter-light .gritter-top,
+.gritter-close {
+    background-image: url(../images/gritter-light.png);
+    color: #222;
+}
+.gritter-light .gritter-title {
+    text-shadow: none;
+}

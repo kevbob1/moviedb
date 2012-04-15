@@ -10,6 +10,7 @@ group :assets do
 
   # See https://github.com/sstephenson/execjs#readme for more supported runtimes
   # gem 'therubyracer'
+  gem 'therubyrhino'
 
   gem 'uglifier', '>= 1.0.3'
 end
@@ -17,10 +18,9 @@ end
 gem 'jquery-rails'
 gem 'gritter'
 gem 'cassandra-cql', '~> 1.0.0'
-gem 'mustang'
 gem 'uuid'
 gem 'active_attr'
-gem "private_pub"
+gem 'jruby-openssl'
 
 
 # To use ActiveModel has_secure_password
@@ -28,8 +28,9 @@ gem "private_pub"
 
 # Use unicorn as the web server
 #gem 'unicorn'
-gem 'thin'
+#gem 'jruby-rack-standalone-jetty'
 #gem 'mongrel'
+gem 'trinidad'
 
 # Deploy with Capistrano
 # gem 'capistrano'
