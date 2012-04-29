@@ -13,5 +13,4 @@
 //= require jquery
 //= require jquery_ujs
 //= require gritter
-//= require private_pub
 //= require_tree .
