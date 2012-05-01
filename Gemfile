@@ -1,6 +1,6 @@
 source 'http://rubygems.org'
 
-gem 'rails', '3.2.2'
+gem 'rails', '~> 3.2.3'
 
 # Gems used only for assets and not required
 # in production environments by default.
@@ -9,15 +9,18 @@ group :assets do
   gem 'coffee-rails', '~> 3.2.1'
 
   # See https://github.com/sstephenson/execjs#readme for more supported runtimes
-  # gem 'therubyracer'
-
+  gem 'therubyracer'
+	# gem 'mustang'
   gem 'uglifier', '>= 1.0.3'
+	gem 'jquery-bootstrap-rails', :git => 'http://github.com/seyhunak/jquery-bootstrap-rails.git'
+	
 end
 
 gem 'jquery-rails'
+gem "twitter-bootstrap-rails"
 gem 'gritter'
 gem 'cassandra-cql', '~> 1.0.0'
-gem 'mustang'
+
 gem 'uuid'
 gem 'active_attr'
 
