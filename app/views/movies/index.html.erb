@@ -3,25 +3,24 @@
 <table>
   <tr>
     <th>Title</th>
-    <th>Description</th>
+		<th>Description</th>
     <th>Watched</th>
-    <th>Created At</th>
     <th>Updated At</th>
     <th>Version</th>
+		<th>Actions</th>
   </tr>
 
 <% @movies.each do |movie| %>
   <tr>
     <td><%= movie.title %></td>
-    <td><%= movie.description %></td>
-    <td><%= (movie.watched) ? 'true' : 'false' %></td>
-    <td><%= movie.created_at %></td>
-    <td><%= movie.updated_at %></td>
 
+		<td><%= movie.description %></td>
+    <td><%= (movie.watched) ? 'true' : 'false' %></td>
+    <td><%= movie.updated_at %></td>
     <td><%= movie.version %></td>
-    <td><%= link_to 'Show', movie_path(movie.id) %></td>
-    <td><%= link_to 'Edit', edit_movie_path(movie.id) %></td>
-    <td><%= link_to 'Destroy', movie_path(movie.id), :confirm => 'Are you sure?', :method => :delete %></td>
+    <td><%= link_to 'Show', movie_path(movie.id) %>,
+    <%= link_to 'Edit', edit_movie_path(movie.id) %>,
+    <%= link_to 'Destroy', movie_path(movie.id), :confirm => 'Are you sure?', :method => :delete %></td>
   </tr>
 <% end %>
 </table>

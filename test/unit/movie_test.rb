@@ -7,6 +7,27 @@ class MovieTest < ActiveSupport::TestCase
     @model = Movie.new
   end
   
+	test 'find by title' do
+		
+		@model.title = "test1"
+		@model.description = "test1"
+		@model.watched = false
+		@model.save
+		
+		@model.title = "test2"
+		@model.description = "test2"
+		@model.watched = false
+		@model.save
+		@model.title = "test3"
+		@model.description = "test3"
+		@model.watched = false
+		@model.save
+		
+		models = Movie.find_by_title "test"
+		assert_equal 3, models.size
+	end
+	
+	
   test 'create destroy' do
     @model.title = 'test1'
     @model.description = 'test1'

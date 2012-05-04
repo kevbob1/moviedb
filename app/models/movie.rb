@@ -41,7 +41,7 @@ class Movie
   def self.find_by_title title
     results = []
     
-    connection.execute("SELECT * FROM movies WHERE title LIKE ?", "#{title}%").fetch do |row|
+    connection.execute("SELECT * FROM movies WHERE 'title' LIKE ?", "#{title}%").fetch do |row|
       # avoid returning ghost rows by checking one of the required column values
       next if row["version"].nil?
       movie = Movie.from_store(row)
@@ -52,7 +52,7 @@ class Movie
 
   def self.find id
     
-    row = connection.execute("SELECT * FROM movies WHERE KEY = ?", id).fetch
+    row = connection.execute("SELECT * FROM movies WHERE 'KEY' = ?", id).fetch
     return nil if row.nil?
 
     # avoid returning ghost rows by checking one of the required column values
@@ -105,7 +105,7 @@ class Movie
       self.id = UUID.generate(:compact)
     end
     
-    self.class.connection.execute("INSERT INTO movies (KEY, title, description, watched, version, created_at, updated_at)
+    self.class.connection.execute("INSERT INTO movies ('KEY', 'title', 'description', 'watched', 'version', 'created_at', 'updated_at')
            VALUES (?, ?, ?, ?, ?, ?, ?)", self.id, self.title, self.description, self.watched, self.version, self.created_at, self.updated_at)
     self.new_record = false
     true

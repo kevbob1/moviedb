@@ -6,3 +6,7 @@
  *= require gritter
  *= require_tree . 
 */
+
+footer {
+	margin-top: 20px;
+}

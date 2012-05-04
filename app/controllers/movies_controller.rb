@@ -2,7 +2,12 @@ class MoviesController < ApplicationController
   # GET /movies
   # GET /movies.json
   def index
-    @movies = Movie.all
+
+		if !params[:s].blank?
+			@movies = Movie.find_by_title params[:s]
+		else
+	    @movies = Movie.all
+		end
 
     respond_to do |format|
       format.html # index.html.erb
@@ -10,7 +15,7 @@ class MoviesController < ApplicationController
       format.xml { render :xml => @movies }
     end
   end
-
+	
   # GET /movies/1
   # GET /movies/1.json
   def show
