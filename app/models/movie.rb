@@ -1,6 +1,8 @@
 class Movie
   include ActiveAttr::Model
   
+  ALL_LIMIT = 50
+  
 	self.include_root_in_json = false
 	
   attribute :title
@@ -26,11 +28,16 @@ class Movie
   
   def self.from_store(row)
     row = row.to_hash
+    
+    my_created_at = row.delete('created_at')
+    my_updated_at = row.delete('updated_at')
+    my_version = row.delete('version')
+    
     movie = Movie.new(row) do |m|
-      m.version = row["version"]
+      m.version = my_version
       m.id = row["KEY"]
-      m.created_at = row["created_at"]
-      m.updated_at = row["updated_at"]
+      m.created_at = my_created_at
+      m.updated_at = my_updated_at
     end
     movie.new_record = false
     return movie
@@ -41,9 +48,12 @@ class Movie
   def self.find_by_title title
     results = []
     
-    connection.execute("SELECT * FROM movies WHERE 'title' LIKE ?", "#{title}%").fetch do |row|
+    # Column Family Scan alert
+    connection.execute("SELECT * FROM movies").fetch do |row|
       # avoid returning ghost rows by checking one of the required column values
       next if row["version"].nil?
+      next if row["title"].nil?
+      next unless row["title"].start_with?(title)
       movie = Movie.from_store(row)
       results << movie
     end
@@ -60,10 +70,15 @@ class Movie
     return Movie.from_store(row)
   end
     
-  def self.all
+  def self.all(limit = nil)
     results = []
     
-    connection.execute("SELECT * FROM movies").fetch do |row|
+    cql = "SELECT * FROM movies"
+    if !limit.nil?
+      cql += " LIMIT #{limit}"
+    end
+      
+    connection.execute(cql).fetch do |row|
       next if row["version"].nil?      
       results << Movie.from_store(row)
     end
@@ -73,6 +88,12 @@ class Movie
 
   def self.count
     return all.size
+  end
+  
+  def self.delete_all
+    self.all.each do |m|
+      m.destroy
+    end
   end
   
   # instance methods

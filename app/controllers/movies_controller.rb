@@ -6,7 +6,7 @@ class MoviesController < ApplicationController
 		if !params[:s].blank?
 			@movies = Movie.find_by_title params[:s]
 		else
-	    @movies = Movie.all
+	    @movies = Movie.all(Movie::ALL_LIMIT)
 		end
 
     respond_to do |format|

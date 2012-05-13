@@ -1,2 +1,7 @@
 <h1>Movie Database</h1>
-<p><%= link_to 'Go To Movies', :controller => :movies %></p>
+<p>
+Title Search:<%= form_tag({:controller => 'movies', :action => 'index'}, :method => 'get') %>
+  <%= text_field_tag('s', nil, :size => 30) %>
+</form>
+</p>
+<p><%= link_to('Browse list of Movies', :controller => :movies) %></p>

@@ -5,6 +5,8 @@ class MovieTest < ActiveSupport::TestCase
   
   def setup
     @model = Movie.new
+    
+    Movie.delete_all
   end
   
 	test 'find by title' do
@@ -13,11 +15,14 @@ class MovieTest < ActiveSupport::TestCase
 		@model.description = "test1"
 		@model.watched = false
 		@model.save
-		
+
+    @model = Movie.new
 		@model.title = "test2"
 		@model.description = "test2"
 		@model.watched = false
 		@model.save
+
+    @model = Movie.new
 		@model.title = "test3"
 		@model.description = "test3"
 		@model.watched = false
