@@ -19,7 +19,7 @@ end
 gem 'jquery-rails'
 gem "twitter-bootstrap-rails"
 gem 'gritter'
-gem 'cassandra-cql', '~> 1.0.0'
+gem 'cassandra-cql'
 
 gem 'uuid'
 gem 'active_attr'
@@ -31,7 +31,6 @@ gem 'active_attr'
 # Use unicorn as the web server
 #gem 'unicorn'
 gem 'thin'
-#gem 'mongrel'
 
 # Deploy with Capistrano
 # gem 'capistrano'
