@@ -19,6 +19,15 @@ class Movie
   attr_protected :updated_at
   
   validates_presence_of :title
+  
+  def title_idx
+    if !title.nil?
+      title[0..1].upcase
+    else
+      nil
+    end
+  end
+  
 
   def self.connection
     CASSANDRA_CONNECTION
@@ -28,6 +37,7 @@ class Movie
   
   def self.from_store(row)
     row = row.to_hash
+    puts row.inspect
     
     my_created_at = row.delete('created_at')
     my_updated_at = row.delete('updated_at')
@@ -35,7 +45,7 @@ class Movie
     
     movie = Movie.new(row) do |m|
       m.version = my_version
-      m.id = row["KEY"]
+      m.id = row["id"]
       m.created_at = my_created_at
       m.updated_at = my_updated_at
     end
@@ -49,6 +59,7 @@ class Movie
     results = []
     
     # Column Family Scan alert
+    raise "convert to movies_title_idx search"
     connection.execute("SELECT * FROM movies").fetch do |row|
       # avoid returning ghost rows by checking one of the required column values
       next if row["version"].nil?
@@ -62,7 +73,7 @@ class Movie
 
   def self.find id
     
-    row = connection.execute("SELECT * FROM movies WHERE 'KEY' = ?", id).fetch
+    row = connection.execute("SELECT * FROM movies WHERE id = ?", id).fetch
     return nil if row.nil?
 
     # avoid returning ghost rows by checking one of the required column values
@@ -123,18 +134,21 @@ class Movie
       self.updated_at = Time.now
       self.created_at = Time.now
       self.version = 1
-      self.id = UUID.generate(:compact)
+      self.id = UUID.generate
     end
-    
-    self.class.connection.execute("INSERT INTO movies ('KEY', 'title', 'description', 'watched', 'version', 'created_at', 'updated_at')
+    raise "for update make sure we are removing the old title idx"
+    self.class.connection.execute("INSERT INTO movies ('id', 'title', 'description', 'watched', 'version', 'created_at', 'updated_at')
            VALUES (?, ?, ?, ?, ?, ?, ?)", self.id, self.title, self.description, self.watched, self.version, self.created_at, self.updated_at)
+    self.class.connection.execute("INSERT INTO movies_title_idx ('idx', 'title', 'id') VALUES (?, ?, ?)", self.title_idx, self.title, self.id)
     self.new_record = false
     true
   end
   
   def destroy
     return if self.new_record?
-    self.class.connection.execute("DELETE FROM movies WHERE KEY = ?", self.id)
+    self.class.connection.execute("DELETE FROM movies WHERE id = ?", self.id)
+    self.class.connection.execute("DELETE FROM movies_title_idx WHERE idx = ? AND title = ? AND id= ?", self.title_idx, self.title, self.id)
+
     self.id = nil
     self.new_record = true
     self.version = nil

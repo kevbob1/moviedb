@@ -6,27 +6,33 @@ class MovieTest < ActiveSupport::TestCase
   def setup
     @model = Movie.new
     
-    Movie.delete_all
+#    raise "need to load test fixtures"
+    
+  end
+  
+  test 'find by id' do
+    @model = Movie.find '61aa82d0-5ae1-0130-3e61-0015c5cb5473'
+    assert_equal 'Free Whilly', @model.title
   end
   
 	test 'find by title' do
 		
-		@model.title = "test1"
-		@model.description = "test1"
-		@model.watched = false
-		@model.save
-
-    @model = Movie.new
-		@model.title = "test2"
-		@model.description = "test2"
-		@model.watched = false
-		@model.save
-
-    @model = Movie.new
-		@model.title = "test3"
-		@model.description = "test3"
-		@model.watched = false
-		@model.save
+		# @model.title = "test1"
+		# @model.description = "test1"
+		# @model.watched = false
+		# @model.save
+# 
+    # @model = Movie.new
+		# @model.title = "test2"
+		# @model.description = "test2"
+		# @model.watched = false
+		# @model.save
+# 
+    # @model = Movie.new
+		# @model.title = "test3"
+		# @model.description = "test3"
+		# @model.watched = false
+		# @model.save
 		
 		models = Movie.find_by_title "test"
 		assert_equal 3, models.size

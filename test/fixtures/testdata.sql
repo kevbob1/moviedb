@@ -1,0 +1,18 @@
+truncate movies;
+TRUNCATE movies_title_idx;
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('ed32bcd0-5adf-0130-3e61-0015c5cb5473', 'Rush Hour', 'Rush Hour', false, 1, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('206a3120-5ae0-0130-3e61-0015c5cb5473', 'Rush Hour 2', 'Rush Hour 2', true, 2, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('211fbe80-5ae0-0130-3e61-0015c5cb5473', 'Forrest Gump', 'Forrest Gump', true, 2, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('21a62ca0-5ae0-0130-3e61-0015c5cb5473', 'Police Academy 1', 'Police Academy 1', true, 2, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('6139c360-5ae1-0130-3e61-0015c5cb5473', 'Ratatouille', 'Ratatouille', false, 2, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('61aa82d0-5ae1-0130-3e61-0015c5cb5473', 'Free Willie', 'Free Willie', false, 3, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('62225170-5ae1-0130-3e61-0015c5cb5473', 'House of Cards', 'House of Cards', true, 3, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies (id, title, description, watched, version, created_at, updated_at) VALUES('628f5c50-5ae1-0130-3e61-0015c5cb5473', 'Poland Under Fire', 'Poland Under Fire', true, 1, '2011-02-03 04:05+0000', '2011-02-03 04:05+0000');
+insert into movies_title_idx (idx, title, id) VALUES('RU', 'Rush Hour', 'ed32bcd0-5adf-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('RU', 'Rush Hour 2', '206a3120-5ae0-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('FO', 'Forrest Gump', '211fbe80-5ae0-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('PO', 'Police Academy 1', '21a62ca0-5ae0-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('RA', 'Ratatouille', '6139c360-5ae1-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('FR', 'Free Willie', '61aa82d0-5ae1-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('HO', 'House of Cards', '62225170-5ae1-0130-3e61-0015c5cb5473');
+insert into movies_title_idx (idx, title, id) VALUES('PO', 'Poland Under Fire', '628f5c50-5ae1-0130-3e61-0015c5cb5473');

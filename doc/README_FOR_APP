@@ -15,7 +15,8 @@ CREATE KEYSPACE moviedb_development WITH replication = {'class':'SimpleStrategy'
 cqlsh create tables
 
 use moviedb_test;
-create TABLE movies (KEY varchar PRIMARY KEY, title varchar, description varchar, watched boolean, version int, created_at timestamp, updated_at timestamp);
-#CREATE INDEX movies_title_idx ON movies (title);
+create TABLE movies (id uuid, title varchar, description varchar, watched boolean, version int, created_at timestamp, updated_at timestamp, primary key (id));
 
-create TABLE 
+
+create TABLE movies_title_idx (idx varchar, title varchar, id uuid, primary key (idx, title, id));
+
