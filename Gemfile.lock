@@ -7,6 +7,15 @@ GIT
       jquery-rails (~> 1.0)
       railties
 
+GIT
+  remote: https://github.com/ottbot/cassandra-cql.git
+  revision: 93220bb9bc805ba75c883a2456866d8ca28f51f5
+  branch: master-1.2
+  specs:
+    cassandra-cql (1.1.5)
+      simple_uuid (>= 0.2.0)
+      thrift_client (>= 0.7.1, < 0.9)
+
 GEM
   remote: http://rubygems.org/
   specs:
@@ -42,9 +51,6 @@ GEM
       multi_json (~> 1.0)
     arel (3.0.2)
     builder (3.0.4)
-    cassandra-cql (1.1.99)
-      simple_uuid (>= 0.2.0)
-      thrift_client (>= 0.7.1, < 0.9)
     coffee-rails (3.2.2)
       coffee-script (>= 2.2.0)
       railties (~> 3.2.0)
@@ -144,7 +150,7 @@ PLATFORMS
 
 DEPENDENCIES
   active_attr
-  cassandra-cql (= 1.1.99)
+  cassandra-cql!
   coffee-rails (~> 3.2.1)
   gritter
   jquery-bootstrap-rails!

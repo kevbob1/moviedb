@@ -19,7 +19,7 @@ end
 gem 'jquery-rails'
 gem "twitter-bootstrap-rails"
 gem 'gritter'
-gem 'cassandra-cql', '1.1.99'
+gem 'cassandra-cql', :require => 'cassandra-cql/1.2', :git => "https://github.com/ottbot/cassandra-cql.git", :branch => "master-1.2"
 
 gem 'uuid'
 gem 'active_attr'
