@@ -20,12 +20,16 @@ class Movie
   
   validates_presence_of :title
   
-  def title_idx
+  def self.to_title_idx(title)
     if !title.nil?
       title[0..1].upcase
     else
       nil
     end
+  end
+  
+  def title_idx
+    self.class.to_title_idx(self.title)
   end
   
 
@@ -37,7 +41,6 @@ class Movie
   
   def self.from_store(row)
     row = row.to_hash
-    puts row.inspect
     
     my_created_at = row.delete('created_at')
     my_updated_at = row.delete('updated_at')
@@ -45,7 +48,7 @@ class Movie
     
     movie = Movie.new(row) do |m|
       m.version = my_version
-      m.id = row["id"]
+      m.id = row["id"].to_guid
       m.created_at = my_created_at
       m.updated_at = my_updated_at
     end
@@ -55,27 +58,31 @@ class Movie
   
   public
   
-  def self.find_by_title title
+  def self.find_by_title title_part
+    title_idx = to_title_idx(title_part)
+    title_part_up = title_part.upcase
     results = []
     
-    # Column Family Scan alert
-    raise "convert to movies_title_idx search"
-    connection.execute("SELECT * FROM movies").fetch do |row|
+    # search index for match
+    # should match 
+    connection.execute("SELECT * FROM movies_title_idx where idx = ?", title_idx).fetch do |idx_row|
       # avoid returning ghost rows by checking one of the required column values
-      next if row["version"].nil?
-      next if row["title"].nil?
-      next unless row["title"].start_with?(title)
-      movie = Movie.from_store(row)
-      results << movie
+      next if idx_row["title"].nil?
+      
+      next unless (idx_row["title"].upcase.starts_with?(title_part_up))
+
+      # N+1 problem here.  joins are not supported, so the only way to get
+      # movie rows is to fetch them one by one.      
+      results << self.find(idx_row["id"].to_guid)
     end
     return results
   end
 
-  def self.find id
-    
+  def self.find(id)
+    puts "find for #{id}"
     row = connection.execute("SELECT * FROM movies WHERE id = ?", id).fetch
     return nil if row.nil?
-
+    puts "row found: #{row.to_hash.inspect}"
     # avoid returning ghost rows by checking one of the required column values
     return nil if row["version"].nil?
     return Movie.from_store(row)
@@ -91,7 +98,7 @@ class Movie
       
     connection.execute(cql).fetch do |row|
       next if row["version"].nil?      
-      results << Movie.from_store(row)
+      results << from_store(row)
     end
     
     return results
@@ -136,18 +143,26 @@ class Movie
       self.version = 1
       self.id = UUID.generate
     end
-    raise "for update make sure we are removing the old title idx"
-    self.class.connection.execute("INSERT INTO movies ('id', 'title', 'description', 'watched', 'version', 'created_at', 'updated_at')
-           VALUES (?, ?, ?, ?, ?, ?, ?)", self.id, self.title, self.description, self.watched, self.version, self.created_at, self.updated_at)
-    self.class.connection.execute("INSERT INTO movies_title_idx ('idx', 'title', 'id') VALUES (?, ?, ?)", self.title_idx, self.title, self.id)
+    self.class.connection.execute("INSERT INTO movies ('id', 'title', 'description', 'watched', 'version', 'created_at', 'updated_at') VALUES(?, ?, ?, ?, ?, ?, ?)", self.id, self.title, self.description, self.watched, self.version, self.created_at, self.updated_at)
+    self.remove_index
+    self.class.connection.execute("INSERT INTO movies_title_idx ('idx', 'title', 'id', 'idx2') VALUES (?, ?, ?, ?)", self.title_idx, self.title, self.id, self.id)
     self.new_record = false
     true
+  end
+  
+  def remove_index
+
+    row = connection.execute("SELECT * FROM movies_title_idx WHERE id2 = ?", self.id).fetch
+    return nil if row.nil?
+
+    self.class.connection.execute("DELETE FROM movies_title_idx WHERE idx = ? AND title = ? AND id= ?", row["idx"], row["title"], self.id)
+    
   end
   
   def destroy
     return if self.new_record?
     self.class.connection.execute("DELETE FROM movies WHERE id = ?", self.id)
-    self.class.connection.execute("DELETE FROM movies_title_idx WHERE idx = ? AND title = ? AND id= ?", self.title_idx, self.title, self.id)
+    self.remove_index
 
     self.id = nil
     self.new_record = true
@@ -159,5 +174,4 @@ class Movie
     assign_attributes attrs
     save
   end
-  
 end
