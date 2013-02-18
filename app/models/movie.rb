@@ -79,10 +79,8 @@ class Movie
   end
 
   def self.find(id)
-    puts "find for #{id}"
     row = connection.execute("SELECT * FROM movies WHERE id = ?", id).fetch
     return nil if row.nil?
-    puts "row found: #{row.to_hash.inspect}"
     # avoid returning ghost rows by checking one of the required column values
     return nil if row["version"].nil?
     return Movie.from_store(row)
@@ -143,16 +141,15 @@ class Movie
       self.version = 1
       self.id = UUID.generate
     end
-    self.class.connection.execute("INSERT INTO movies ('id', 'title', 'description', 'watched', 'version', 'created_at', 'updated_at') VALUES(?, ?, ?, ?, ?, ?, ?)", self.id, self.title, self.description, self.watched, self.version, self.created_at, self.updated_at)
+    self.class.connection.execute("INSERT INTO movies (id, title, description, watched, version, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?)", self.id, self.title, self.description, self.watched, self.version, self.created_at, self.updated_at)
     self.remove_index
-    self.class.connection.execute("INSERT INTO movies_title_idx ('idx', 'title', 'id', 'idx2') VALUES (?, ?, ?, ?)", self.title_idx, self.title, self.id, self.id)
+    self.class.connection.execute("INSERT INTO movies_title_idx (idx, title, id, id2) VALUES (?, ?, ?, ?)", self.title_idx, self.title, self.id, self.id)
     self.new_record = false
     true
   end
   
   def remove_index
-
-    row = connection.execute("SELECT * FROM movies_title_idx WHERE id2 = ?", self.id).fetch
+    row = self.class.connection.execute("SELECT * FROM movies_title_idx WHERE id2 = ?", self.id).fetch
     return nil if row.nil?
 
     self.class.connection.execute("DELETE FROM movies_title_idx WHERE idx = ? AND title = ? AND id= ?", row["idx"], row["title"], self.id)

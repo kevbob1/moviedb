@@ -20,3 +20,5 @@ create TABLE movies (id uuid, title varchar, description varchar, watched boolea
 create TABLE movies_title_idx (idx varchar, title varchar, id uuid, id2 uuid, primary key (idx, title, id));
 create INDEX movies_title_idx_id2 ON movies_title_idx (id2);
 
+
+create TABLE testme (id int, created_at timestamp, primary key (id));

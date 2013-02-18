@@ -12,7 +12,7 @@ class MovieTest < ActiveSupport::TestCase
   
   test 'find by id' do
     @model = Movie.find '61aa82d0-5ae1-0130-3e61-0015c5cb5473'
-    assert_equal 'Free Whilly', @model.title
+    assert_equal 'Free Willie', @model.title
   end
   
 	test 'find by title' do
@@ -34,8 +34,8 @@ class MovieTest < ActiveSupport::TestCase
 		# @model.watched = false
 		# @model.save
 		
-		models = Movie.find_by_title "test"
-		assert_equal 3, models.size
+		models = Movie.find_by_title "Rush"
+		assert_equal 2, models.size
 	end
 	
 	
