@@ -13,6 +13,7 @@ group :assets do
 	# gem 'mustang'
   gem 'uglifier', '>= 1.0.3'
 	gem 'jquery-bootstrap-rails', :git => 'http://github.com/seyhunak/jquery-bootstrap-rails.git'
+  gem 'less-rails'
 	
 end
 

@@ -6,6 +6,7 @@
 development:
   host: "127.0.0.1:9160"
   keyspace: moviedb_development
+  cql_version: 3.0.0
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
@@ -13,7 +14,9 @@ development:
 test:
   host: "127.0.0.1:9160"
   keyspace: moviedb_test
+  cql_version: 3.0.0
 
 production:
   host: "127.0.0.1:9160"
   keyspace: moviedb_production
+  cql_version: 3.0.0
