@@ -1,6 +1,6 @@
 require 'test_helper'
 
-class MovieTest < ActiveSupport::TestCase
+class TransactionTest < ActiveSupport::TestCase
   include ActiveModel::Lint::Tests
   
   def setup
@@ -11,7 +11,7 @@ class MovieTest < ActiveSupport::TestCase
   end
   
   test 'find by id' do
-    @model = Movie.find '61aa82d0-5ae1-0130-3e61-0015c5cb5473'
+    @model = Transaction.find '61aa82d0-5ae1-0130-3e61-0015c5cb5473'
     assert_equal 'Free Willie', @model.title
   end
   
@@ -55,20 +55,5 @@ class MovieTest < ActiveSupport::TestCase
     mymodel = Movie.find saved_key
 
     assert_nil mymodel
-  end
-
-  test 'update increments version' do
-    @model.title = 'test1'
-    @model.description = 'test1'
-    @model.watched = false
-
-    assert @model.save
-    
-    assert_equal(1, @model.version)
-    
-    @model.description = "test22"
-    @model.save
-    assert_equal(2, @model.version)
-    @model.destroy
   end
 end
