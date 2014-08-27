@@ -1,0 +1,5 @@
+
+shim:
+  'gritter':
+    deps: ['jquery']
+    exports: '$'
