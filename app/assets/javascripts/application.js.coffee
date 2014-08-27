@@ -1,2 +1,2 @@
 
-require ['jquery', 'underscore', 'backbone', 'tpl'], ($, _, Backbone, tpl) ->
+require ['jquery', 'underscore', 'backbone', 'tpl', 'gritter'], ($, _, Backbone, tpl, gritter_) ->
