@@ -4,7 +4,7 @@
 #   Ensure the SQLite 3 gem is defined in your Gemfile
 #   gem 'sqlite3'
 development:
-  host: "127.0.0.1:9160"
+  host: <%= ENV['CASSANDRA_HOSTPORT'] %>
   keyspace: moviedb_development
   cql_version: 3.0.0
 
@@ -17,6 +17,6 @@ test:
   cql_version: 3.0.0
 
 production:
-  host: "127.0.0.1:9160"
-  keyspace: moviedb_production
+  host: <%= ENV['CASSANDRA_HOSTPORT'] %>
+  keyspace: moviedb_development
   cql_version: 3.0.0
