@@ -13,11 +13,6 @@ class Movie
   attribute :created_at
   attribute :updated_at
 
-  attr_protected :id
-  attr_protected :version
-  attr_protected :created_at
-  attr_protected :updated_at
-  
   validates_presence_of :title
   
   def self.to_title_idx(title)

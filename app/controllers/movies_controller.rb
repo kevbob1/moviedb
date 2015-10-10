@@ -110,4 +110,8 @@ class MoviesController < ApplicationController
       format.xml { head :ok }
     end
   end
+  
+	def movie_params
+		mv = params[:movie].permit(:title, :description, :watched)
+	end
 end
