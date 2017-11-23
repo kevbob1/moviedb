@@ -1,18 +1,16 @@
 require 'sequent'
-# require_relative '../../app/lib/command_handlers'
-# require_relative '../../app/lib/event_handlers'
 
 Sequent.configure do |config|
   ### App configurations
 
   # Command handler classes
-  config.command_handlers = [InvoiceCommandHandler.new]
+  config.command_handlers = [MovieCommandHandler.new]
 
   # Optional filters, can be used to do for instance security checks.
   config.command_filters = []
 
   # Event handler classes
-  config.event_handlers = [InvoiceProjector.new]
+  config.event_handlers = [MovieProjector.new]
 
 
   #### Configured by default but can be overridden:
