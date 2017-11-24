@@ -14,13 +14,13 @@ class MovieController < ApplicationController
 
     begin
       Sequent.command_service.execute_commands(@command)
-      redirect_to invoice_index_path
+      redirect_to movie_index_path
     rescue Sequent::Core::CommandNotValid
       render :new # render same page and display error
     end
   end
 
   def create_movie_params
-    params.require(:create_movie).permit(:aggregate_id, :amount, recipient: [:name])
+    params.require(:create_movie).permit(:aggregate_id, :name, :description)
   end
 end

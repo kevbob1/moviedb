@@ -8,7 +8,7 @@
   <div class="panel-body">
     <ul>
     <% MovieRecord.all.each do |movie| %>
-      <li><%= h movie.recipient_name %> is invoiced for EUR <%= invoice.amount %>
+      <li><%= h movie.name %> is described as <%= movie.description %>
     <% end %>
     </ul>
   </div>

@@ -6,7 +6,6 @@ require 'rails/all'
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
-require_relative './sequent_app'
 
 module Moviedb
   class Application < Rails::Application
