@@ -1,0 +1,16 @@
+<h1>Index</h1>
+<a href="<%= new_movie_path %>">New movie</a>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">View state build by the MovieProjector</h3>
+  </div>
+  <div class="panel-body">
+    <ul>
+    <% MovieRecord.all.each do |movie| %>
+      <li><%= h movie.recipient_name %> is invoiced for EUR <%= invoice.amount %>
+    <% end %>
+    </ul>
+  </div>
+</div>
+
