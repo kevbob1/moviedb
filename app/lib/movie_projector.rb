@@ -8,4 +8,10 @@ class MovieProjector < Sequent::Core::Projector
     )
   end
 
+  on MovieEdited do |event|
+    update_record(MovieRecord, event) do |record|
+      record.name = event.name
+      record.description = event.description
+    end
+  end
 end

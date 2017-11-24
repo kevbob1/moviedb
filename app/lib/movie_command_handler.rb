@@ -6,7 +6,13 @@ class MovieCommandHandler <  Sequent::Core::BaseCommandHandler
 					command.name,
 					command.description
 				)
-			end	
+	end	
 	
+	on EditMovie do |command|
+
+		do_with_aggregate(command, Movie) do |movie|
+			movie.edit(command.name, command.description)
+		end
+	end
 	
 end

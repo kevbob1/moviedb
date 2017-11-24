@@ -5,6 +5,10 @@ class Movie < Sequent::Core::AggregateRoot
     apply MovieCreated, name: name, description: description
   end
 
+  def edit(name, description)
+    apply MovieEdited, name: name, description: description 
+  end
+
   def load_from_history(stream, events)
     raise "Empty history" if events.empty?
     super
@@ -21,6 +25,11 @@ class Movie < Sequent::Core::AggregateRoot
   private 
 
   on MovieCreated do |event|
+    @name = event.name
+    @description = event.description
+  end
+
+  on MovieEdited do |event|
     @name = event.name
     @description = event.description
   end

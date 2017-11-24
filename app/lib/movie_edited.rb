@@ -1,0 +1,4 @@
+
+class MovieEdited <  Sequent::Core::Event
+  attrs name: String, description: String
+end
