@@ -8,7 +8,7 @@
   <div class="panel-body">
     <ul>
     <% MovieRecord.all.each do |movie| %>
-      <li><%= h movie.name %> is described as <%= movie.description %>
+      <li><%= h movie.name %> is described as <%= movie.description %> <%= link_to 'Edit', edit_movie_path(id: movie.aggregate_id) %>
     <% end %>
     </ul>
   </div>

@@ -1,7 +1,7 @@
 namespace :sequent do
   begin
     require 'sequent/rake/tasks'
-    require_relative '../../config/sequent_app'
+    require File.expand_path('../../../config/environment',  __FILE__)
     Sequent::Rake::Tasks.new({
       db_config_supplier: SequentApp::DB_CONFIG,
       view_projection: SequentApp::VIEW_PROJECTION,
