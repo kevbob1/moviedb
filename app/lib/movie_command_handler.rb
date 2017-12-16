@@ -15,4 +15,10 @@ class MovieCommandHandler <  Sequent::Core::BaseCommandHandler
 		end
 	end
 	
+	on DeleteMovie do |command|
+		do_with_aggregate(command, Movie) do |movie|
+			movie.delete
+		end
+
+	end
 end

@@ -8,7 +8,9 @@
   <div class="panel-body">
     <ul>
     <% MovieRecord.all.each do |movie| %>
-      <li><%= h movie.name %> is described as <%= movie.description %> <%= link_to 'Edit', edit_movie_path(id: movie.aggregate_id) %>
+      <li><%= h movie.name %> is described as <%= movie.description %>
+          <%= link_to 'Edit', edit_movie_path(id: movie.aggregate_id) %>
+          <%= link_to 'Delete', movie_path(id: movie.aggregate_id), method: :delete, data: { confirm: 'Are you sure?' }  %>
     <% end %>
     </ul>
   </div>

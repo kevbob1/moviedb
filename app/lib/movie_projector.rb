@@ -14,4 +14,9 @@ class MovieProjector < Sequent::Core::Projector
       record.description = event.description
     end
   end
+
+  on MovieDeleted do |event|
+    movie = get_record(MovieRecord, aggregate_id: event.aggregate_id)
+    delete_record(MovieRecord, movie)
+  end
 end

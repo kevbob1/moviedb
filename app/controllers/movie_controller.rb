@@ -20,7 +20,7 @@ class MovieController < ApplicationController
   end
 
   def create
-    @command = CreateMovie.from_params(create_movie_params)
+    @command = CreatedMovie.from_params(create_movie_params)
 
     begin
       Sequent.command_service.execute_commands(@command)
@@ -41,6 +41,15 @@ class MovieController < ApplicationController
         end
   end
 
+  def destroy
+    @command = DeleteMovie.new(aggregate_id: params[:id])
+    #begin
+      Sequent.command_service.execute_commands(@command)
+      redirect_to movie_index_path
+    #rescue Sequent::Core::CommandNotValid
+    #  redirect_to movie_index_path
+    #end 
+  end
 
 
   def create_movie_params
@@ -50,5 +59,6 @@ class MovieController < ApplicationController
   def edit_movie_params
     params.require(:edit_movie).permit(:aggregate_id, :name, :description)
   end
+
 
 end
