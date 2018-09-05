@@ -1,0 +1,4 @@
+postgres=# create role moviedb with login password 'Askm6Z1QrV';
+CREATE ROLE
+postgres=# create database moviedb_production with owner moviedb;
+CREATE DATABASE

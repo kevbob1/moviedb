@@ -1,4 +1,4 @@
-require_relative '../config/sequent_app'
+require_relative '../config/initializers/sequent'
 
 Sequent::Support::ViewSchema.define(view_projection: SequentApp::VIEW_PROJECTION) do
   create_table :movie_records, :force => true do |t|
