@@ -20,7 +20,7 @@ class MovieController < ApplicationController
   end
 
   def create
-    @command = CreatedMovie.from_params(create_movie_params)
+    @command = CreateMovie.from_params(create_movie_params)
 
     begin
       Sequent.command_service.execute_commands(@command)

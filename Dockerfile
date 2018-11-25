@@ -13,8 +13,14 @@ RUN set -x \
        libv8-dev \
        postgresql-client \
        git \
+       curl \
+    && curl -sL -o node.sh https://deb.nodesource.com/setup_8.x \
+    && bash node.sh \
+    && apt-get install -y \
+        nodejs \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && npm install -g yarn
 
 # Copy the Gemfile as well as the Gemfile.lock and install
 # the RubyGems. This is a separate step so the dependencies
@@ -26,7 +32,9 @@ RUN gem install bundler && bundle install -j "$(getconf _NPROCESSORS_ONLN)" --re
 
 EXPOSE 3000
 ENV RAILS_ENV production
+ENV RAKE_ENV production
 ENV RAILS_SERVE_STATIC_FILES 1
+ENV RAILS_LOG_TO_STDOUT 1
 ENV SECRET_KEY_BASE 11c6e318ae5a254d7c41923d1518801d77ef3084cbe2d59c259e3bd1f01816fe64547f76ddd39df3ba55bb5afc5575326b676c69535828251d3ec1a49a65ce0a
 ADD . $APP_HOME
 RUN cd $APP_HOME

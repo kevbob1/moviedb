@@ -2,7 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: moviedb
+  labels:
+      app: moviedb
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: moviedb
   template:
     metadata:
       labels:
@@ -11,17 +17,20 @@ spec:
       containers:
       - name: moviedb
         imagePullPolicy: Never
-        image: moviedb:1
+        image: moviedb:7
         ports:
         - name: http
           containerPort: 3000
+        envFrom:
+          - configMapRef:
+              name: moviedb
         env:
-        - name: DB_USERNAME
+        - name: DATABASE_USERNAME
           valueFrom:
             secretKeyRef:
               name: moviedb
               key: db-username
-        - name: DB_PASSWORD
+        - name: DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
               name: moviedb
