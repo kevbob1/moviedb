@@ -14,10 +14,11 @@ spec:
       labels:
         app: moviedb
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: moviedb
-        imagePullPolicy: Never
-        image: moviedb:7
+        image: gitlab.pd.o:4567/drule/moviedb:9
         ports:
         - name: http
           containerPort: 3000

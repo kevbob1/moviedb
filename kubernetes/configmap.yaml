@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: moviedb
   labels:
-    app: postgres
+    app: moviedb
 data:
   DATABASE_DB: moviedb_production
   DATABASE_HOST: postgres.default.svc.cluster.local
