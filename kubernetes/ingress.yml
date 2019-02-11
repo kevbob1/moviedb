@@ -1,8 +1,0 @@
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: moviedb
-spec:
-  backend:
-    serviceName: moviedb
-    servicePort: 3000
