@@ -1,5 +1,5 @@
 
-class CreateMovie < Sequent::Core::Command
+class CreateMovie #< Sequent::Core::Command
   include MovieCommand
 
 	attrs name: String, description: String

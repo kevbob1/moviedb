@@ -1,3 +1,3 @@
 
-class MovieDeleted <  Sequent::Core::Event
+class MovieDeleted #<  Sequent::Core::Event
 end

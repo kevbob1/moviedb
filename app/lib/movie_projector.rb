@@ -1,4 +1,4 @@
-class MovieProjector < Sequent::Core::Projector
+class MovieProjector #< Sequent::Core::Projector
 	on MovieCreated do |event|
     create_record(
       MovieRecord,

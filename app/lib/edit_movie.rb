@@ -1,4 +1,4 @@
-class EditMovie < Sequent::Core::Command
+class EditMovie # < Sequent::Core::Command
   include MovieCommand
 
 	attrs name: String, description: String
