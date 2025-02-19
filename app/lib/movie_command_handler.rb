@@ -1,4 +1,4 @@
-class MovieCommandHandler <  Sequent::Core::BaseCommandHandler
+class MovieCommandHandler # <  Sequent::Core::BaseCommandHandler
 	on CreateMovie do |command|
 		
 				repository.add_aggregate Movie.new(
