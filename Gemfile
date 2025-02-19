@@ -1,10 +1,10 @@
 
 source 'https://rubygems.org'
-ruby '3.3.3'
+ruby '3.4.2'
 
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 7.1.0'
+gem 'rails', '~> 7.2.0'
 # Use postgresql as the database for Active Record
 gem 'pg'
 # Use Puma as the app server
@@ -16,7 +16,7 @@ gem 'sassc-rails'
 #gem 'uglifier'
 # See https://github.com/rails/execjs#readme for more supported runtimes
 #gem 'otherubyracer', platforms: :ruby
-gem 'concurrent-ruby', '1.3.4'
+gem 'concurrent-ruby'
 
 # Use CoffeeScript for .coffee assets and views
 #gem 'coffee-rails', '~> 4.2'
