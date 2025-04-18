@@ -1,3 +1,0 @@
-create role moviedb with login password 'Askm6Z1QrV';
-create database moviedb_production with owner moviedb;
-ALTER DATABASE moviedb_production SET search_path = view_1, public;

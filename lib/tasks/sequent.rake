@@ -1,2 +1,0 @@
-namespace :sequent do
-end
