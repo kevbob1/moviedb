@@ -8,6 +8,7 @@ default: &default
   # Alternatively, you can use '/' to use the whole source_path directory.
   # Notice that this is a relative path to source_path
   source_entry_path: packs
+  extract_css: true
 
   # If nested_entries is true, then we'll pick up subdirectories within the source_entry_path.
   # You cannot set this option to true if you set source_entry_path to '/'
@@ -78,7 +79,7 @@ development:
     # In that case, style-loader is not needed as a dependency.
     #
     # mini-css-extract-plugin is a required dependency in both cases.
-    inline_css: true
+    inline_css: false
     # Defaults to the inverse of hmr. Uncomment to manually set this.
     # live_reload: true
     client:
