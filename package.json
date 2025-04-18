@@ -1,0 +1,6 @@
+{
+  "packageManager": "yarn@4.9.1",
+  "name": "app",
+  "private": true,
+  "version": "0.1.0"
+}
