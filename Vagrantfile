@@ -23,6 +23,7 @@ Vagrant.configure("2") do |config|
     end
     config.ssh.extra_args = ["-t", "cd /vagrant; bash --login"]
     config.vm.network "forwarded_port", guest: 3000, host: 3000
+    config.vm.network "forwarded_port", guest: 5432, host: 5432
 
     config.vm.provision "shell", privileged: false, inline: <<-SHELL
       #os
