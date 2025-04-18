@@ -28,6 +28,7 @@
     "defaults"
   ],
   "devDependencies": {
+    "mini-css-extract-plugin": "^2.9.2",
     "webpack-dev-server": "4"
   }
 }
