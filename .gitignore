@@ -17,4 +17,7 @@
 /node_modules
 /yarn-error.log
 
+# Ignore Yarn directory
+.yarn/
+
 .byebug_history
