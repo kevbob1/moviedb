@@ -5,10 +5,8 @@ ruby '3.4.2'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '~> 7.2.0'
-# Use postgresql as the database for Active Record
 gem 'pg'
-# Use Puma as the app server
-gem 'puma'
+gem 'falcon'
 # Use SCSS for stylesheets
 gem 'sass-rails'
 gem 'sassc-rails'
@@ -39,6 +37,7 @@ group :development, :test do
   # Adds support for Capybara system testing and selenium driver
 #  gem 'capybara', '~> 2.13'
 #  gem 'selenium-webdriver'
+  gem 'rspec-rails'
 end
 
 group :development do
