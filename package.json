@@ -1,5 +1,9 @@
 {
   "name": "moviedb",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "yarn": "^1.22.22"
+  },
+  "packageManager": "yarn@4.9.1",
+  "version": "0.0.0"
 }
