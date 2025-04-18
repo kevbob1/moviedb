@@ -54,6 +54,7 @@ default: &default
   # Here, you can set different asset_host per environment. Note that
   # SHAKAPACKER_ASSET_HOST will override both configurations.
   # asset_host: custom-path
+  extract_css: true
 
 development:
   <<: *default
@@ -78,7 +79,7 @@ development:
     # In that case, style-loader is not needed as a dependency.
     #
     # mini-css-extract-plugin is a required dependency in both cases.
-    inline_css: false
+    extract_css: true
     # Defaults to the inverse of hmr. Uncomment to manually set this.
     # live_reload: true
     client:
