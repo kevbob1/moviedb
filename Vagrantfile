@@ -16,12 +16,12 @@ Vagrant.configure("2") do |config|
     config.ssh.username = "root"
     config.vm.allow_fstab_modification = false
     config.vm.provider "docker" do |d|
-      d.image = "kevbob/docker-vagrant:jammy-1.0.1-1"
+      d.image = "kevbob/docker-vagrant:noble-1.0.2-1"
       d.has_ssh = true
       d.remains_running = true
       d.name = "moviedb"
     end
-    config.ssh.extra_args = ["-t", "cd /vagrant; bash --login"]
+    config.ssh.extra_args = [ "-t", "cd /vagrant; bash --login" ]
     config.vm.network "forwarded_port", guest: 3000, host: 3000
     config.vm.network "forwarded_port", guest: 5432, host: 5432
 
@@ -40,11 +40,41 @@ Vagrant.configure("2") do |config|
         libreadline-dev libncurses5-dev libffi-dev libgdbm-dev \
         iputils-ping \
         libpq-dev \
-        postgresql-client
-     
+        sudo \
+        postgresql
+
       cd ~/
 
-      curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash
-    SHELL
+      # start postgresql
+      /etc/init.d/postgresql start
+      # create db user with superuser and createdb privileges
+      # this is needed for the rails app to run
+      sudo -u postgres createuser -s -d moviedb
 
+      # set password for db user
+      sudo -u postgres psql -U postgres postgres -c "ALTER USER moviedb PASSWORD 'new_password';"
+
+      # install rbenv
+      curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash
+
+      # install nvm
+      curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
+
+      # Source .bashrc to load rbenv/nvm into the current shell session
+      source ~/.bashrc
+
+      # install ruby using .ruby-version
+      rbenv install
+
+      # install ruby bundles
+      bundle install
+
+      # install node using .nvmrc
+      nvm install
+
+      corepack enable
+      corepack prepare yarn@4.9.1 --activate
+      yarn install
+
+    SHELL
 end
