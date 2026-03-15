@@ -17,7 +17,8 @@
     <%= javascript_pack_tag "application" %>
   </head>
 
-  <body>
+  <body data-controller="modal" data-action="keydown@window->modal#closeOnEscape">
     <%= yield %>
+    <%= render "shared/confirm_modal" %>
   </body>
 </html>
