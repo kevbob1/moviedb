@@ -114,5 +114,13 @@ RSpec.describe KafkaConsumerService do
       # The valid message should still have been processed
       expect(Movie.find_by(tmdb_id: 550)).to be_present
     end
+
+    it "re-raises Rdkafka::RdkafkaError from the consumer loop" do
+      stub_const("Rdkafka::RdkafkaError", Class.new(StandardError))
+
+      allow(consumer).to receive(:each).and_raise(Rdkafka::RdkafkaError, "broker transport failure")
+
+      expect { consumer_service.start }.to raise_error(Rdkafka::RdkafkaError)
+    end
   end
 end
