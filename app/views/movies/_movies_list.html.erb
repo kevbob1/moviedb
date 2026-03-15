@@ -1,15 +1,19 @@
 <turbo-frame id="movies_results">
-  <div id="movies">
-    <% @movies.each do |movie| %>
-      <%= render movie %>
-      <p>
-        <%= link_to "Show this movie", movie %>
-      </p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="movies">
+    <% if @movies.any? %>
+      <% @movies.each do |movie| %>
+        <%= render movie %>
+      <% end %>
+    <% else %>
+      <div class="col-span-full text-center py-16 text-gray-500 dark:text-gray-400">
+        <p class="text-xl mb-4">No movies found.</p>
+        <%= link_to "Add your first movie", new_movie_path, class: "text-blue-600 hover:text-blue-700 dark:text-blue-400 underline" %>
+      </div>
     <% end %>
   </div>
 
   <% if @pagy.pages > 1 %>
-    <nav class="pagy-pagination" aria-label="Pagination">
+    <nav class="mt-8 flex justify-center pagy-pagination" aria-label="Pagination">
       <%== @pagy.series_nav %>
     </nav>
   <% end %>

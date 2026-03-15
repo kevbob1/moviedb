@@ -1,12 +1,10 @@
-<% content_for :title, "Editing movie" %>
+<% content_for :title, "Editing: #{@movie.title}" %>
 
-<h1>Editing movie</h1>
+<h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Editing: <%= @movie.title %></h1>
 
 <%= render "form", movie: @movie %>
 
-<br>
-
-<div>
-  <%= link_to "Show this movie", @movie %> |
-  <%= link_to "Back to movies", movies_path %>
+<div class="mt-4 flex gap-4">
+  <%= link_to "Show this movie", @movie, class: "text-blue-600 hover:text-blue-700 dark:text-blue-400 text-sm underline" %>
+  <%= link_to "Back to movies", movies_path, class: "text-blue-600 hover:text-blue-700 dark:text-blue-400 text-sm underline" %>
 </div>
