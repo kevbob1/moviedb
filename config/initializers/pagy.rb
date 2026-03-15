@@ -1,5 +1,4 @@
-require "pagy/extras/overflow"
+# Pagy v43 initializer
+# See https://ddnexus.github.io/pagy/resources/initializer/
 
-Pagy::DEFAULT[:items] = 12
-Pagy::DEFAULT[:size] = 7
-Pagy::DEFAULT[:overflow] = :last_page
+Pagy::OPTIONS[:limit] = 12

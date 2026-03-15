@@ -3,7 +3,7 @@ class MoviesController < ApplicationController
 
   # GET /movies or /movies.json
   def index
-    @pagy, @movies = pagy(Movie.order(created_at: :desc), items: 12)
+    @pagy, @movies = pagy(:offset, Movie.order(created_at: :desc), limit: 12)
   end
 
   # GET /movies/1 or /movies/1.json
