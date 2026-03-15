@@ -2,18 +2,7 @@
 
 <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Movies</h1>
 
-<div id="movies">
-  <% @movies.each do |movie| %>
-    <%= render movie %>
-  <% end %>
-</div>
-
-<% if @movies.empty? %>
-  <div class="text-center py-16 text-gray-500 dark:text-gray-400">
-    <p class="text-xl mb-4">No movies found.</p>
-    <%= link_to "Add your first movie", new_movie_path, class: "text-blue-600 hover:text-blue-700 dark:text-blue-400 underline" %>
-  </div>
-<% end %>
+<%= render "movies_list" %>
 
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-8">
   <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Sync from TMDB</h2>
