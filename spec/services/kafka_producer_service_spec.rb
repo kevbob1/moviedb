@@ -5,31 +5,37 @@ require "rails_helper"
 RSpec.describe KafkaProducerService do
   self.use_transactional_tests = false
 
-  let(:kafka_client) { instance_double("Kafka::Client") }
-  let(:producer) { described_class.new(kafka_client: kafka_client) }
+  let(:delivery_handle) { double("Rdkafka::Producer::DeliveryHandle", wait: nil) }
+  let(:producer) { double("Rdkafka::Producer") }
+  let(:service) { described_class.new(producer: producer) }
   let(:movie) do
     double("Movie", id: 1, tmdb_id: 550, title: "Fight Club")
   end
 
   describe "#publish_movie_sync" do
     before do
-      allow(kafka_client).to receive(:deliver_message)
+      allow(producer).to receive(:produce).and_return(delivery_handle)
     end
 
-    it "calls deliver_message on the kafka client with the correct topic" do
-      producer.publish_movie_sync(movie, action: :created)
+    it "calls produce on the producer with the correct topic" do
+      service.publish_movie_sync(movie, action: :created)
 
-      expect(kafka_client).to have_received(:deliver_message).with(
-        anything,
-        topic: "moviedb.movies.sync"
+      expect(producer).to have_received(:produce).with(
+        hash_including(topic: "moviedb.movies.sync")
       )
     end
 
-    it "sends a JSON payload containing event, movie_id, tmdb_id, title, and timestamp" do
-      producer.publish_movie_sync(movie, action: :created)
+    it "calls wait on the delivery handle" do
+      service.publish_movie_sync(movie, action: :created)
 
-      expect(kafka_client).to have_received(:deliver_message) do |payload, **_opts|
-        parsed = JSON.parse(payload)
+      expect(delivery_handle).to have_received(:wait).with(max_wait_timeout: 5)
+    end
+
+    it "sends a JSON payload containing event, movie_id, tmdb_id, title, and timestamp" do
+      service.publish_movie_sync(movie, action: :created)
+
+      expect(producer).to have_received(:produce) do |args|
+        parsed = JSON.parse(args[:payload])
         expect(parsed).to include(
           "event" => "movie.created",
           "movie_id" => 1,
@@ -42,10 +48,10 @@ RSpec.describe KafkaProducerService do
 
     context "when action is :created" do
       it "sets event to movie.created" do
-        producer.publish_movie_sync(movie, action: :created)
+        service.publish_movie_sync(movie, action: :created)
 
-        expect(kafka_client).to have_received(:deliver_message) do |payload, **_opts|
-          parsed = JSON.parse(payload)
+        expect(producer).to have_received(:produce) do |args|
+          parsed = JSON.parse(args[:payload])
           expect(parsed["event"]).to eq("movie.created")
         end
       end
@@ -53,23 +59,24 @@ RSpec.describe KafkaProducerService do
 
     context "when action is :updated" do
       it "sets event to movie.updated" do
-        producer.publish_movie_sync(movie, action: :updated)
+        service.publish_movie_sync(movie, action: :updated)
 
-        expect(kafka_client).to have_received(:deliver_message) do |payload, **_opts|
-          parsed = JSON.parse(payload)
+        expect(producer).to have_received(:produce) do |args|
+          parsed = JSON.parse(args[:payload])
           expect(parsed["event"]).to eq("movie.updated")
         end
       end
     end
 
-    context "when deliver_message raises Kafka::Error" do
+    context "when produce raises Rdkafka::RdkafkaError" do
       before do
-        allow(kafka_client).to receive(:deliver_message).and_raise(Kafka::Error.new("connection failed"))
+        stub_const("Rdkafka::RdkafkaError", Class.new(StandardError))
+        allow(producer).to receive(:produce).and_raise(Rdkafka::RdkafkaError.new("connection failed"))
       end
 
       it "raises KafkaProducerService::Error" do
         expect {
-          producer.publish_movie_sync(movie, action: :created)
+          service.publish_movie_sync(movie, action: :created)
         }.to raise_error(KafkaProducerService::Error, "connection failed")
       end
     end

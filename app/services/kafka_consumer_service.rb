@@ -4,20 +4,17 @@ class KafkaConsumerService
   TOPIC = "moviedb.movies.sync"
   GROUP_ID = "moviedb-consumer"
 
-  def initialize(kafka_client: nil)
-    @kafka_client = kafka_client || Kafka.new(
-      Rails.application.config.kafka[:brokers],
-      client_id: Rails.application.config.kafka[:client_id]
-    )
+  def initialize(consumer: nil)
+    config = Rails.application.config.kafka
+    @consumer = consumer || Rdkafka::Config.new(config.merge("group.id" => GROUP_ID)).consumer
   end
 
   def start
-    consumer = @kafka_client.consumer(group_id: GROUP_ID)
-    consumer.subscribe(TOPIC)
+    @consumer.subscribe(TOPIC)
 
     Rails.logger.info("[KafkaConsumer] Subscribed to #{TOPIC} with group #{GROUP_ID}")
 
-    consumer.each_message do |message|
+    @consumer.each do |message|
       Rails.logger.info("[KafkaConsumer] Received message on #{message.topic}, partition #{message.partition}, offset #{message.offset}")
       begin
         process_message(message)
@@ -25,13 +22,13 @@ class KafkaConsumerService
         Rails.logger.error("[KafkaConsumer] Error processing message: #{e.class} - #{e.message}")
       end
     end
-  rescue Kafka::Error => e
+  rescue Rdkafka::RdkafkaError => e
     Rails.logger.error("[KafkaConsumer] Kafka error: #{e.class} - #{e.message}")
     raise
   end
 
   def process_message(message)
-    payload = JSON.parse(message.value)
+    payload = JSON.parse(message.payload)
     tmdb_id = payload.fetch("tmdb_id")
 
     Rails.logger.info("[KafkaConsumer] Processing sync for tmdb_id=#{tmdb_id}")

@@ -3,10 +3,13 @@
 require "rails_helper"
 
 RSpec.describe "Movies audit integration", type: :request do
-  let(:kafka_client) { instance_double("Kafka::Client", deliver_message: nil) }
+  let(:delivery_handle) { double("Rdkafka::Producer::DeliveryHandle", wait: nil) }
+  let(:producer) { double("Rdkafka::Producer") }
 
   before do
-    allow(Kafka).to receive(:new).and_return(kafka_client)
+    allow(producer).to receive(:produce).and_return(delivery_handle)
+    rdkafka_config = double("Rdkafka::Config", producer: producer)
+    allow(Rdkafka::Config).to receive(:new).and_return(rdkafka_config)
   end
 
   let(:valid_attributes) do
@@ -21,14 +24,13 @@ RSpec.describe "Movies audit integration", type: :request do
     it "publishes a create audit event" do
       post movies_path, params: { movie: valid_attributes }
 
-      expect(kafka_client).to have_received(:deliver_message).with(
-        anything,
-        topic: "moviedb.audit"
+      expect(producer).to have_received(:produce).with(
+        hash_including(topic: "moviedb.audit")
       ).at_least(:once)
 
       audit_calls = []
-      expect(kafka_client).to have_received(:deliver_message).at_least(:once) do |payload, **_opts|
-        parsed = JSON.parse(payload)
+      expect(producer).to have_received(:produce).at_least(:once) do |args|
+        parsed = JSON.parse(args[:payload])
         audit_calls << parsed if parsed.key?("record_id")
       end
 
@@ -45,13 +47,13 @@ RSpec.describe "Movies audit integration", type: :request do
       movie = create(:movie, title: "Original Title")
 
       # Reset tracking from create
-      allow(kafka_client).to receive(:deliver_message)
+      allow(producer).to receive(:produce).and_return(delivery_handle)
 
       patch movie_path(movie), params: { movie: { title: "Updated Title" } }
 
       audit_calls = []
-      expect(kafka_client).to have_received(:deliver_message).at_least(:once) do |payload, **_opts|
-        parsed = JSON.parse(payload)
+      expect(producer).to have_received(:produce).at_least(:once) do |args|
+        parsed = JSON.parse(args[:payload])
         audit_calls << parsed if parsed.key?("record_id")
       end
 
@@ -68,13 +70,13 @@ RSpec.describe "Movies audit integration", type: :request do
       movie = create(:movie)
 
       # Reset tracking from create
-      allow(kafka_client).to receive(:deliver_message)
+      allow(producer).to receive(:produce).and_return(delivery_handle)
 
       delete movie_path(movie)
 
       audit_calls = []
-      expect(kafka_client).to have_received(:deliver_message).at_least(:once) do |payload, **_opts|
-        parsed = JSON.parse(payload)
+      expect(producer).to have_received(:produce).at_least(:once) do |args|
+        parsed = JSON.parse(args[:payload])
         audit_calls << parsed if parsed.key?("record_id")
       end
 
@@ -89,16 +91,16 @@ RSpec.describe "Movies audit integration", type: :request do
     it "does not publish audit" do
       post movies_path, params: { movie: invalid_attributes }
 
-      expect(kafka_client).not_to have_received(:deliver_message).with(
-        anything,
-        topic: "moviedb.audit"
+      expect(producer).not_to have_received(:produce).with(
+        hash_including(topic: "moviedb.audit")
       )
     end
   end
 
   describe "CRUD succeeds when Kafka is down" do
     before do
-      allow(kafka_client).to receive(:deliver_message).and_raise(Kafka::Error.new("connection refused"))
+      stub_const("Rdkafka::RdkafkaError", Class.new(StandardError))
+      allow(producer).to receive(:produce).and_raise(Rdkafka::RdkafkaError.new("connection refused"))
       allow(Rails.logger).to receive(:error)
     end
 
