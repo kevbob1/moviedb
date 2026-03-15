@@ -9,6 +9,7 @@ RUN apt-get update -qq && \
       libyaml-dev \
       libffi-dev \
       libgdbm-dev \
+      librdkafka-dev \
       zlib1g-dev \
       autoconf \
       bison \

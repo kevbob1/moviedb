@@ -3,11 +3,8 @@
 class MovieAuditService
   TOPIC = "moviedb.audit"
 
-  def initialize(kafka_client: nil)
-    @kafka_client = kafka_client || Kafka.new(
-      Rails.application.config.kafka[:brokers],
-      client_id: Rails.application.config.kafka[:client_id]
-    )
+  def initialize(producer: nil)
+    @producer = producer || Rdkafka::Config.new(Rails.application.config.kafka).producer
   end
 
   def publish_audit(action:, record_id:, before: nil, after: nil)
@@ -19,7 +16,8 @@ class MovieAuditService
       after: after
     }
 
-    @kafka_client.deliver_message(payload.to_json, topic: TOPIC)
+    handle = @producer.produce(topic: TOPIC, payload: payload.to_json)
+    handle.wait(max_wait_timeout: 5)
   rescue StandardError => e
     Rails.logger.error("Kafka audit publish failed for record #{record_id}: #{e.message}")
   end

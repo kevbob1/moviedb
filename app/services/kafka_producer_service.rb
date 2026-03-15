@@ -5,11 +5,8 @@ class KafkaProducerService
 
   class Error < StandardError; end
 
-  def initialize(kafka_client: nil)
-    @kafka_client = kafka_client || Kafka.new(
-      Rails.application.config.kafka[:brokers],
-      client_id: Rails.application.config.kafka[:client_id]
-    )
+  def initialize(producer: nil)
+    @producer = producer || Rdkafka::Config.new(Rails.application.config.kafka).producer
   end
 
   def publish_movie_sync(movie, action:)
@@ -21,8 +18,9 @@ class KafkaProducerService
       timestamp: Time.current.iso8601
     }.to_json
 
-    @kafka_client.deliver_message(payload, topic: TOPIC)
-  rescue Kafka::Error => e
+    handle = @producer.produce(topic: TOPIC, payload: payload)
+    handle.wait(max_wait_timeout: 5)
+  rescue Rdkafka::RdkafkaError => e
     raise Error, e.message
   end
 end

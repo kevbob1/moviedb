@@ -2,15 +2,12 @@
 
 RSpec.configure do |config|
   config.before(:each) do
-    kafka_consumer = instance_double("Kafka::Consumer", subscribe: nil)
-    allow(kafka_consumer).to receive(:each_message)
+    delivery_handle = double("Rdkafka::Producer::DeliveryHandle", wait: nil)
+    producer = double("Rdkafka::Producer", produce: delivery_handle)
+    consumer = double("Rdkafka::Consumer", subscribe: nil)
+    allow(consumer).to receive(:each)
 
-    kafka_client = instance_double(
-      "Kafka::Client",
-      deliver_message: nil,
-      consumer: kafka_consumer
-    )
-
-    allow(Kafka).to receive(:new).and_return(kafka_client)
+    rdkafka_config = double("Rdkafka::Config", producer: producer, consumer: consumer)
+    allow(Rdkafka::Config).to receive(:new).and_return(rdkafka_config)
   end
 end
