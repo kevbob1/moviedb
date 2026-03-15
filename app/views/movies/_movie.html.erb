@@ -1,4 +1,10 @@
 <div id="<%= dom_id movie %>">
+  <% if movie.poster_path.present? %>
+    <p>
+      <%= image_tag "https://image.tmdb.org/t/p/w200#{movie.poster_path}", alt: movie.title %>
+    </p>
+  <% end %>
+
   <p>
     <strong>Title:</strong>
     <%= movie.title %>
@@ -14,4 +20,24 @@
     <%= movie.release_date %>
   </p>
 
+  <% if movie.tmdb_id.present? %>
+    <p>
+      <strong>TMDB ID:</strong>
+      <%= movie.tmdb_id %>
+    </p>
+  <% end %>
+
+  <% if movie.vote_average.present? %>
+    <p>
+      <strong>Rating:</strong>
+      <%= format("%.1f", movie.vote_average) %>/10
+    </p>
+  <% end %>
+
+  <% if movie.genres.present? %>
+    <p>
+      <strong>Genres:</strong>
+      <%= movie.genres %>
+    </p>
+  <% end %>
 </div>
