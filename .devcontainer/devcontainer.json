@@ -1,0 +1,30 @@
+{
+  "name": "moviedb",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "features": {
+    "ghcr.io/devcontainers/features/ruby:1": {
+      "version": "3.4.2"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20.19.0"
+    }
+  },
+  "postCreateCommand": "corepack enable && corepack prepare yarn@4.9.1 --activate && bin/setup",
+  "forwardPorts": [3000, 5432, 9092],
+  "containerEnv": {
+    "DATABASE_HOST": "db",
+    "DATABASE_PASSWORD": "new_password",
+    "KAFKA_BROKERS": "kafka:9092",
+    "RAILS_ENV": "development"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Shopify.ruby-lsp",
+        "dbaeumer.vscode-eslint"
+      ]
+    }
+  }
+}
