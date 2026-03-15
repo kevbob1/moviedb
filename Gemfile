@@ -9,6 +9,17 @@ gem "pg", "~> 1.1"
 gem "puma", "~> 7.0"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
+
+# Rails-native JavaScript with importmap
+gem "importmap-rails"
+
+# Sprockets for asset pipeline (CSS, images)
+gem "sprockets-rails"
+
+# Hotwire: Turbo + Stimulus
+gem "turbo-rails"
+gem "stimulus-rails"
+
 # Use Redis adapter to run Action Cable in production
 # gem "redis", ">= 4.0.1"
 
@@ -58,5 +69,3 @@ group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
 end
-
-gem "shakapacker"
