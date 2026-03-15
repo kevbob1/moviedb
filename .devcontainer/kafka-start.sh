@@ -27,7 +27,6 @@ inter.broker.listener.name=${KAFKA_INTER_BROKER_LISTENER_NAME}
 sasl.enabled.mechanisms=${KAFKA_SASL_ENABLED_MECHANISMS}
 sasl.mechanism.inter.broker.protocol=${KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL}
 listener.name.sasl_plaintext.scram-sha-512.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_SCRAM_USERNAME}" password="${KAFKA_SCRAM_PASSWORD}";
-auto.create.topics.enable=${KAFKA_AUTO_CREATE_TOPICS_ENABLE:-true}
 offsets.topic.replication.factor=${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
 transaction.state.log.replication.factor=${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
 transaction.state.log.min.isr=${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
