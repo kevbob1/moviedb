@@ -6,5 +6,11 @@
   <%= link_to "Edit this movie", edit_movie_path(@movie) %> |
   <%= link_to "Back to movies", movies_path %>
 
-  <%= button_to "Destroy this movie", @movie, method: :delete %>
+  <button type="button"
+    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium"
+    data-action="click->modal#open"
+    data-modal-title-param="<%= @movie.title %>"
+    data-modal-url-param="<%= movie_path(@movie) %>">
+    Delete
+  </button>
 </div>
