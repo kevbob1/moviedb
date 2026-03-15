@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-ENV["RAILS_ENV"] ||= "test"
+ENV["RAILS_ENV"] = "test"
 require_relative "../config/environment"
 
 # Prevent database truncation if the environment is production
