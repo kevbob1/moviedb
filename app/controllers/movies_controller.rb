@@ -3,7 +3,9 @@ class MoviesController < ApplicationController
 
   # GET /movies or /movies.json
   def index
-    @pagy, @movies = pagy(:offset, Movie.order(created_at: :desc), limit: 12)
+    scope = Movie.order(created_at: :desc)
+    scope = scope.where("title ILIKE ?", "%#{params[:q]}%") if params[:q].present?
+    @pagy, @movies = pagy(:offset, scope, limit: 12)
   end
 
   # GET /movies/1 or /movies/1.json
