@@ -72,6 +72,13 @@ class MoviesController < ApplicationController
     )
     @movie.save!
 
+    action = @movie.previously_new_record? ? :created : :updated
+    begin
+      KafkaProducerService.new.publish_movie_sync(@movie, action: action)
+    rescue KafkaProducerService::Error => e
+      Rails.logger.error("Kafka publish failed for movie #{@movie.id}: #{e.message}")
+    end
+
     respond_to do |format|
       format.html { redirect_to @movie, notice: "Movie '#{@movie.title}' synced from TMDB." }
       format.json { render json: @movie, status: :ok }
