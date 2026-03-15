@@ -176,6 +176,10 @@ GEM
     nokogiri (1.18.7-x86_64-linux-musl)
       racc (~> 1.4)
     package_json (0.1.0)
+    pagy (43.3.3)
+      json
+      uri
+      yaml
     parallel (1.27.0)
     parser (3.3.8.0)
       ast (~> 2.4.1)
@@ -339,6 +343,7 @@ GEM
     unicode-display_width (3.1.4)
       unicode-emoji (~> 4.0, >= 4.0.4)
     unicode-emoji (4.0.4)
+    uri (1.1.1)
     useragent (0.16.11)
     web-console (4.2.1)
       actionview (>= 6.0.0)
@@ -353,6 +358,7 @@ GEM
       base64
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
+    yaml (0.4.0)
     zeitwerk (2.7.2)
 
 PLATFORMS
@@ -374,6 +380,7 @@ DEPENDENCIES
   faker
   httparty
   jbuilder
+  pagy
   pg (~> 1.1)
   puma (~> 7.0)
   rails (~> 7.2.2, >= 7.2.2.1)
