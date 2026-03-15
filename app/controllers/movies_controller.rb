@@ -57,6 +57,42 @@ class MoviesController < ApplicationController
     end
   end
 
+  # POST /movies/sync_from_tmdb
+  def sync_from_tmdb
+    tmdb_id = params[:tmdb_id]
+    movie_data = TmdbService.new.fetch_movie(tmdb_id.to_i)
+    @movie = Movie.find_or_initialize_by(tmdb_id: movie_data[:tmdb_id])
+    @movie.assign_attributes(
+      title: movie_data[:title],
+      description: movie_data[:description],
+      release_date: movie_data[:release_date],
+      poster_path: movie_data[:poster_path],
+      vote_average: movie_data[:vote_average],
+      genres: movie_data[:genres]
+    )
+    @movie.save!
+
+    respond_to do |format|
+      format.html { redirect_to @movie, notice: "Movie '#{@movie.title}' synced from TMDB." }
+      format.json { render json: @movie, status: :ok }
+    end
+  rescue TmdbService::NotFoundError => e
+    respond_to do |format|
+      format.html { redirect_to movies_path, alert: e.message }
+      format.json { render json: { error: e.message }, status: :not_found }
+    end
+  rescue TmdbService::ApiKeyError => e
+    respond_to do |format|
+      format.html { redirect_to movies_path, alert: e.message }
+      format.json { render json: { error: e.message }, status: :unauthorized }
+    end
+  rescue TmdbService::Error => e
+    respond_to do |format|
+      format.html { redirect_to movies_path, alert: e.message }
+      format.json { render json: { error: e.message }, status: :service_unavailable }
+    end
+  end
+
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_movie
@@ -65,6 +101,6 @@ class MoviesController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def movie_params
-      params.require(:movie).permit(:title, :description, :release_date)
+      params.require(:movie).permit(:title, :description, :release_date, :tmdb_id, :poster_path, :vote_average, :genres)
     end
 end
