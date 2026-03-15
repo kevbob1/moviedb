@@ -1123,6 +1123,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@hotwired/stimulus@npm:^3.2.2":
+  version: 3.2.2
+  resolution: "@hotwired/stimulus@npm:3.2.2"
+  checksum: 10c0/3793919e353d28424f57d07e6b634bf6e8821c227acfa2a608aaa8bdfe7e80479acef12705168ca866f3c231399f4a939fb0cd089aaae04c406b3d885a3b35ea
+  languageName: node
+  linkType: hard
+
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
   resolution: "@isaacs/cliui@npm:8.0.2"
@@ -1939,6 +1946,7 @@ __metadata:
     "@babel/plugin-transform-runtime": "npm:7"
     "@babel/preset-env": "npm:7"
     "@babel/runtime": "npm:7"
+    "@hotwired/stimulus": "npm:^3.2.2"
     "@types/babel__core": "npm:7"
     "@types/webpack": "npm:5"
     babel-loader: "npm:8"

@@ -16,6 +16,7 @@
     "@babel/plugin-transform-runtime": "7",
     "@babel/preset-env": "7",
     "@babel/runtime": "7",
+    "@hotwired/stimulus": "^3.2.2",
     "@types/babel__core": "7",
     "@types/webpack": "5",
     "babel-loader": "8",
