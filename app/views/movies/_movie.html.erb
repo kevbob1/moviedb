@@ -1,43 +1,33 @@
-<div id="<%= dom_id movie %>">
+<div id="<%= dom_id movie %>" class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
   <% if movie.poster_path.present? %>
-    <p>
-      <%= image_tag "https://image.tmdb.org/t/p/w200#{movie.poster_path}", alt: movie.title %>
-    </p>
+    <%= image_tag "https://image.tmdb.org/t/p/w300#{movie.poster_path}", alt: movie.title, class: "w-full h-64 object-cover", loading: "lazy" %>
+  <% else %>
+    <div class="w-full h-64 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">No Poster</div>
   <% end %>
 
-  <p>
-    <strong>Title:</strong>
-    <%= movie.title %>
-  </p>
+  <div class="p-4 flex flex-col flex-grow">
+    <%= link_to movie.title, movie_path(movie), class: "text-lg font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 truncate block mb-1" %>
 
-  <p>
-    <strong>Description:</strong>
-    <%= movie.description %>
-  </p>
+    <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <% if movie.vote_average.present? && movie.vote_average > 0 %>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"><%= "★ #{format('%.1f', movie.vote_average)}" %></span>
+      <% end %>
 
-  <p>
-    <strong>Release date:</strong>
-    <%= movie.release_date %>
-  </p>
+      <% if movie.release_date.present? %>
+        <span class="text-xs text-gray-500 dark:text-gray-500"><%= movie.release_date %></span>
+      <% end %>
+    </div>
 
-  <% if movie.tmdb_id.present? %>
-    <p>
-      <strong>TMDB ID:</strong>
-      <%= movie.tmdb_id %>
-    </p>
-  <% end %>
+    <% if movie.genres.present? %>
+      <div class="flex flex-wrap gap-1 mb-2">
+        <% movie.genres.split(",").map(&:strip).each do |genre| %>
+          <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"><%= genre %></span>
+        <% end %>
+      </div>
+    <% end %>
 
-  <% if movie.vote_average.present? %>
-    <p>
-      <strong>Rating:</strong>
-      <%= format("%.1f", movie.vote_average) %>/10
-    </p>
-  <% end %>
-
-  <% if movie.genres.present? %>
-    <p>
-      <strong>Genres:</strong>
-      <%= movie.genres %>
-    </p>
-  <% end %>
+    <% if movie.description.present? %>
+      <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mt-2 flex-grow"><%= movie.description %></p>
+    <% end %>
+  </div>
 </div>
