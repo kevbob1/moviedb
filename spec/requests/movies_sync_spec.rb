@@ -19,6 +19,7 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
     context "when sync succeeds and movie is new" do
       before do
         allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_return(movie_data)
+        allow_any_instance_of(KafkaProducerService).to receive(:publish_movie_sync)
       end
 
       it "creates a new movie and redirects to the movie show page" do
@@ -38,6 +39,7 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
     context "when sync succeeds and movie already exists (duplicate tmdb_id)" do
       before do
         allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_return(movie_data)
+        allow_any_instance_of(KafkaProducerService).to receive(:publish_movie_sync)
         Movie.create!(title: "Old Title", tmdb_id: 550)
       end
 

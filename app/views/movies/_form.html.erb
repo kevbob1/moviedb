@@ -11,6 +11,13 @@
     </div>
   <% end %>
 
+  <% if movie.tmdb_id.present? %>
+    <div>
+      <strong>TMDB ID:</strong>
+      <%= movie.tmdb_id %>
+    </div>
+  <% end %>
+
   <div>
     <%= form.label :title, style: "display: block" %>
     <%= form.text_field :title %>
