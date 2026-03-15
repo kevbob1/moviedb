@@ -6,7 +6,7 @@
   <% end %>
 
   <div class="p-4 flex flex-col flex-grow">
-    <%= link_to movie.title, movie_path(movie), class: "text-lg font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 truncate block mb-1" %>
+    <%= link_to movie.title, movie_path(movie), class: "text-lg font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 truncate block mb-1", data: { turbo_frame: "_top" } %>
 
     <div class="flex items-center gap-2 mb-2 flex-wrap">
       <% if movie.vote_average.present? && movie.vote_average > 0 %>
