@@ -24,6 +24,7 @@ Vagrant.configure("2") do |config|
     config.ssh.extra_args = [ "-t", "cd /vagrant; bash --login" ]
     config.vm.network "forwarded_port", guest: 3000, host: 3000
     config.vm.network "forwarded_port", guest: 5432, host: 5432
+    config.vm.network "forwarded_port", guest: 9092, host: 9092
 
     config.vm.provision "shell", privileged: false, inline: <<-SHELL
       #os
@@ -77,4 +78,7 @@ Vagrant.configure("2") do |config|
       yarn install
 
     SHELL
+
+    # Kafka provisioning (KRaft mode, single node)
+    config.vm.provision "shell", path: "provision/kafka.sh"
 end
