@@ -18,14 +18,15 @@ default: &default
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+  port: 5432
+  username: moviedb
+  password: <%= ENV.fetch("DATABASE_PASSWORD", "") %>
 
 
 development:
   <<: *default
   database: moviedb_development
-  username: moviedb
-  host: localhost
-  port: 5432
 
   # Minimum log levels, in increasing order:
   #   debug5, debug4, debug3, debug2, debug1,
@@ -39,9 +40,6 @@ development:
 test:
   <<: *default
   database: moviedb_test
-  username: moviedb
-  host: localhost
-  port: 5432
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
@@ -67,4 +65,4 @@ production:
   <<: *default
   database: moviedb_production
   username: moviedb
-  password: <%= ENV["MOVIEDB_DATABASE_PASSWORD"] %>
+  password: <%= ENV.fetch("MOVIEDB_DATABASE_PASSWORD") { ENV.fetch("DATABASE_PASSWORD", "") } %>
