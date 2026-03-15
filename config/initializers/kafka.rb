@@ -17,7 +17,7 @@ else
   Rails.application.config.kafka = {
     "bootstrap.servers" => ENV.fetch("KAFKA_BROKERS", "localhost:9092"),
     "client.id" => "moviedb",
-    "security.protocol" => "SASL_SSL",
+    "security.protocol" => "SASL_PLAINTEXT",
     "sasl.mechanisms" => "SCRAM-SHA-512",
     "sasl.username" => ENV.fetch("KAFKA_USERNAME"),
     "sasl.password" => ENV.fetch("KAFKA_PASSWORD")
