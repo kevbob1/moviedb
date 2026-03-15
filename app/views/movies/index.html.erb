@@ -2,20 +2,16 @@
 
 <h1>Movies</h1>
 
-<div id="movies">
-  <% @movies.each do |movie| %>
-    <%= render movie %>
-    <p>
-      <%= link_to "Show this movie", movie %>
-    </p>
-  <% end %>
-</div>
-
-<% if @pagy.pages > 1 %>
-  <nav class="pagy-pagination" aria-label="Pagination">
-    <%== @pagy.series_nav %>
-  </nav>
+<%= form_with url: movies_path, method: :get,
+    data: { turbo_frame: "movies_results", controller: "movie-search" } do |f| %>
+  <%= f.text_field :q,
+      value: params[:q],
+      placeholder: "Search movies...",
+      class: "w-full md:w-96 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none",
+      data: { movie_search_target: "input", action: "input->movie-search#search" } %>
 <% end %>
+
+<%= render "movies_list" %>
 
 <%= link_to "New movie", new_movie_path %>
 

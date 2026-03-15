@@ -1,0 +1,16 @@
+<turbo-frame id="movies_results">
+  <div id="movies">
+    <% @movies.each do |movie| %>
+      <%= render movie %>
+      <p>
+        <%= link_to "Show this movie", movie %>
+      </p>
+    <% end %>
+  </div>
+
+  <% if @pagy.pages > 1 %>
+    <nav class="pagy-pagination" aria-label="Pagination">
+      <%== @pagy.series_nav %>
+    </nav>
+  <% end %>
+</turbo-frame>
