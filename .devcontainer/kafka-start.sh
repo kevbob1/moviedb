@@ -3,6 +3,16 @@ set -e
 
 PROPERTIES_FILE="/tmp/server.properties"
 
+# Write JAAS config so the broker can authenticate on the SASL_PLAINTEXT listener
+cat > /tmp/kafka_jaas.conf <<EOF
+KafkaServer {
+  org.apache.kafka.common.security.scram.ScramLoginModule required
+  username="${KAFKA_SCRAM_USERNAME}"
+  password="${KAFKA_SCRAM_PASSWORD}";
+};
+EOF
+export KAFKA_OPTS="-Djava.security.auth.login.config=/tmp/kafka_jaas.conf"
+
 # Generate server.properties from environment variables
 /etc/kafka/docker/configure
 
