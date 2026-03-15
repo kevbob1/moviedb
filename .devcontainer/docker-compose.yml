@@ -54,7 +54,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
       KAFKA_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
       KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: SCRAM-SHA-512
-      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_SCRAM__SHA__512_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_SCRAM_USERNAME}" password="${KAFKA_SCRAM_PASSWORD}";'
+      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_SCRAM__SHA__512_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.scram.ScramLoginModule required username="$${KAFKA_SCRAM_USERNAME}" password="$${KAFKA_SCRAM_PASSWORD}";'
       KAFKA_SCRAM_USERNAME: moviedb
       KAFKA_SCRAM_PASSWORD: moviedb-secret
       CLUSTER_ID: bW92aWVkYi1rYWZrYS1rcmFmdA==
