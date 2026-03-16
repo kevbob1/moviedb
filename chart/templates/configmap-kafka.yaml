@@ -21,7 +21,7 @@ data:
 
     DATA_DIR=/var/kafka/data
 
-    cat <<'PROPS' >/opt/kafka/config/server.properties
+    cat <<PROPS >/opt/kafka/config/server.properties
     process.roles=broker,controller
     node.id=0
     controller.quorum.voters=0@${POD_NAME}.{{ include "moviedb.kafka.headless" . }}.${NAMESPACE}.svc.cluster.local:9093
@@ -39,7 +39,7 @@ data:
     log.dirs=${DATA_DIR}
     PROPS
 
-    cat <<'CLIENT' >/tmp/client.properties
+    cat <<CLIENT >/tmp/client.properties
     security.protocol=SASL_PLAINTEXT
     sasl.mechanism=SCRAM-SHA-512
     sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_SCRAM_USERNAME}" password="${KAFKA_SCRAM_PASSWORD}";
