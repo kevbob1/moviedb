@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "moviedb.fullname" . }}
+  labels:
+    {{- include "moviedb.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "moviedb.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "moviedb.labels" . | nindent 8 }}
+    spec:
+      initContainers:
+        - name: wait-for-migrations
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              attempt=0
+              until bundle exec rake db:abort_if_pending_migrations; do
+                attempt=$((attempt + 1))
+                if [ $attempt -ge 60 ]; then
+                  echo "Timed out waiting for migrations after 60 attempts"
+                  exit 1
+                fi
+                echo "Pending migrations detected, waiting 5s (attempt $attempt/60)..."
+                sleep 5
+              done
+              echo "No pending migrations, proceeding."
+          env:
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: DATABASE_PASSWORD
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: RAILS_MASTER_KEY
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: SECRET_KEY_BASE
+            - name: RAILS_ENV
+              value: {{ .Values.app.env.RAILS_ENV | quote }}
+      containers:
+        - name: moviedb
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: DATABASE_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: KAFKA_BROKERS
+              value: {{ .Values.kafka.brokers | quote }}
+            - name: RAILS_ENV
+              value: {{ .Values.app.env.RAILS_ENV | quote }}
+            - name: SKIP_DB_PREPARE
+              value: {{ .Values.app.env.SKIP_DB_PREPARE | quote }}
+            - name: RAILS_MAX_THREADS
+              value: {{ .Values.app.env.RAILS_MAX_THREADS | quote }}
+            - name: WEB_CONCURRENCY
+              value: {{ .Values.app.env.WEB_CONCURRENCY | quote }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: DATABASE_PASSWORD
+            - name: KAFKA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: KAFKA_USERNAME
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: KAFKA_PASSWORD
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: RAILS_MASTER_KEY
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: SECRET_KEY_BASE
+          livenessProbe:
+            httpGet:
+              path: /up
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
