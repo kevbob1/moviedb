@@ -35,18 +35,20 @@ Get the public key and add it to `.sops.yaml`:
 age-keygen -y ~/.config/sops/age/keys.txt
 ```
 
-Update `.sops.yaml` so the AGE creation rule includes that public key, then create or update `chart/secrets.yaml` with these required keys:
+Update `.sops.yaml` so the AGE creation rule includes that public key, then populate `chart/secrets.yaml` with real values:
 
-- `secretKeyBase`
-- `postgresHost`
-- `postgresPort`
-- `postgresDb`
-- `postgresUser`
-- `postgresPassword`
-- `kafkaClusterId`
-- `kafkaClientPassword`
-- `kafkaInterBrokerPassword`
-- `kafkaControllerPassword`
+```yaml
+secrets:
+  database:
+    password: <postgres password>
+  kafka:
+    username: <kafka SCRAM username>
+    password: <kafka SCRAM password>
+    cluster_id: <base64 UUID — generate with kafka-storage.sh random-uuid>
+  rails:
+    master_key: <contents of config/master.key>
+    secret_key_base: <64-byte hex string>
+```
 
 Encrypt the file in place:
 
@@ -103,7 +105,7 @@ If Kafka is installed locally, this works too:
 kafka-storage.sh random-uuid
 ```
 
-Store the resulting value in `chart/secrets.yaml` as `kafkaClusterId`.
+Store the resulting value in `chart/secrets.yaml` under `secrets.kafka.cluster_id`.
 
 Warning: `CLUSTER_ID` is immutable after the first deploy. Changing it later requires wiping the Kafka PVC, which destroys all topic data.
 
