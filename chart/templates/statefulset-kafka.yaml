@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "moviedb.kafka.fullname" . }}
+  labels:
+    {{- include "moviedb.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+spec:
+  replicas: {{ .Values.kafka.replicas }}
+  serviceName: {{ include "moviedb.kafka.headless" . }}
+  selector:
+    matchLabels:
+      {{- include "moviedb.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: kafka
+  template:
+    metadata:
+      labels:
+        {{- include "moviedb.labels" . | nindent 8 }}
+        {{- include "moviedb.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: kafka
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.kafka.terminationGracePeriodSeconds }}
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: kafka
+          image: {{ .Values.kafka.image }}:{{ .Values.kafka.tag }}
+          command:
+            - /bin/bash
+            - /scripts/kafka-start.sh
+          ports:
+            - name: client
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+          env:
+            - name: KAFKA_SCRAM_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: KAFKA_USERNAME
+            - name: KAFKA_SCRAM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: KAFKA_PASSWORD
+            - name: CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: CLUSTER_ID
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KAFKA_HEAP_OPTS
+              value: {{ .Values.kafka.heapOpts | quote }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: data
+              mountPath: /var/kafka/data
+          resources:
+            {{- toYaml .Values.kafka.resources | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "moviedb.kafka.fullname" . }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.kafka.storage.size }}

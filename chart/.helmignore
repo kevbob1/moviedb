@@ -1,0 +1,18 @@
+# Source control
+.git/
+.gitignore
+
+# Editor files
+*.swp
+.DS_Store
+*.tmp
+*.orig
+*.bak
+*.log
+
+# Rendered output
+*.rendered.yaml
+/tmp/
+
+# Local tooling
+.kiln/

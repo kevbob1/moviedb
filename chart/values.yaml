@@ -1,0 +1,68 @@
+# Deploy: helm secrets upgrade --install moviedb ./chart -f chart/values.yaml -f chart/secrets.yaml
+# Minikube: helm secrets upgrade --install moviedb ./chart -f chart/values.yaml -f chart/secrets.yaml -f chart/values.minikube.yaml
+image:
+  repository: moviedb
+  tag: latest
+  pullPolicy: IfNotPresent
+
+app:
+  port: 3000
+  env:
+    RAILS_ENV: production
+    WEB_CONCURRENCY: "0"
+    RAILS_MAX_THREADS: "3"
+    SKIP_DB_PREPARE: "true"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+database:
+  host: database.postgres-postgresql
+  port: 5432
+
+kafka:
+  image: apache/kafka
+  tag: 3.9.2
+  replicas: 1
+  heapOpts: "-Xms512m -Xmx512m"
+  storage:
+    size: 10Gi
+  terminationGracePeriodSeconds: 60
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  brokers: "kafka-0.kafka-headless:9092"
+  topics:
+    - moviedb.movies.sync
+    - moviedb.audit
+
+ingress:
+  enabled: true
+  className: nginx
+  host: moviedb.k.p.do
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 65
+  scaleDown:
+    stabilizationWindowSeconds: 300
+  scaleUp:
+    stabilizationWindowSeconds: 60
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+migration:
+  activeDeadlineSeconds: 120
+  backoffLimit: 0
