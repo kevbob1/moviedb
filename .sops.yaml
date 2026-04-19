@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: helm/.*values-secrets\.yaml$
+    age: >-
+      age1q8fe585fa09xk7d2nkau77y5seyvaduqc28lmfw93cw7yrwthgwqyltpdn
