@@ -24,25 +24,12 @@ database:
   host: database.postgres-postgresql
   port: 5432
 
+# Kafka connection details
 kafka:
-  image: apache/kafka
-  tag: 3.9.2
-  replicas: 1
-  heapOpts: "-Xms512m -Xmx512m"
-  storage:
-    size: 10Gi
-  terminationGracePeriodSeconds: 60
-  resources:
-    requests:
-      cpu: 250m
-      memory: 768Mi
-    limits:
-      cpu: 500m
-      memory: 1Gi
-  brokers: "kafka-0.kafka-headless:9092"
-  topics:
-    - moviedb.movies.sync
-    - moviedb.audit
+  enabled: false
+  brokers: "kafka:9092"
+  username: "user1"
+  password: "password1"
 
 ingress:
   enabled: true
