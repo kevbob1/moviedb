@@ -27,7 +27,7 @@ database:
 # Kafka connection details
 kafka:
   enabled: false
-  brokers: "kafka:9092"
+  brokers: "kafka.database.svc.cluster.local:9092"
   username: "user1"
   password: "password1"
 

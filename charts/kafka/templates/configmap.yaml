@@ -24,9 +24,9 @@ data:
     cat <<PROPS >/opt/kafka/config/server.properties
     process.roles=broker,controller
     node.id=0
-    controller.quorum.voters=0@${POD_NAME}.{{ include "kafka.headless" . }}.${NAMESPACE}.svc.cluster.local:9093
+    controller.quorum.voters=0@${POD_NAME}.{{ include "kafka.headless" . }}.database.svc.cluster.local:9093
     listeners=SASL_PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-    advertised.listeners=SASL_PLAINTEXT://${POD_NAME}.{{ include "kafka.headless" . }}.${NAMESPACE}.svc.cluster.local:9092
+    advertised.listeners=SASL_PLAINTEXT://${POD_NAME}.{{ include "kafka.headless" . }}.database.svc.cluster.local:9092
     listener.security.protocol.map=SASL_PLAINTEXT:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT
     controller.listener.names=CONTROLLER
     inter.broker.listener.name=SASL_PLAINTEXT
