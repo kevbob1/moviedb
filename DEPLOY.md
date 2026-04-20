@@ -37,7 +37,7 @@ age-keygen -y ~/.config/sops/age/keys.txt
 
 Update `.sops.yaml` so the AGE creation rule includes that public key.
 
-Then populate `chart/secrets.yaml` with app values:
+Then populate `charts/moviedb/secrets.yaml` with app values:
 
 ```yaml
 secrets:
@@ -46,25 +46,6 @@ secrets:
   rails:
     master_key: <contents of config/master.key>
     secret_key_base: <64-byte hex string>
-kafka:
-  username: <kafka SCRAM username>
-  password: <kafka SCRAM password>
-```
-
-And populate `charts/kafka/secrets.yaml` with Kafka values:
-
-```yaml
-auth:
-  username: <kafka SCRAM username>
-  password: <kafka SCRAM password>
-  clusterId: <base64 UUID — generate with kafka-storage.sh random-uuid>
-```
-
-Encrypt both files in place:
-
-```sh
-sops --encrypt --in-place chart/secrets.yaml
-sops --encrypt --in-place charts/kafka/secrets.yaml
 ```
 
 Deploy with the AGE private key available via `SOPS_AGE_KEY_FILE`. `helm-secrets` handles decryption automatically during the Helm run.
@@ -80,33 +61,13 @@ Kafka is deployed to the `database` namespace to share infrastructure with the D
 
 ```sh
 kubectl create namespace database
-helm secrets upgrade --install kafka ./charts/kafka -n database -f charts/kafka/values.yaml -f charts/kafka/secrets.yaml
+helm secrets upgrade --install kafka ./charts/kafka -n database -f charts/kafka/values.yaml
 ```
 
 ### 2. Deploy MovieDB
 ```sh
-helm secrets upgrade --install moviedb ./chart -f chart/values.yaml -f chart/secrets.yaml
+helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/secrets.yaml
 ```
-
-## Minikube Deploy
-
-### 1. Deploy Kafka
-```sh
-kubectl create namespace database
-helm secrets upgrade --install kafka ./charts/kafka -n database -f charts/kafka/values.yaml -f charts/kafka/secrets.yaml
-```
-
-### 2. Deploy MovieDB
-Use the same command with the Minikube override file:
-
-```sh
-helm secrets upgrade --install moviedb ./chart -f chart/values.yaml -f chart/values.minikube.yaml -f chart/secrets.yaml
-```
-
-`chart/values.minikube.yaml` overrides:
-
-- Ingress host to `moviedb.local`
-- Kafka resource requests/limits reduced for local cluster capacity
 
 ## Migration Behavior
 
@@ -132,7 +93,7 @@ If Kafka is installed locally, this works too:
 kafka-storage.sh random-uuid
 ```
 
-Store the resulting value in `charts/kafka/secrets.yaml` under `auth.clusterId`.
+Store the resulting value in `charts/kafka/values.yaml` under `auth.clusterId`.
 
 Warning: `CLUSTER_ID` is immutable after the first deploy. Changing it later requires wiping the Kafka PVC, which destroys all topic data.
 

@@ -1,5 +1,14 @@
-# Deploy: helm secrets upgrade --install moviedb ./chart -f chart/values.yaml -f chart/secrets.yaml
-# Minikube: helm secrets upgrade --install moviedb ./chart -f chart/values.yaml -f chart/secrets.yaml -f chart/values.minikube.yaml
+# Deploy: helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/secrets.yaml
+
+# Kubernetes Secret data merged from secrets.yaml
+# To update secrets, edit charts/moviedb/secrets.yaml and re-run helm upgrade
+secrets:
+  database:
+    password: CHANGE_ME
+  rails:
+    master_key: CHANGE_ME
+    secret_key_base: CHANGE_ME
+
 image:
   repository: moviedb
   tag: latest
@@ -24,12 +33,12 @@ database:
   host: database.postgres-postgresql
   port: 5432
 
-# Kafka connection details
+# Kafka connection details (for internal sidecar or configmap)
 kafka:
   enabled: false
   brokers: "kafka.database.svc.cluster.local:9092"
-  username: "user1"
-  password: "password1"
+  username: "CHANGE_ME"
+  password: "CHANGE_ME"
 
 ingress:
   enabled: true

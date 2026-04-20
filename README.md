@@ -15,7 +15,22 @@ Things you may want to cover:
 
 * Database initialization
 
-* How to run the test suite
+## Development
+
+### Running the Test Suite
+All commands should be executed via the `devcontainer` CLI.
+
+1.  **Build Assets (Required for RSpec)**
+    If you encounter errors regarding `tailwind.css` missing in the asset pipeline, run:
+    ```bash
+    devcontainer exec bundle exec rake tailwindcss:build
+    ```
+
+2.  **Run RSpec**
+    ```bash
+    devcontainer exec bundle exec rspec
+    ```
+
 
 * Services (job queues, cache servers, search engines, etc.)
 
