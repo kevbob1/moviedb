@@ -25,6 +25,11 @@ spec:
           env:
             - name: DATABASE_HOST
               value: {{ .Values.database.host | quote }}
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "moviedb.fullname" . }}
+                  key: DATABASE_USERNAME
             - name: RAILS_ENV
               value: {{ .Values.app.env.RAILS_ENV | quote }}
             - name: DATABASE_PASSWORD

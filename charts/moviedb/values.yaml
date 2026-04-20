@@ -1,7 +1,7 @@
-# Deploy: helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/secrets.yaml
+# Deploy: helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/values-secrets.yaml
 
-# Kubernetes Secret data merged from secrets.yaml
-# To update secrets, edit charts/moviedb/secrets.yaml and re-run helm upgrade
+# Kubernetes Secret data merged from values-secrets.yaml
+# To update secrets, edit charts/moviedb/values-secrets.yaml and re-run helm upgrade
 secrets:
   database:
     password: CHANGE_ME

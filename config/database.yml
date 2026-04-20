@@ -64,5 +64,5 @@ test:
 production:
   <<: *default
   database: moviedb_production
-  username: moviedb
-  password: <%= ENV.fetch("MOVIEDB_DATABASE_PASSWORD") { ENV.fetch("DATABASE_PASSWORD", "") } %>
+  username: <%= ENV.fetch("DATABASE_USERNAME", "moviedb") %>
+  password: <%= ENV.fetch("DATABASE_PASSWORD", "") %>

@@ -64,6 +64,12 @@ kubectl create namespace database
 helm secrets upgrade --install kafka ./charts/kafka -n database -f charts/kafka/values.yaml
 ```
 
+To retrieve the PostgreSQL password:
+
+```sh
+kubectl get secret --namespace database postgres-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d
+```
+
 ### 2. Deploy MovieDB
 ```sh
 helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/secrets.yaml
