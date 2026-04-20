@@ -3,8 +3,8 @@
 require "rails_helper"
 
 RSpec.describe MovieAuditService do
-  let(:delivery_handle) { double("Rdkafka::Producer::DeliveryHandle", wait: nil) }
-  let(:producer) { double("Rdkafka::Producer") }
+  let(:delivery_handle) { instance_double(Rdkafka::Producer::DeliveryHandle, wait: nil) }
+  let(:producer) { instance_double(Rdkafka::Producer, produce: delivery_handle) }
   let(:service) { described_class.new(producer: producer) }
 
   describe "#publish_audit" do
@@ -26,7 +26,7 @@ RSpec.describe MovieAuditService do
       expect(delivery_handle).to have_received(:wait).with(max_wait_timeout: 5)
     end
 
-    it "sends JSON payload with event, record_id, timestamp, before, and after" do
+    it "sends JSON payload with event, record_id, timestamp, before, and after", :aggregate_failures do
       service.publish_audit(action: :created, record_id: 42, before: nil, after: { "title" => "Test" })
 
       expect(producer).to have_received(:produce) do |args|
@@ -67,7 +67,7 @@ RSpec.describe MovieAuditService do
       end
     end
 
-    it "includes both before and after for update action" do
+    it "includes both before and after for update action", :aggregate_failures do
       before_attrs = { "title" => "Old Title" }
       after_attrs = { "title" => "New Title" }
 

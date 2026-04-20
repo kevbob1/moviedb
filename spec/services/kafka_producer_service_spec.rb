@@ -5,11 +5,11 @@ require "rails_helper"
 RSpec.describe KafkaProducerService do
   self.use_transactional_tests = false
 
-  let(:delivery_handle) { double("Rdkafka::Producer::DeliveryHandle", wait: nil) }
-  let(:producer) { double("Rdkafka::Producer") }
+  let(:delivery_handle) { instance_double(Rdkafka::Producer::DeliveryHandle, wait: nil) }
+  let(:producer) { instance_double(Rdkafka::Producer, produce: delivery_handle) }
   let(:service) { described_class.new(producer: producer) }
   let(:movie) do
-    double("Movie", id: 1, tmdb_id: 550, title: "Fight Club")
+    instance_double(Movie, id: 1, tmdb_id: 550, title: "Fight Club")
   end
 
   describe "#publish_movie_sync" do
@@ -31,7 +31,7 @@ RSpec.describe KafkaProducerService do
       expect(delivery_handle).to have_received(:wait).with(max_wait_timeout: 5)
     end
 
-    it "sends a JSON payload containing event, movie_id, tmdb_id, title, and timestamp" do
+    it "sends a JSON payload containing event, movie_id, tmdb_id, title, and timestamp", :aggregate_failures do
       service.publish_movie_sync(movie, action: :created)
 
       expect(producer).to have_received(:produce) do |args|

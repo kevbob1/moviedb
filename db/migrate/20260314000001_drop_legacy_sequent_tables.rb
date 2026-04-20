@@ -20,7 +20,7 @@ class DropLegacySequentTables < ActiveRecord::Migration[7.2]
       t.string :aggregate_id, null: false
       t.integer :snapshot_threshold
 
-      t.index [:aggregate_id], name: "index_stream_records_on_aggregate_id", unique: true
+      t.index [ :aggregate_id ], name: "index_stream_records_on_aggregate_id", unique: true
     end
 
     # Recreate command_records
@@ -42,10 +42,10 @@ class DropLegacySequentTables < ActiveRecord::Migration[7.2]
       t.integer :command_record_id, null: false
       t.integer :stream_record_id, null: false
 
-      t.index [:command_record_id], name: "index_event_records_on_command_record_id"
-      t.index [:created_at], name: "index_event_records_on_created_at"
-      t.index [:event_type], name: "index_event_records_on_event_type"
-      t.index [:aggregate_id, :sequence_number], name: "snapshot_events", order: { sequence_number: :desc }, where: "((event_type)::text = 'Sequent::Core::SnapshotEvent'::text)"
+      t.index [ :command_record_id ], name: "index_event_records_on_command_record_id"
+      t.index [ :created_at ], name: "index_event_records_on_created_at"
+      t.index [ :event_type ], name: "index_event_records_on_event_type"
+      t.index [ :aggregate_id, :sequence_number ], name: "snapshot_events", order: { sequence_number: :desc }, where: "((event_type)::text = 'Sequent::Core::SnapshotEvent'::text)"
     end
 
     # The unique_event_per_aggregate index uses a raw SQL expression, so we

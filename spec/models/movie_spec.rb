@@ -30,7 +30,7 @@ RSpec.describe Movie, type: :model do
   # ── Presence / nil-ability ───────────────────────────────────────────
 
   describe "title" do
-    it "is invalid without a title" do
+    it "is invalid without a title", :aggregate_failures do
       movie = build(:movie, title: nil)
       expect(movie).not_to be_valid
       expect(movie.errors[:title]).to include("can't be blank")
@@ -38,7 +38,7 @@ RSpec.describe Movie, type: :model do
   end
 
   describe "release_date" do
-    it "is invalid with a non-integer release_date" do
+    it "is invalid with a non-integer release_date", :aggregate_failures do
       movie = build(:movie, release_date: 19.99)
       expect(movie).not_to be_valid
       expect(movie.errors[:release_date]).to include("must be an integer")
@@ -60,7 +60,7 @@ RSpec.describe Movie, type: :model do
   # ── tmdb_id uniqueness edge cases ───────────────────────────────────
 
   describe "tmdb_id" do
-    it "is invalid when two movies share the same non-nil tmdb_id" do
+    it "is invalid when two movies share the same non-nil tmdb_id", :aggregate_failures do
       create(:movie, tmdb_id: 550)
       duplicate = build(:movie, tmdb_id: 550)
       expect(duplicate).not_to be_valid
@@ -77,8 +77,8 @@ RSpec.describe Movie, type: :model do
   # ── Attribute read/write ────────────────────────────────────────────
 
   describe "attribute accessors" do
-    it "reads and writes title, description, and release_date" do
-      movie = Movie.new
+    it "reads and writes title, description, and release_date", :aggregate_failures do
+      movie = described_class.new
       movie.title = "Test Movie"
       movie.description = "A test description"
       movie.release_date = 2024

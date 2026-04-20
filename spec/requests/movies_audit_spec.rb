@@ -3,22 +3,22 @@
 require "rails_helper"
 
 RSpec.describe "Movies audit integration", type: :request do
-  let(:delivery_handle) { double("Rdkafka::Producer::DeliveryHandle", wait: nil) }
-  let(:producer) { double("Rdkafka::Producer") }
-
-  before do
-    allow(producer).to receive(:produce).and_return(delivery_handle)
-    rdkafka_config = double("Rdkafka::Config", producer: producer)
-    allow(Rdkafka::Config).to receive(:new).and_return(rdkafka_config)
-  end
-
+  let(:delivery_handle) { instance_double(Rdkafka::Producer::DeliveryHandle, wait: nil) }
   let(:valid_attributes) do
     { title: "The Matrix", description: "A computer hacker learns about the true nature of reality.", release_date: 1999 }
   end
-
   let(:invalid_attributes) do
     { title: "", description: "Missing title movie", release_date: 2000 }
   end
+  let(:producer) { instance_double(Rdkafka::Producer) }
+
+  before do
+    allow(producer).to receive(:produce).and_return(delivery_handle)
+    rdkafka_config = instance_double(Rdkafka::Config, producer: producer)
+    allow(Rdkafka::Config).to receive(:new).and_return(rdkafka_config)
+  end
+
+
 
   describe "POST /movies" do
     it "publishes a create audit event" do

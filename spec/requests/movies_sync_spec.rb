@@ -3,6 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Movies Sync from TMDB", type: :request do
+  let(:tmdb_service) { instance_double(TmdbService) }
   let(:movie_data) do
     {
       tmdb_id: 550,
@@ -14,12 +15,19 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
       genres: "Drama, Thriller"
     }
   end
+  let(:kafka_producer_service) { instance_double(KafkaProducerService) }
+
+  before do
+    allow(TmdbService).to receive(:new).and_return(tmdb_service)
+    allow(KafkaProducerService).to receive(:new).and_return(kafka_producer_service)
+    allow(kafka_producer_service).to receive(:publish_movie_sync)
+  end
+
 
   describe "POST /movies/sync_from_tmdb" do
     context "when sync succeeds and movie is new" do
       before do
-        allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_return(movie_data)
-        allow_any_instance_of(KafkaProducerService).to receive(:publish_movie_sync)
+        allow(tmdb_service).to receive(:fetch_movie).with(550).and_return(movie_data)
       end
 
       it "creates a new movie and redirects to the movie show page" do
@@ -38,8 +46,7 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
 
     context "when sync succeeds and movie already exists (duplicate tmdb_id)" do
       before do
-        allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_return(movie_data)
-        allow_any_instance_of(KafkaProducerService).to receive(:publish_movie_sync)
+        allow(tmdb_service).to receive(:fetch_movie).with(550).and_return(movie_data)
         Movie.create!(title: "Old Title", tmdb_id: 550)
       end
 
@@ -56,7 +63,7 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
 
     context "when TmdbService raises NotFoundError" do
       before do
-        allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(999999).and_raise(TmdbService::NotFoundError, "Not found")
+        allow(tmdb_service).to receive(:fetch_movie).with(999999).and_raise(TmdbService::NotFoundError, "Not found")
       end
 
       it "redirects to movies_path with an alert" do
@@ -70,7 +77,7 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
 
     context "when TmdbService raises ApiKeyError" do
       before do
-        allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_raise(TmdbService::ApiKeyError, "Invalid API key")
+        allow(tmdb_service).to receive(:fetch_movie).with(550).and_raise(TmdbService::ApiKeyError, "Invalid API key")
       end
 
       it "redirects to movies_path with an alert" do
@@ -84,7 +91,7 @@ RSpec.describe "Movies Sync from TMDB", type: :request do
 
     context "when TmdbService raises a generic Error" do
       before do
-        allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_raise(TmdbService::Error, "TMDB API error")
+        allow(tmdb_service).to receive(:fetch_movie).with(550).and_raise(TmdbService::Error, "TMDB API error")
       end
 
       it "redirects to movies_path with an alert" do

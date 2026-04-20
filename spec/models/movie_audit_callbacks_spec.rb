@@ -2,14 +2,15 @@
 
 require "rails_helper"
 
-RSpec.describe Movie, "audit callbacks", type: :model do
+RSpec.describe Movie, type: :model do
   let(:audit_service) { instance_double(MovieAuditService, publish_audit: nil) }
 
   before do
     allow(MovieAuditService).to receive(:new).and_return(audit_service)
   end
 
-  describe "after_create" do
+  describe "audit callbacks" do
+    describe "after_create" do
     it "publishes movie.created with before nil and after containing attributes" do
       movie = create(:movie)
 
@@ -26,27 +27,28 @@ RSpec.describe Movie, "audit callbacks", type: :model do
     it "captures snapshot and publishes movie.updated with both before and after" do
       movie = create(:movie, title: "Original Title")
 
-      expect(audit_service).to receive(:publish_audit).with(
+      movie.update!(title: "Updated Title")
+
+      expect(audit_service).to have_received(:publish_audit).with(
         action: :updated,
         record_id: movie.id,
         before: a_hash_including("id" => movie.id),
         after: hash_including("title" => "Updated Title")
       )
-
-      movie.update!(title: "Updated Title")
     end
 
     it "includes before and after hashes that are both present" do
       movie = create(:movie, title: "Original Title")
 
-      expect(audit_service).to receive(:publish_audit) do |**kwargs|
-        expect(kwargs[:action]).to eq(:updated)
-        expect(kwargs[:before]).to be_a(Hash)
-        expect(kwargs[:after]).to be_a(Hash)
-        expect(kwargs[:after]["title"]).to eq("Updated Title")
-      end
-
       movie.update!(title: "Updated Title")
+
+      expect(audit_service).to have_received(:publish_audit).with(
+        hash_including(
+          action: :updated,
+          before: a_hash_including("id" => movie.id),
+          after: hash_including("title" => "Updated Title")
+        )
+      )
     end
   end
 
@@ -55,14 +57,14 @@ RSpec.describe Movie, "audit callbacks", type: :model do
       movie = create(:movie)
       saved_title = movie.title
 
-      expect(audit_service).to receive(:publish_audit).with(
+      movie.destroy!
+
+      expect(audit_service).to have_received(:publish_audit).with(
         action: :destroyed,
         record_id: movie.id,
         before: hash_including("title" => saved_title),
         after: nil
       )
-
-      movie.destroy!
     end
   end
 
@@ -73,16 +75,17 @@ RSpec.describe Movie, "audit callbacks", type: :model do
 
       expect {
         create(:movie)
-      }.to change(Movie, :count).by(1)
+      }.to change(described_class, :count).by(1)
     end
   end
 
   describe "validation failure" do
     it "does not publish audit when create fails validation" do
-      movie = Movie.new(title: "", description: "No title")
+      movie = described_class.new(title: "", description: "No title")
       movie.save
 
       expect(audit_service).not_to have_received(:publish_audit)
+    end
     end
   end
 end

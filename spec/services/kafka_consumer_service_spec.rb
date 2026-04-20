@@ -3,7 +3,8 @@
 require "rails_helper"
 
 RSpec.describe KafkaConsumerService do
-  let(:consumer) { double("Rdkafka::Consumer") }
+  let(:consumer) { instance_double(Rdkafka::Consumer, subscribe: nil) }
+  let(:tmdb_service) { instance_double(TmdbService) }
   let(:consumer_service) { described_class.new(consumer: consumer) }
 
   let(:movie_data) do
@@ -18,15 +19,19 @@ RSpec.describe KafkaConsumerService do
     }
   end
 
+  before do
+    allow(TmdbService).to receive(:new).and_return(tmdb_service)
+  end
+
   describe "#process_message" do
     before do
-      allow_any_instance_of(TmdbService).to receive(:fetch_movie)
+      allow(tmdb_service).to receive(:fetch_movie)
         .with(550)
         .and_return(movie_data)
     end
 
     context "with a valid JSON message containing tmdb_id" do
-      let(:message) { double("Rdkafka::Consumer::Message", payload: { "tmdb_id" => 550 }.to_json, topic: "moviedb.movies.sync", partition: 0, offset: 1) }
+      let(:message) { instance_double(Rdkafka::Consumer::Message, payload: { "tmdb_id" => 550 }.to_json, topic: "moviedb.movies.sync", partition: 0, offset: 1) }
 
       it "creates a new Movie record with correct attributes" do
         expect {
@@ -56,13 +61,14 @@ RSpec.describe KafkaConsumerService do
       end
 
       it "calls TmdbService#fetch_movie with the correct tmdb_id" do
-        expect_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_return(movie_data)
+        allow(tmdb_service).to receive(:fetch_movie).with(550).and_return(movie_data)
         consumer_service.process_message(message)
+        expect(tmdb_service).to have_received(:fetch_movie).with(550)
       end
     end
 
     context "with invalid JSON payload" do
-      let(:message) { double("Rdkafka::Consumer::Message", payload: "not-json", topic: "moviedb.movies.sync", partition: 0, offset: 2) }
+      let(:message) { instance_double(Rdkafka::Consumer::Message, payload: "not-json", topic: "moviedb.movies.sync", partition: 0, offset: 2) }
 
       it "does not raise an error" do
         expect {
@@ -72,10 +78,10 @@ RSpec.describe KafkaConsumerService do
     end
 
     context "when TmdbService raises NotFoundError" do
-      let(:message) { double("Rdkafka::Consumer::Message", payload: { "tmdb_id" => 999999 }.to_json, topic: "moviedb.movies.sync", partition: 0, offset: 3) }
+      let(:message) { instance_double(Rdkafka::Consumer::Message, payload: { "tmdb_id" => 999999 }.to_json, topic: "moviedb.movies.sync", partition: 0, offset: 3) }
 
       before do
-        allow_any_instance_of(TmdbService).to receive(:fetch_movie)
+        allow(tmdb_service).to receive(:fetch_movie)
           .with(999999)
           .and_raise(TmdbService::NotFoundError, "Movie with TMDB ID 999999 not found")
       end
@@ -89,10 +95,6 @@ RSpec.describe KafkaConsumerService do
   end
 
   describe "#start" do
-    before do
-      allow(consumer).to receive(:subscribe).with("moviedb.movies.sync")
-    end
-
     it "subscribes to the correct topic" do
       allow(consumer).to receive(:each)
 
@@ -102,11 +104,11 @@ RSpec.describe KafkaConsumerService do
     end
 
     it "processes each message and rescues StandardError per message" do
-      valid_message = double("Rdkafka::Consumer::Message", payload: { "tmdb_id" => 550 }.to_json, topic: "moviedb.movies.sync", partition: 0, offset: 1)
-      bad_message = double("Rdkafka::Consumer::Message", payload: "not-json", topic: "moviedb.movies.sync", partition: 0, offset: 2)
+      valid_message = instance_double(Rdkafka::Consumer::Message, payload: { "tmdb_id" => 550 }.to_json, topic: "moviedb.movies.sync", partition: 0, offset: 1)
+      bad_message = instance_double(Rdkafka::Consumer::Message, payload: "not-json", topic: "moviedb.movies.sync", partition: 0, offset: 2)
 
       allow(consumer).to receive(:each).and_yield(bad_message).and_yield(valid_message)
-      allow_any_instance_of(TmdbService).to receive(:fetch_movie).with(550).and_return(movie_data)
+      allow(tmdb_service).to receive(:fetch_movie).with(550).and_return(movie_data)
 
       # Should not raise even though bad_message causes a JSON parse error
       expect { consumer_service.start }.not_to raise_error

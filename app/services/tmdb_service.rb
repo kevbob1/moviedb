@@ -36,7 +36,7 @@ class TmdbService
   def parse_movie_response(data)
     genres = if data["genres"].is_a?(Array) && data["genres"].any?
                data["genres"].map { |g| g["name"] }.join(", ")
-             end
+    end
 
     release_year = data["release_date"]&.split("-")&.first&.to_i
     release_year = nil if release_year&.zero?
