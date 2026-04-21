@@ -30,7 +30,7 @@
 - **Secrets**: Managed via `sops` and `helm-secrets`. Requires `SOPS_AGE_KEY_FILE`.
 - **Commands**:
   - Kafka: `helm secrets upgrade --install kafka ./charts/kafka -n database -f charts/kafka/values.yaml`
-  - MovieDB: `helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/secrets.yaml`
+  - MovieDB: `helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/values-secrets.yaml`
 - **Migrations**: Run automatically via Helm `pre-install`/`pre-upgrade` hooks.
 
 ## Guidelines
