@@ -10,8 +10,8 @@ secrets:
     secret_key_base: CHANGE_ME
 
 image:
-  repository: moviedb
-  tag: latest
+  repository: registry.k.pd.o/moviedb
+  tag: 1.0 
   pullPolicy: IfNotPresent
 
 app:

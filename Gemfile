@@ -66,6 +66,7 @@ group :development, :test do
   gem "factory_bot_rails"
   gem "faker"
   gem "shoulda-matchers"
+  gem "dotenv-rails"
 end
 
 group :test do
