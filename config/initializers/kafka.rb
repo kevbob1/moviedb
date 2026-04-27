@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-if Rails.env.test?
+if Rails.env.test? || ENV["SECRET_KEY_BASE"] || ENV["RAILS_ASSETS_PRECOMPILE"]
   Rails.application.config.kafka = {
     "bootstrap.servers" => ENV.fetch("KAFKA_BROKERS", "localhost:9092"),
     "client.id" => "moviedb"

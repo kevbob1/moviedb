@@ -27,7 +27,7 @@ FROM base AS build
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev librdkafka-dev pkg-config && \
+    apt-get install --no-install-recommends -y build-essential git libpq-dev librdkafka-dev libyaml-dev pkg-config && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
@@ -40,7 +40,7 @@ RUN bundle install && \
 COPY . .
 
 # Precompile assets
-RUN SECRET_KEY_BASE=placeholder bundle exec rails assets:precompile
+RUN RAILS_ASSETS_PRECOMPILE=1 SECRET_KEY_BASE=placeholder bundle exec rails assets:precompile
 
 # Precompile bootsnap code for faster boot times
 RUN bundle exec bootsnap precompile app/ lib/
