@@ -11,20 +11,35 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
+let isConnected = false;
 
-export async function publishAudit(action: string, recordId: string, before: any, after: any) {
-  await producer.connect();
-  await producer.send({
-    topic: 'moviedb.audit',
-    messages: [{
-      value: JSON.stringify({
-        event: `movie.${action}`,
-        record_id: recordId,
-        timestamp: new Date().toISOString(),
-        before,
-        after,
-      }),
-    }],
-  });
-  await producer.disconnect();
+type AuditRecord = Record<string, unknown> | null;
+
+export async function publishAudit(
+  action: string,
+  recordId: string,
+  before: AuditRecord,
+  after: AuditRecord
+) {
+  try {
+    if (!isConnected) {
+      await producer.connect();
+      isConnected = true;
+    }
+    
+    await producer.send({
+      topic: 'moviedb.audit',
+      messages: [{
+        value: JSON.stringify({
+          event: `movie.${action}`,
+          record_id: recordId,
+          timestamp: new Date().toISOString(),
+          before,
+          after,
+        }),
+      }],
+    });
+  } catch (error) {
+    console.error('Failed to publish audit event to Kafka:', error);
+  }
 }
