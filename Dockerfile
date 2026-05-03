@@ -44,10 +44,6 @@ RUN adduser --system --uid 1001 nextjs
 # Copy public assets
 COPY --from=builder /app/public ./public
 
-# Create .next directory with correct ownership for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
 # Copy standalone server and static assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -63,4 +59,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Run migrations then start the server
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
