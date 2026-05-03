@@ -1,69 +1,66 @@
-# syntax = docker/dockerfile:1
+FROM node:25.9.0-alpine AS base
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t my-app .
-# docker run -d -p 80:80 -p 443:443 --name my-app -e RAILS_MASTER_KEY=<value from config/master.key> my-app
+# ---------------------------------------------------------------------------
+# Stage 1 – Install dependencies
+# ---------------------------------------------------------------------------
+FROM base AS deps
+RUN apk add --no-cache libc6-compat python3 make g++
+WORKDIR /app
 
-# Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=3.4.2
-FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Rails app lives here
-WORKDIR /rails
+# ---------------------------------------------------------------------------
+# Stage 2 – Build the application
+# ---------------------------------------------------------------------------
+FROM base AS builder
+WORKDIR /app
 
-# Install base packages
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+# Set a placeholder DATABASE_URL for build time
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
-# Set production environment
-ENV RAILS_ENV="production" \
-    BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
-    BUNDLE_WITHOUT="development"
-
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build gems
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev librdkafka-dev libyaml-dev pkg-config && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
-
-# Install application gems
-COPY Gemfile Gemfile.lock ./
-RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap precompile --gemfile
-
-# Copy application code
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Precompile assets
-RUN RAILS_ASSETS_PRECOMPILE=1 SECRET_KEY_BASE=placeholder bundle exec rails assets:precompile
+# Generate Prisma client
+RUN npx prisma generate
 
-# Precompile bootsnap code for faster boot times
-RUN bundle exec bootsnap precompile app/ lib/
+# Build Next.js (standalone output)
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
 
+# ---------------------------------------------------------------------------
+# Stage 3 – Production runner
+# ---------------------------------------------------------------------------
+FROM base AS runner
+WORKDIR /app
 
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Final stage for app image
-FROM base
+# Copy public assets
+COPY --from=builder /app/public ./public
 
-# Copy built artifacts: gems, application
-COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
-COPY --from=build /rails /rails
+# Create .next directory with correct ownership for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
 
-# Run and own only the runtime files as a non-root user for security
-RUN groupadd --system --gid 1000 rails && \
-    useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
-    chown -R rails:rails db log storage tmp
-USER 1000:1000
+# Copy standalone server and static assets
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Entrypoint prepares the database.
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+# Copy Prisma schema and generated client
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Start the server by default, this can be overwritten at runtime
+USER nextjs
+
 EXPOSE 3000
-CMD ["./bin/rails", "server"]
+
+# These environment variables are configurable at runtime
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
