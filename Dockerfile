@@ -1,10 +1,11 @@
 FROM node:25.9.0-alpine AS base
+RUN apk add --no-cache openssl libc6-compat
 
 # ---------------------------------------------------------------------------
 # Stage 1 – Install dependencies
 # ---------------------------------------------------------------------------
 FROM base AS deps
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN apk add --no-cache python3 make g++
 WORKDIR /app
 
 COPY package.json package-lock.json ./
