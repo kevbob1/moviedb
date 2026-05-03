@@ -1,11 +1,21 @@
-import { Kafka } from 'kafkajs';
+import { Kafka, Producer } from 'kafkajs';
 
 const kafka = new Kafka({
   clientId: 'moviedb',
   brokers: process.env.KAFKA_BROKERS?.split(',') || ['localhost:9092']
 });
 
-const producer = kafka.producer();
+const globalForKafka = globalThis as unknown as {
+  producer: Producer | undefined;
+};
+
+export const producer = globalForKafka.producer ?? kafka.producer();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForKafka.producer = producer;
+}
+
+let isConnected = false;
 
 export async function publishAudit(
   action: 'created' | 'updated' | 'deleted',
@@ -14,7 +24,10 @@ export async function publishAudit(
   after: Record<string, unknown> | null
 ): Promise<void> {
   try {
-    await producer.connect();
+    if (!isConnected) {
+      await producer.connect();
+      isConnected = true;
+    }
     await producer.send({
       topic: 'movie.audit',
       messages: [{
@@ -29,7 +42,6 @@ export async function publishAudit(
     });
   } catch (error) {
     console.error('Failed to publish audit event to Kafka:', error);
-  } finally {
-    await producer.disconnect();
   }
+  // No longer disconnecting here
 }
