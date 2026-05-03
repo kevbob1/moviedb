@@ -9,9 +9,13 @@ generator client {
 
 model Movie {
   id           String   @id @default(uuid())
-  tmdb_id      Int      @unique
+  tmdb_id      Int?     @unique
   title        String
+  description  String?
   release_date Int?
+  poster_path  String?
+  vote_average Float?
+  genres       String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
