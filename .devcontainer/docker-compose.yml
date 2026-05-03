@@ -14,6 +14,7 @@ services:
     environment:
       DATABASE_HOST: db
       DATABASE_PASSWORD: new_password
+      DATABASE_URL: postgresql://moviedb:new_password@db:5432/moviedb?schema=public
       KAFKA_BROKERS: kafka:9092
       KAFKA_USERNAME: moviedb
       KAFKA_PASSWORD: moviedb-secret

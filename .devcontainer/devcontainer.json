@@ -4,28 +4,26 @@
   "service": "app",
   "workspaceFolder": "/workspace",
   "features": {
-    "ghcr.io/devcontainers/features/ruby:1": {
-      "version": "3.4.2"
-    },
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "20.19.0"
+      "version": "25.9.0"
     }
   },
-  "postCreateCommand": "corepack enable && corepack prepare yarn@4.9.1 --activate && bin/setup",
+  "postCreateCommand": "npm install && npx prisma generate",
   "forwardPorts": [3000, 5432, 9092],
   "containerEnv": {
     "DATABASE_HOST": "db",
     "DATABASE_PASSWORD": "new_password",
+    "DATABASE_URL": "postgresql://moviedb:new_password@db:5432/moviedb?schema=public",
     "KAFKA_BROKERS": "kafka:9092",
-    "RAILS_ENV": "development",
     "KAFKA_USERNAME": "moviedb",
     "KAFKA_PASSWORD": "moviedb-secret"
   },
   "customizations": {
     "vscode": {
       "extensions": [
-        "Shopify.ruby-lsp",
-        "dbaeumer.vscode-eslint"
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "prisma.prisma"
       ]
     }
   }

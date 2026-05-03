@@ -5,14 +5,7 @@ RUN apt-get update -qq && \
       build-essential \
       libpq-dev \
       libssl-dev \
-      libreadline-dev \
-      libyaml-dev \
-      libffi-dev \
-      libgdbm-dev \
       librdkafka-dev \
-      zlib1g-dev \
-      autoconf \
-      bison \
       git \
       curl \
       postgresql-client && \
