@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { publishAudit } from '../lib/kafka';
+import { prisma } from '../../lib/prisma';
+import { publishAudit } from '../../lib/kafka';
 
 export async function createMovie(data: Prisma.MovieCreateInput) {
   let movie;
