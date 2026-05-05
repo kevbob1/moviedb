@@ -60,16 +60,28 @@ npm run dev
 npm run test
 ```
 
-### Database
+### Database Management
 
-Prisma is configured for this project. To push schema changes to the database:
+1. **Create a Migration (Local)**
+   When you change `prisma/schema.prisma`, generate a new migration file without applying it yet:
+   ```bash
+   npm run db:generate:migration -- --name your_migration_name
+   ```
 
-```bash
-npx prisma db push
-```
+2. **Apply Migrations (Dev)**
+   Apply pending migrations to your local development database:
+   ```bash
+   npm run db:migrate:dev
+   ```
 
-To open Prisma Studio (visual database editor):
+3. **Deploy Migrations (Production)**
+   Apply migrations to a production environment (uses `prisma migrate deploy` which doesn't reset data):
+   ```bash
+   npm run db:migrate
+   ```
 
-```bash
-npx prisma studio
-```
+4. **Prisma Studio**
+   Open the visual database editor to inspect or edit data:
+   ```bash
+   npx prisma studio
+   ```
