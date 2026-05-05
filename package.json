@@ -10,7 +10,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "jest"
+    "test": "jest",
+    "db:schema:load": "prisma db push",
+    "db:generate:migration": "prisma migrate dev --create-only",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate-client": "prisma generate"
   },
   "repository": {
     "type": "git",
