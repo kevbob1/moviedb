@@ -15,6 +15,7 @@
     "db:generate:migration": "prisma migrate dev --create-only",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:generate-client": "prisma generate"
   },
