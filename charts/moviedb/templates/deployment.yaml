@@ -25,7 +25,7 @@ spec:
             - -c
             - |
               attempt=0
-              until bundle exec rake db:abort_if_pending_migrations; do
+              until npm run db:migrate:status 2>/dev/null | grep -q "No pending migrations"; do
                 attempt=$((attempt + 1))
                 if [ $attempt -ge 60 ]; then
                   echo "Timed out waiting for migrations after 60 attempts"
@@ -36,30 +36,8 @@ spec:
               done
               echo "No pending migrations, proceeding."
           env:
-            - name: DATABASE_HOST
-              value: {{ .Values.database.host | quote }}
-            - name: DATABASE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: DATABASE_USERNAME
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: DATABASE_PASSWORD
-            - name: RAILS_MASTER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: RAILS_MASTER_KEY
-            - name: SECRET_KEY_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: SECRET_KEY_BASE
-            - name: RAILS_ENV
-              value: {{ .Values.app.env.RAILS_ENV | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.database.url | quote }}
       containers:
         - name: moviedb
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -68,28 +46,12 @@ spec:
             - containerPort: 3000
               protocol: TCP
           env:
-            - name: DATABASE_HOST
-              value: {{ .Values.database.host | quote }}
-            - name: DATABASE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: DATABASE_USERNAME
+            - name: DATABASE_URL
+              value: {{ .Values.database.url | quote }}
             - name: KAFKA_BROKERS
               value: {{ .Values.kafka.brokers | quote }}
-            - name: RAILS_ENV
-              value: {{ .Values.app.env.RAILS_ENV | quote }}
-            - name: SKIP_DB_PREPARE
-              value: {{ .Values.app.env.SKIP_DB_PREPARE | quote }}
-            - name: RAILS_MAX_THREADS
-              value: {{ .Values.app.env.RAILS_MAX_THREADS | quote }}
-            - name: WEB_CONCURRENCY
-              value: {{ .Values.app.env.WEB_CONCURRENCY | quote }}
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: DATABASE_PASSWORD
+            - name: NODE_ENV
+              value: {{ .Values.app.env.NODE_ENV | quote }}
             - name: KAFKA_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -100,16 +62,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "moviedb.fullname" . }}
                   key: KAFKA_PASSWORD
-            - name: RAILS_MASTER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: RAILS_MASTER_KEY
-            - name: SECRET_KEY_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: SECRET_KEY_BASE
           livenessProbe:
             httpGet:
               path: /up

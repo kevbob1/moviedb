@@ -21,29 +21,7 @@ spec:
         - name: db-migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["./bin/rails", "db:prepare"]
+          command: ["npm", "run", "db:migrate"]
           env:
-            - name: DATABASE_HOST
-              value: {{ .Values.database.host | quote }}
-            - name: DATABASE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: DATABASE_USERNAME
-            - name: RAILS_ENV
-              value: {{ .Values.app.env.RAILS_ENV | quote }}
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: DATABASE_PASSWORD
-            - name: RAILS_MASTER_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: RAILS_MASTER_KEY
-            - name: SECRET_KEY_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: SECRET_KEY_BASE
+            - name: DATABASE_URL
+              value: {{ .Values.database.url | quote }}

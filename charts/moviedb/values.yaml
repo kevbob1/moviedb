@@ -4,10 +4,11 @@
 # To update secrets, edit charts/moviedb/values-secrets.yaml and re-run helm upgrade
 secrets:
   database:
+    username: postgres
     password: CHANGE_ME
-  rails:
-    master_key: CHANGE_ME
-    secret_key_base: CHANGE_ME
+  kafka:
+    username: CHANGE_ME
+    password: CHANGE_ME
 
 image:
   repository: registry.k.pd.o/moviedb
@@ -17,10 +18,7 @@ image:
 app:
   port: 3000
   env:
-    RAILS_ENV: production
-    WEB_CONCURRENCY: "0"
-    RAILS_MAX_THREADS: "3"
-    SKIP_DB_PREPARE: "true"
+    NODE_ENV: production
   resources:
     requests:
       cpu: 250m
@@ -30,8 +28,7 @@ app:
       memory: 512Mi
 
 database:
-  host: database.postgres-postgresql
-  port: 5432
+  url: postgresql://postgres:password@database.postgres-postgresql:5432/moviedb
 
 # Kafka connection details (for internal sidecar or configmap)
 kafka:
