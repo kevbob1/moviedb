@@ -18,8 +18,8 @@ export default async function MoviePage({ params }: Props) {
     ? `https://image.tmdb.org/t/p/w342${movie.poster_path}`
     : null;
 
-  const genres = movie.genres
-    ? movie.genres.split(',').map((g) => g.trim())
+  const genres : string[] = movie.genres
+    ? movie.genres.split(',').map((g:string) => g.trim())
     : [];
 
   return (
@@ -67,7 +67,7 @@ export default async function MoviePage({ params }: Props) {
 
           {genres.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
-              {genres.map((genre) => (
+              {genres.map((genre : string) => (
                 <span
                   key={genre}
                   className="px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"

@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+model Movie {
+  id           String   @id @default(uuid())
+  tmdb_id      Int?     @unique
+  title        String
+  description  String?
+  release_date Int?
+  poster_path  String?
+  vote_average Float?
+  genres       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

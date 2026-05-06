@@ -1,0 +1,23 @@
+image: apache/kafka
+tag: 3.9.2
+replicas: 1
+heapOpts: "-Xms512m -Xmx512m"
+storage:
+  size: 10Gi
+terminationGracePeriodSeconds: 60
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+topics:
+  - moviedb.movies.sync
+  - moviedb.audit
+
+# Credentials
+auth:
+  username: "user1"
+  password: "password1"
+  clusterId: "MkU3OEVBNTcwNTJENDM2Qo"

@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "kafka.fullname" . }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+spec:
+  replicas: {{ .Values.replicas }}
+  serviceName: {{ include "kafka.headless" . }}
+  selector:
+    matchLabels:
+      {{- include "kafka.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: kafka
+  template:
+    metadata:
+      labels:
+        {{- include "kafka.labels" . | nindent 8 }}
+        {{- include "kafka.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: kafka
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: kafka
+          image: {{ .Values.image }}:{{ .Values.tag }}
+          command:
+            - /bin/bash
+            - /scripts/kafka-start.sh
+          ports:
+            - name: client
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+          env:
+            - name: KAFKA_SCRAM_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka.fullname" . }}
+                  key: KAFKA_USERNAME
+            - name: KAFKA_SCRAM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka.fullname" . }}
+                  key: KAFKA_PASSWORD
+            - name: CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka.fullname" . }}
+                  key: CLUSTER_ID
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KAFKA_HEAP_OPTS
+              value: {{ .Values.heapOpts | quote }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: data
+              mountPath: /var/kafka/data
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "kafka.fullname" . }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

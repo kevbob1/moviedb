@@ -1,0 +1,61 @@
+# Deploy: helm secrets upgrade --install moviedb ./charts/moviedb -f charts/moviedb/values.yaml -f charts/moviedb/values-secrets.yaml
+
+# Kubernetes Secret data merged from values-secrets.yaml
+# To update secrets, edit charts/moviedb/values-secrets.yaml and re-run helm upgrade
+secrets:
+  database:
+    username: postgres
+    password: CHANGE_ME
+  kafka:
+    username: CHANGE_ME
+    password: CHANGE_ME
+
+image:
+  repository: registry.k.pd.o/moviedb
+  tag: 1.0 
+  pullPolicy: IfNotPresent
+
+app:
+  port: 3000
+  env:
+    NODE_ENV: production
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+database:
+  url: postgresql://postgres:password@database.postgres-postgresql:5432/moviedb
+
+# Kafka connection details (for internal sidecar or configmap)
+kafka:
+  enabled: false
+  brokers: "kafka.database.svc.cluster.local:9092"
+  username: "CHANGE_ME"
+  password: "CHANGE_ME"
+
+ingress:
+  enabled: true
+  className: nginx
+  host: moviedb.k.p.do
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 65
+  scaleDown:
+    stabilizationWindowSeconds: 300
+  scaleUp:
+    stabilizationWindowSeconds: 60
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+migration:
+  activeDeadlineSeconds: 120
+  backoffLimit: 0

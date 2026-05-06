@@ -14,9 +14,9 @@ docker buildx build --push --platform linux/amd64 -t "${IMAGE}" .
 
 echo "Upgrading helm release..."
 SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE}" \
-  helm upgrade --install moviedb ./charts/moviedb \
-  -f charts/moviedb/values.yaml \
-  -f "secrets://charts/moviedb/values-secrets.yaml" \
+  helm upgrade --install moviedb ./helm/moviedb \
+  -f helm/moviedb/values.yaml \
+  -f "secrets://helm/moviedb/values-secrets.yaml" \
   --set image.repository="${REGISTRY}/${IMAGE_NAME}",image.tag="${TAG}"
 
 echo "Deployed ${IMAGE}"
