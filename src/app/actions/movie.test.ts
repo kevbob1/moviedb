@@ -1,4 +1,4 @@
-import { createMovie } from '../../app/actions/movie';
+import { createMovie } from './movie';
 import { prisma } from '../../lib/prisma';
 import * as kafka from '../../lib/kafka';
 

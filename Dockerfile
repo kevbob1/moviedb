@@ -1,11 +1,10 @@
 FROM node:25.9.0-alpine AS base
-RUN apk add --no-cache openssl libc6-compat
 
 # ---------------------------------------------------------------------------
 # Stage 1 – Install dependencies
 # ---------------------------------------------------------------------------
 FROM base AS deps
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache libc6-compat openssl python3 make g++
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -45,12 +44,20 @@ RUN adduser --system --uid 1001 nextjs
 # Copy public assets
 COPY --from=builder /app/public ./public
 
+# Create .next directory with correct ownership for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
 # Copy standalone server and static assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy Prisma schema and generated client
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
+# Copy full node_modules for prisma migrate deploy (transitive deps too deep to enumerate)
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 
@@ -60,5 +67,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["node", "server.js"]
