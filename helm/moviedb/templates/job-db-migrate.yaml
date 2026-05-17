@@ -24,4 +24,4 @@ spec:
           command: ["npm", "run", "db:migrate"]
           env:
             - name: DATABASE_URL
-              value: {{ .Values.database.url | quote }}
+              value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production

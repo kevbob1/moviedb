@@ -28,7 +28,7 @@ app:
       memory: 512Mi
 
 database:
-  url: postgresql://postgres:password@database.postgres-postgresql:5432/moviedb
+  url: ""
 
 # Kafka connection details (for internal sidecar or configmap)
 kafka:
