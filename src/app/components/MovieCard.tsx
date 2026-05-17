@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Movie } from '@prisma/client';
+import { Movie } from '@/generated/prisma/client';
 
 interface MovieCardProps {
   movie: Movie;

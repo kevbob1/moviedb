@@ -1,4 +1,4 @@
-import { Movie } from '@prisma/client';
+import { Movie } from '@/generated/prisma/client';
 import { MovieCard } from './MovieCard';
 
 interface MovieGridProps {
