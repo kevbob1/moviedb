@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { searchTMDBMovies, TMDBMovie } from './tmdb-api';
-import { importTMDBMovie } from './actions';
+import { TMDBMovie } from './tmdb-api';
+import { searchTMDBMovie, importTMDBMovie } from './actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -34,7 +34,7 @@ export function TMDBSearch() {
     setIsSearching(true);
     setError(null);
     try {
-      const results = await searchTMDBMovies(data.query);
+      const results = await searchTMDBMovie(data.query);
       setSearchResults(results);
     } catch (err) {
       setError(`Failed to search movies: ${(err as Error).message}`);
