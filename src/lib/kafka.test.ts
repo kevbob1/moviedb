@@ -1,4 +1,4 @@
-import { publishAudit } from '../../lib/kafka';
+import { publishAudit } from './kafka';
 
 jest.mock('kafkajs', () => {
   const sendMock = jest.fn();

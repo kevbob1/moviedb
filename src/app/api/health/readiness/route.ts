@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const dbConnected = await prisma.$queryRaw`SELECT 1`
 
-    const dbStatus = dbConnected ? 'ok' : 'error',
+    const dbStatus = dbConnected ? 'ok' : 'error'
 
     return NextResponse.json({
       status: 'ok',

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -34,10 +35,13 @@ export default async function MoviePage({ params }: Props) {
       <div className="flex flex-col md:flex-row gap-8">
         <div className="flex-shrink-0">
           {posterUrl ? (
-            <img
+            <Image
               src={posterUrl}
               alt={movie.title}
-              className="rounded-lg shadow-lg w-full max-w-xs mx-auto md:mx-0"
+              width={320}
+              height={480}
+              className="rounded-lg shadow-lg w-full max-w-xs mx-auto md:mx-0 object-cover"
+              priority
             />
           ) : (
             <div className="w-full max-w-xs h-96 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400">

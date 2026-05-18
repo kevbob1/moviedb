@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Movie } from '@/generated/prisma/client';
 
 interface MovieCardProps {
@@ -17,11 +18,12 @@ export function MovieCard({ movie }: MovieCardProps) {
     >
       <div className="aspect-[2/3] relative bg-gray-200 dark:bg-gray-700">
         {posterUrl ? (
-          <img
+          <Image
             src={posterUrl}
             alt={movie.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
