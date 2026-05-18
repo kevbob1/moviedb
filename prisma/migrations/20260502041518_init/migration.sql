@@ -1,14 +1,17 @@
 -- CreateTable
-CREATE TABLE "Movie" (
-    "id" TEXT NOT NULL,
-    "tmdb_id" INTEGER NOT NULL,
-    "title" TEXT NOT NULL,
+CREATE TABLE "movies" (
+    "id" BIGSERIAL NOT NULL,
+    "title" VARCHAR(255),
+    "description" TEXT,
     "release_date" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Movie_pkey" PRIMARY KEY ("id")
+    "created_at" TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(6) NOT NULL,
+    "tmdb_id" INTEGER,
+    "poster_path" VARCHAR(255),
+    "vote_average" DECIMAL(3,1),
+    "genres" VARCHAR(255),
+    CONSTRAINT "movies_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Movie_tmdb_id_key" ON "Movie"("tmdb_id");
+CREATE UNIQUE INDEX "movies_tmdb_id_key" ON "movies"("tmdb_id");

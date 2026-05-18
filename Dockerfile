@@ -8,7 +8,7 @@ RUN apk add --no-cache libc6-compat openssl python3 make g++
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Stage 2 – Build the application
