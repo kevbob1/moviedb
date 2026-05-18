@@ -13,7 +13,7 @@ export async function GET() {
       status: 'ok',
       database: dbStatus
     })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { status: 'error', database: 'error' },
       { status: 503 }

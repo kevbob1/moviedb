@@ -1,5 +1,4 @@
 import { publishAudit } from '../../lib/kafka';
-import { Kafka } from 'kafkajs';
 
 jest.mock('kafkajs', () => {
   const sendMock = jest.fn();
@@ -18,7 +17,7 @@ jest.mock('kafkajs', () => {
 });
 
 describe('Kafka Producer', () => {
-  const { __sendMock, __connectMock } = require('kafkajs');
+  const { __sendMock, __connectMock } = jest.requireMock('kafkajs') as { __sendMock: jest.Mock; __connectMock: jest.Mock };
 
   beforeEach(() => {
     __sendMock.mockClear();
