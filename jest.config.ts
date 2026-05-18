@@ -11,12 +11,19 @@ const config: Config = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
-  preset: "ts-jest",
   roots: ["<rootDir>/src"],
   testEnvironment: "node",
   testMatch: ["<rootDir>/src/**/*.test.ts"],
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   watchPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
+  transform: {
+    "^.+\\.tsx?$": ["ts-jest", {
+      tsconfig: "./tsconfig.test.json",
+      diagnostics: {
+        ignoreDeprecations: "6.0",
+      },
+    }],
+  },
 };
 
 export default config;
