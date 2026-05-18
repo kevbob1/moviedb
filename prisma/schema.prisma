@@ -10,7 +10,7 @@ generator client {
 
 model Movie {
   id           String   @id @default(uuid())
-  tmdb_id      Int?     @unique
+  tmdb_id      Int      @unique
   title        String
   description  String?
   release_date Int?
