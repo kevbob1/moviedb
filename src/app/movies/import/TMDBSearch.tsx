@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -96,10 +97,12 @@ export function TMDBSearch() {
               >
                 <div className="flex gap-4">
                   {movie.poster_path ? (
-                    <img
+                    <Image
                       src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
                       alt={movie.title}
-                      className="w-16 h-24 object-cover rounded"
+                      width={64}
+                      height={96}
+                      className="object-cover rounded"
                     />
                   ) : (
                     <div className="w-16 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">

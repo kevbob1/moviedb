@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 const movieSchema = z.object({
-  tmdb_id: z.number().positive().optional(),
+  tmdb_id: z.number().positive('TMDB ID must be a positive number'),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   release_date: z.number().optional(),
