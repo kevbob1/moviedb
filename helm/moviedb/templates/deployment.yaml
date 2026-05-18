@@ -16,28 +16,6 @@ spec:
       labels:
         {{- include "moviedb.labels" . | nindent 8 }}
     spec:
-      initContainers:
-        - name: wait-for-migrations
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              attempt=0
-              until npm run db:migrate:status 2>/dev/null | grep -q "No pending migrations"; do
-                attempt=$((attempt + 1))
-                if [ $attempt -ge 60 ]; then
-                  echo "Timed out waiting for migrations after 60 attempts"
-                  exit 1
-                fi
-                echo "Pending migrations detected, waiting 5s (attempt $attempt/60)..."
-                sleep 5
-              done
-              echo "No pending migrations, proceeding."
-          env:
-            - name: DATABASE_URL
-              value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
       containers:
         - name: moviedb
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -64,15 +42,15 @@ spec:
                   key: KAFKA_PASSWORD
           livenessProbe:
             httpGet:
-              path: /up
+              path: /api/health/live
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /up
+              path: /api/health/readiness
               port: 3000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 5
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}

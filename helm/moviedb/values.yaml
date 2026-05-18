@@ -40,7 +40,7 @@ kafka:
 ingress:
   enabled: true
   className: nginx
-  host: moviedb.k.p.do
+  host: moviedb.k.pd.o
 
 hpa:
   enabled: true
