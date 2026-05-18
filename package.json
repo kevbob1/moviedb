@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "test": "jest",
-    "db:schema:load": "prisma db push",
+    "postinstall": "prisma generate",
     "db:generate:migration": "prisma migrate dev --create-only",
     "db:migrate:dev": "prisma migrate dev",
     "lint": "eslint . --max-warnings 0",
