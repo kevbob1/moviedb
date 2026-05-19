@@ -1,6 +1,7 @@
 import type { Config } from "jest";
 
 const config: Config = {
+  setupFiles: ["<rootDir>/src/test/setup.ts"],
   clearMocks: true,
   collectCoverageFrom: [
     "src/lib/**/*.ts",
