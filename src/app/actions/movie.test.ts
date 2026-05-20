@@ -7,23 +7,24 @@ jest.mock('../../lib/kafka', () => ({
 }));
 
 describe('Movie Actions', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+  beforeEach(async () => {
+    await prisma.movie.deleteMany();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
   });
 
   it('creates a movie and publishes audit event', async () => {
-    const result = await createMovie({
-      tmdb_id: 550,
-      title: 'Fight Club',
-      release_date: 1999
-    });
+    const result = await createMovie({ tmdb_id: 550, title: 'Fight Club', release_date: 1999 });
 
-    // DB Verification
-    const inDb = await prisma.movie.findUnique({ where: { id: result.id } });
-    expect(inDb).not.toBeNull();
-    expect(inDb?.title).toBe('Fight Club');
+    expect(result.tmdb_id).toBe(550);
+    expect(result.title).toBe('Fight Club');
 
-    // Audit Verification
+    const persisted = await prisma.movie.findUnique({ where: { tmdb_id: 550 } });
+    expect(persisted).not.toBeNull();
+    expect(persisted!.title).toBe('Fight Club');
+
     expect(kafka.publishAudit as jest.Mock).toHaveBeenCalledWith(
       'created',
       result.id,
@@ -32,13 +33,12 @@ describe('Movie Actions', () => {
     );
   });
 
-  it('does NOT publish audit event when DB create fails', async () => {
-    // Insert first to force a unique constraint violation on tmdb_id
-    await prisma.movie.create({ data: { tmdb_id: 999, title: 'Existing Movie' } });
+  it('rejects duplicate tmdb_id and does NOT publish audit event', async () => {
+    await prisma.movie.create({ data: { tmdb_id: 999, title: 'Original Movie' } });
 
     await expect(
       createMovie({ tmdb_id: 999, title: 'Duplicate Movie' })
-    ).rejects.toThrow('Failed to create movie');
+    ).rejects.toThrow('Movie with TMDB ID 999 already exists');
 
     expect(kafka.publishAudit as jest.Mock).not.toHaveBeenCalled();
   });
