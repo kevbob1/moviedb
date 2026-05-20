@@ -19,7 +19,7 @@ let isConnected = false;
 
 export async function publishAudit(
   action: 'created' | 'updated' | 'deleted',
-  recordId: string,
+  recordId: number,
   before: Record<string, unknown> | null,
   after: Record<string, unknown> | null
 ): Promise<void> {

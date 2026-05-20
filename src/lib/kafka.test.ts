@@ -28,13 +28,13 @@ describe('Kafka Producer', () => {
     const before = null;
     const after = { id: '123', title: 'Test Movie' };
     
-    await publishAudit('created', '123', before, after);
+    await publishAudit('created', 123, before, after);
 
     expect(__sendMock).toHaveBeenCalledTimes(1);
     const payload = JSON.parse(__sendMock.mock.calls[0][0].messages[0].value);
     
     expect(payload.event).toBe('movie.created');
-    expect(payload.record_id).toBe('123');
+    expect(payload.record_id).toBe(123);
     expect(payload.before).toBeNull();
     expect(payload.after.title).toBe('Test Movie');
     expect(payload.timestamp).toBeDefined();
@@ -44,7 +44,7 @@ describe('Kafka Producer', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     __sendMock.mockRejectedValueOnce(new Error('Kafka down'));
 
-    await expect(publishAudit('created', '123', null, null)).resolves.not.toThrow();
+    await expect(publishAudit('created', 123, null, null)).resolves.not.toThrow();
     
     expect(consoleSpy).toHaveBeenCalledWith('Failed to publish audit event to Kafka:', expect.any(Error));
     consoleSpy.mockRestore();
