@@ -9,7 +9,7 @@ interface Props {
 
 export default async function MoviePage({ params }: Props) {
   const { id } = await params;
-  const movie = await prisma.movie.findUnique({ where: { id } });
+  const movie = await prisma.movie.findUnique({ where: { id: Number(id) } });
 
   if (!movie) {
     notFound();
@@ -37,7 +37,7 @@ export default async function MoviePage({ params }: Props) {
           {posterUrl ? (
             <Image
               src={posterUrl}
-              alt={movie.title}
+              alt={movie.title ?? 'Movie poster'}
               width={320}
               height={480}
               className="rounded-lg shadow-lg w-full max-w-xs mx-auto md:mx-0 object-cover"

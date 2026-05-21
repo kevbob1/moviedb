@@ -26,20 +26,8 @@ spec:
           env:
             - name: DATABASE_URL
               value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
-            - name: KAFKA_BROKERS
-              value: {{ .Values.kafka.brokers | quote }}
             - name: NODE_ENV
               value: {{ .Values.app.env.NODE_ENV | quote }}
-            - name: KAFKA_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: KAFKA_USERNAME
-            - name: KAFKA_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "moviedb.fullname" . }}
-                  key: KAFKA_PASSWORD
           livenessProbe:
             httpGet:
               path: /api/health/live

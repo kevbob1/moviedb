@@ -22,11 +22,3 @@ app.kubernetes.io/managed-by: "{{ .Release.Service }}"
 app.kubernetes.io/name: "{{ include "moviedb.name" . }}"
 app.kubernetes.io/instance: "{{ .Release.Name }}"
 {{- end -}}
-
-{{- define "moviedb.kafka.fullname" -}}
-{{- printf "%s-kafka" (include "moviedb.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-
-{{- define "moviedb.kafka.headless" -}}
-{{- printf "%s-headless" (include "moviedb.kafka.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}

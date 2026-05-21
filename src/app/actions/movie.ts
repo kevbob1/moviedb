@@ -2,7 +2,6 @@
 
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '../../lib/prisma';
-import { publishAudit } from '../../lib/kafka';
 import { z } from 'zod';
 
 const movieSchema = z.object({
@@ -33,6 +32,5 @@ export async function createMovie(data: Prisma.MovieCreateInput) {
     throw new Error(`Failed to create movie: ${(error as Error).message}`);
   }
 
-  await publishAudit('created', movie.id, null, { ...movie } as Record<string, unknown>);
   return movie;
 }

@@ -6,9 +6,6 @@ secrets:
   database:
     username: postgres
     password: CHANGE_ME
-  kafka:
-    username: CHANGE_ME
-    password: CHANGE_ME
 
 image:
   repository: registry.k.pd.o/moviedb
@@ -29,13 +26,6 @@ app:
 
 database:
   url: ""
-
-# Kafka connection details (for internal sidecar or configmap)
-kafka:
-  enabled: false
-  brokers: "kafka.database.svc.cluster.local:9092"
-  username: "CHANGE_ME"
-  password: "CHANGE_ME"
 
 ingress:
   enabled: true

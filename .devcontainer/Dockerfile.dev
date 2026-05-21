@@ -5,7 +5,6 @@ RUN apt-get update -qq && \
       build-essential \
       libpq-dev \
       libssl-dev \
-      librdkafka-dev \
       git \
       curl \
       postgresql-client && \

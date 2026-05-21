@@ -20,7 +20,7 @@ export function MovieCard({ movie }: MovieCardProps) {
         {posterUrl ? (
           <Image
             src={posterUrl}
-            alt={movie.title}
+            alt={movie.title ?? 'Movie poster'}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover"
