@@ -11,7 +11,7 @@ export function MovieCard({ movie }: MovieCardProps) {
     ? `https://image.tmdb.org/t/p/w342${movie.poster_path}`
     : null;
     
-  const year = movie.release_date ? movie.release_date.split('-')[0] : undefined;
+  const year = movie.release_date ? movie.release_date.toString() : undefined;
 
   return (
     <Link href={`/movies/${movie.id}`} className="block group w-full">

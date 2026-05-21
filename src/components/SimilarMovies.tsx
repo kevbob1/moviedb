@@ -1,6 +1,6 @@
 // src/components/SimilarMovies.tsx
 import { getSimilarMovies } from "@/lib/tmdb";
-import { MovieCard } from "./MovieCard";
+import { MovieCard } from "@/app/components/MovieCard";
 
 interface SimilarMoviesProps {
   tmdbId: number | null;
@@ -22,10 +22,18 @@ export async function SimilarMovies({ tmdbId }: SimilarMoviesProps) {
         {displayMovies.map((movie) => (
           <MovieCard
             key={movie.id}
-            id={movie.id} // Note: This routes to TMDB ID. In a full implementation, we'd map to local ID if exists.
-            title={movie.title}
-            year={movie.release_date?.split('-')[0]}
-            posterUrl={movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null}
+            movie={{
+              id: movie.id,
+              title: movie.title,
+              release_date: movie.release_date ? parseInt(movie.release_date.split('-')[0]) : null,
+              poster_path: movie.poster_path,
+              description: null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              tmdb_id: movie.id,
+              vote_average: null,
+              genres: null,
+            }}
           />
         ))}
       </div>
