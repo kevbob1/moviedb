@@ -10,39 +10,29 @@ export function MovieCard({ movie }: MovieCardProps) {
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w342${movie.poster_path}`
     : null;
+    
+  const year = movie.release_date ? movie.release_date.split('-')[0] : undefined;
 
   return (
-    <Link
-      href={`/movies/${movie.id}`}
-      className="block bg-white dark:bg-gray-800 rounded-sm shadow-sm hover:shadow transition-shadow overflow-hidden"
-    >
-      <div className="aspect-[2/3] relative bg-gray-200 dark:bg-gray-700">
+    <Link href={`/movies/${movie.id}`} className="block group w-full">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-sm bg-muted mb-2">
         {posterUrl ? (
           <Image
             src={posterUrl}
             alt={movie.title ?? 'Movie poster'}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            No Poster
+          <div className="flex h-full items-center justify-center text-muted-foreground text-sm p-4 text-center">
+            No Image
           </div>
         )}
       </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-          {movie.title}
-        </h3>
-        <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 dark:text-gray-400">
-          {movie.release_date && <span>{movie.release_date}</span>}
-          {movie.vote_average && movie.vote_average > 0 && (
-            <span className="inline-flex items-center">
-              ★ {movie.vote_average.toFixed(1)}
-            </span>
-          )}
-        </div>
+      <div className="flex flex-col">
+        <h3 className="font-semibold text-sm leading-tight line-clamp-1">{movie.title}</h3>
+        {year && <span className="text-xs text-muted-foreground mt-0.5">{year}</span>}
       </div>
     </Link>
   );
