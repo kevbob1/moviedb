@@ -6,6 +6,7 @@ secrets:
   database:
     username: postgres
     password: CHANGE_ME
+  tmdb_api_key: CHANGE_ME
 
 image:
   repository: registry.k.pd.o/moviedb
