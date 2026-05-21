@@ -40,11 +40,11 @@ export default async function MoviePage({ params }: Props) {
               alt={movie.title ?? 'Movie poster'}
               width={320}
               height={480}
-              className="rounded-lg shadow-lg w-full max-w-xs mx-auto md:mx-0 object-cover"
+              className="rounded-sm shadow-sm w-full max-w-xs mx-auto md:mx-0 object-cover"
               priority
             />
           ) : (
-            <div className="w-full max-w-xs h-96 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400">
+            <div className="w-full max-w-xs h-96 bg-gray-200 dark:bg-gray-700 rounded-sm flex items-center justify-center text-gray-400">
               No Poster
             </div>
           )}

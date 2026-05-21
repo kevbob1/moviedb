@@ -14,7 +14,7 @@ export function MovieCard({ movie }: MovieCardProps) {
   return (
     <Link
       href={`/movies/${movie.id}`}
-      className="block bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden"
+      className="block bg-white dark:bg-gray-800 rounded-sm shadow-sm hover:shadow transition-shadow overflow-hidden"
     >
       <div className="aspect-[2/3] relative bg-gray-200 dark:bg-gray-700">
         {posterUrl ? (
