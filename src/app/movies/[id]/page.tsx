@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { SimilarMovies } from "@/components/SimilarMovies";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -89,6 +90,12 @@ export default async function MoviePage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {movie.tmdb_id && (
+        <div className="mt-12">
+          <SimilarMovies tmdbId={movie.tmdb_id} />
+        </div>
+      )}
     </main>
   );
 }
