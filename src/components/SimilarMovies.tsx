@@ -22,6 +22,7 @@ export async function SimilarMovies({ tmdbId }: SimilarMoviesProps) {
         {displayMovies.map((movie) => (
           <MovieCard
             key={movie.id}
+            tmdbId={movie.id}
             movie={{
               id: movie.id,
               title: movie.title,
