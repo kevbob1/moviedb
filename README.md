@@ -1,12 +1,11 @@
 # MovieDB
 
-A Next.js application with PostgreSQL and Kafka.
+A Next.js application with PostgreSQL.
 
 ## Tech Stack
 
 - **Framework**: Next.js 16 + React 19
 - **Database**: PostgreSQL 16 + Prisma 5
-- **Message Queue**: Apache Kafka 3.9
 - **Language**: TypeScript
 
 ## Prerequisites
@@ -37,12 +36,10 @@ This project uses a devcontainer for consistent development environment.
     |-----------|------|----------------------------|
     | Next.js   | 3000 | http://localhost:3000      |
     | Postgres  | 5432 | postgresql://localhost:5432|
-    | Kafka     | 9092 | localhost:9092             |
 
 3.  **Environment variables**:
     The devcontainer automatically sets these variables:
     - `DATABASE_URL`: `postgresql://moviedb:new_password@db:5432/moviedb?schema=public`
-    - `KAFKA_BROKERS`: `kafka:9092`
 
 ### Running the App
 

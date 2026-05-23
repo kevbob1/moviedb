@@ -1,1 +1,1 @@
-# Project: MovieDB (Next.js + Postgres + Kafka)
+# Project: MovieDB (Next.js + Postgres)

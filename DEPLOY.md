@@ -56,14 +56,6 @@ export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
 
 ## Production Deploy
 
-### 1. Deploy Kafka
-Kafka is deployed to the `database` namespace to share infrastructure with the DB.
-
-```sh
-kubectl create namespace database
-helm secrets upgrade --install kafka ./charts/kafka -n database -f charts/kafka/values.yaml
-```
-
 To retrieve the PostgreSQL password:
 
 ```sh
@@ -85,24 +77,6 @@ Database migrations run in a `pre-install` / `pre-upgrade` hook Job before the a
 
 The app Deployment also has an init container that polls `rake db:abort_if_pending_migrations` as a guard before starting the web container. The migration command uses `db:prepare`, which is idempotent and safe to run repeatedly.
 
-## Kafka `CLUSTER_ID`
-
-Generate the Kafka cluster ID once before first deploy:
-
-```sh
-docker run --rm apache/kafka:3.9.2 /opt/kafka/bin/kafka-storage.sh random-uuid
-```
-
-If Kafka is installed locally, this works too:
-
-```sh
-kafka-storage.sh random-uuid
-```
-
-Store the resulting value in `charts/kafka/values.yaml` under `auth.clusterId`.
-
-Warning: `CLUSTER_ID` is immutable after the first deploy. Changing it later requires wiping the Kafka PVC, which destroys all topic data.
-
 ## Rollback Notes
 
 List release revisions:
@@ -118,10 +92,3 @@ helm rollback moviedb [REVISION]
 ```
 
 A rollback triggers `pre-upgrade` hooks again, so the migration Job runs on rollback as well. That is safe because `db:prepare` is idempotent.
-
-## Known Limitations
-
-- `SASL_PLAINTEXT`: credentials are authenticated but not TLS-encrypted; intended for intra-cluster traffic only
-- Single Kafka broker: no replication or broker-level fault tolerance; all replication factors are `1`
-- No TLS on Ingress: add a `cert-manager`-managed `tls` block for production HTTPS
-- No external Kafka access: no `LoadBalancer` or `NodePort` is exposed
