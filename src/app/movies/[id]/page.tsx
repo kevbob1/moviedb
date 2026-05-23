@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SimilarMovies } from "@/components/SimilarMovies";
+import { DeleteMovieButton } from '@/app/components/DeleteMovieButton';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -88,6 +89,8 @@ export default async function MoviePage({ params }: Props) {
               {movie.description}
             </p>
           )}
+
+          <DeleteMovieButton movieId={movie.id} />
         </div>
       </div>
 
