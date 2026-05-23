@@ -34,3 +34,23 @@ export async function createMovie(data: Prisma.MovieCreateInput) {
 
   return movie;
 }
+
+const idSchema = z.number().positive('ID must be a positive number');
+
+export async function deleteMovie(movieId: number) {
+  const validatedId = idSchema.parse(movieId);
+
+  const existingMovie = await prisma.movie.findUnique({
+    where: { id: validatedId },
+  });
+
+  if (!existingMovie) {
+    throw new Error(`Movie with ID ${validatedId} not found`);
+  }
+
+  try {
+    await prisma.movie.delete({ where: { id: validatedId } });
+  } catch (error) {
+    throw new Error(`Failed to delete movie: ${(error as Error).message}`);
+  }
+}
