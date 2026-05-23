@@ -2,7 +2,7 @@
 
 import { Prisma } from '@/generated/prisma/client';
 import { createMovie } from '@/app/actions/movie';
-import { getTMDBMovieDetails, TMDBMovie, searchTMDBMovies } from './tmdb-api';
+import { getTMDBMovieDetails, TMDBMovie, searchTMDBMovies } from "@/lib/tmdb";
 
 export async function searchTMDBMovie(query: string): Promise<TMDBMovie[]> {
   return searchTMDBMovies(query);

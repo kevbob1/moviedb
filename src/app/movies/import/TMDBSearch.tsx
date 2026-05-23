@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { TMDBMovie } from './tmdb-api';
+import { TMDBMovie } from "@/lib/tmdb";
 import { searchTMDBMovie, importTMDBMovie } from './actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
