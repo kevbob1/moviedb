@@ -15,14 +15,14 @@ export function MovieCard({ movie }: MovieCardProps) {
 
   return (
     <Link href={`/movies/${movie.id}`} className="block group w-full">
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-sm bg-muted mb-2">
+      <div className="relative aspect-[2/3] w-32 overflow-hidden rounded-sm bg-muted mb-2">
         {posterUrl ? (
           <Image
             src={posterUrl}
             alt={movie.title ?? 'Movie poster'}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+            sizes="128px"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground text-sm p-4 text-center">

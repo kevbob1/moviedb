@@ -17,21 +17,15 @@ export default function RootLayout({
       <body>
         <header className="border-b border-gray-200 dark:border-gray-800">
           <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <Link href="/" className="text-2xl font-bold text-gray-900 dark:text-white">
+            <Link href="/movies" className="text-2xl font-bold text-gray-900 dark:text-white">
               MovieDB
             </Link>
             <nav className="flex gap-4">
-              <Link 
-                href="/movies/import" 
+              <Link
+                href="/movies/import"
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
               >
                 + Import Movie
-              </Link>
-              <Link 
-                href="/movies/new" 
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-              >
-                + Add Movie
               </Link>
             </nav>
           </div>
