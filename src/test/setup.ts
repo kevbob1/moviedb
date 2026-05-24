@@ -1,6 +1,8 @@
 import { config } from 'dotenv';
 config({ path: '.env.test' });
 
+global.fetch = jest.fn();
+
 jest.mock('../lib/prisma', () => ({
   prisma: {
     movie: {

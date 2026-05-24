@@ -1,25 +1,31 @@
+import { jest } from '@jest/globals';
+
 describe('Jellyfin library', () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
-    delete process.env.JELLYFIN_URL;
-    delete process.env.JELLYFIN_API_KEY;
+    process.env.JELLYFIN_URL = 'http://localhost:8096';
+    process.env.JELLYFIN_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   describe('isMovieOnJellyfin', () => {
     it('returns false when JELLYFIN_URL is missing', async () => {
-      process.env.JELLYFIN_API_KEY = 'test-key';
+      delete process.env.JELLYFIN_URL;
       const result = await isMovieOnJellyfin(123);
       expect(result).toBe(false);
     });
 
     it('returns false when JELLYFIN_API_KEY is missing', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
+      delete process.env.JELLYFIN_API_KEY;
       const result = await isMovieOnJellyfin(123);
       expect(result).toBe(false);
     });
 
     it('queries correctly formed URL with TMDB ID', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
-      process.env.JELLYFIN_API_KEY = 'test-key';
       const mockFetch = jest.spyOn(global, 'fetch') as jest.Mock;
 
       await isMovieOnJellyfin(123);
@@ -32,12 +38,11 @@ describe('Jellyfin library', () => {
           })
         })
       );
+
+      mockFetch.mockRestore();
     });
 
     it('returns true when Jellyfin returns results', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
-      process.env.JELLYFIN_API_KEY = 'test-key';
-
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -52,9 +57,6 @@ describe('Jellyfin library', () => {
     });
 
     it('returns false when Jellyfin returns empty results', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
-      process.env.JELLYFIN_API_KEY = 'test-key';
-
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ Items: [] })
@@ -65,9 +67,6 @@ describe('Jellyfin library', () => {
     });
 
     it('returns false on network error', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
-      process.env.JELLYFIN_API_KEY = 'test-key';
-
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const result = await isMovieOnJellyfin(123);
@@ -75,9 +74,6 @@ describe('Jellyfin library', () => {
     });
 
     it('returns false on non-2xx response', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
-      process.env.JELLYFIN_API_KEY = 'test-key';
-
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 500
@@ -95,9 +91,6 @@ describe('Jellyfin library', () => {
     });
 
     it('makes single call for multiple IDs and returns map', async () => {
-      process.env.JELLYFIN_URL = 'http://localhost:8096';
-      process.env.JELLYFIN_API_KEY = 'test-key';
-
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -115,6 +108,7 @@ describe('Jellyfin library', () => {
     });
 
     it('returns false for all IDs when JELLYFIN_URL is missing', async () => {
+      delete process.env.JELLYFIN_URL;
       const result = await areMoviesOnJellyfin([123, 456]);
       expect(result.get(123)).toBe(false);
       expect(result.get(456)).toBe(false);
