@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { RequestGrid } from '@/components/RequestGrid';
+import RequestList from '@/components/RequestList';
 import { SearchInput } from '@/app/components/SearchInput';
 import { Pagination } from '@/app/components/Pagination';
 import { areMoviesOnJellyfin } from '@/lib/jellyfin';
@@ -11,16 +11,20 @@ const PAGE_SIZE = 12;
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; showFulfilled?: string }>;
 }) {
   const params = await searchParams;
   const query = params.q || '';
   const page = parseInt(params.page || '1', 10);
   const skip = (page - 1) * PAGE_SIZE;
+  const showFulfilled = params.showFulfilled === 'true';
 
-  const where = query
-    ? { title: { contains: query, mode: 'insensitive' as const } }
-    : {};
+  const where = {
+    ...(query && { title: { contains: query, mode: 'insensitive' as const } }),
+    status: showFulfilled
+      ? { notIn: ['canceled'] }
+      : { notIn: ['fulfilled', 'canceled'] },
+  };
 
   const [requests, total] = await Promise.all([
     prisma.request.findMany({
@@ -39,6 +43,9 @@ export default async function RequestsPage({
 
 const typedRequests = requests.map(r => ({
         ...r,
+        tmdb_id: r.tmdb_id ?? undefined,
+        poster_path: r.poster_path ?? undefined,
+        requested_at: r.requested_at.toISOString(),
         status: r.status as RequestStatus
       }));
 
@@ -52,7 +59,25 @@ const typedRequests = requests.map(r => ({
             <SearchInput defaultValue={query} />
           </div>
 
-          <RequestGrid
+          <div className="mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                defaultChecked={showFulfilled}
+                className="w-4 h-4"
+                onChange={(e) => {
+                  const params = new URLSearchParams();
+                  if (query) params.set('q', query);
+                  if (e.currentTarget.checked) params.set('showFulfilled', 'true');
+                  window.location.search = params.toString();
+                }}
+                name="showFulfilled"
+              />
+              <span className="text-gray-700 dark:text-gray-300">Show fulfilled</span>
+            </label>
+          </div>
+
+          <RequestList
             requests={typedRequests}
             jellyfinAvailability={Object.fromEntries(jellyfinAvailability)}
           />
