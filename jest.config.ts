@@ -2,6 +2,7 @@ import type { Config } from "jest";
 
 const config: Config = {
   setupFiles: ["<rootDir>/src/test/setup.ts"],
+  setupFilesAfterEnv: ["<rootDir>/src/test/setupAfterEnv.ts"],
   clearMocks: true,
   collectCoverageFrom: [
     "src/lib/**/*.ts",
@@ -13,8 +14,8 @@ const config: Config = {
   },
   modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   roots: ["<rootDir>/src"],
-  testEnvironment: "node",
-  testMatch: ["<rootDir>/src/**/*.test.ts"],
+  testEnvironment: "jsdom",
+  testMatch: ["<rootDir>/src/**/*.test.(ts|tsx)"],
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   watchPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   transform: {
