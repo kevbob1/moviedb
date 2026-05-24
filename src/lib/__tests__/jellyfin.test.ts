@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { isMovieOnJellyfin, areMoviesOnJellyfin } from '../jellyfin';
 
 describe('Jellyfin library', () => {
   const originalEnv = process.env;
@@ -14,6 +15,7 @@ describe('Jellyfin library', () => {
 
   describe('isMovieOnJellyfin', () => {
     it('returns false when JELLYFIN_URL is missing', async () => {
+      const { isMovieOnJellyfin } = await import('../jellyfin');
       delete process.env.JELLYFIN_URL;
       const result = await isMovieOnJellyfin(123);
       expect(result).toBe(false);
@@ -26,7 +28,7 @@ describe('Jellyfin library', () => {
     });
 
     it('queries correctly formed URL with TMDB ID', async () => {
-      const mockFetch = jest.spyOn(global, 'fetch') as jest.Mock;
+      const mockFetch = jest.spyOn(globalThis, 'fetch') as jest.Mock;
 
       await isMovieOnJellyfin(123);
 
