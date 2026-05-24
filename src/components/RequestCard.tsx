@@ -40,8 +40,7 @@ export function RequestCard({ request, onJellyfin }: Props) {
 
   const jellyfinAvailable = onJellyfin(request.tmdb_id);
 
-  const handleFulfill = async (_formData: FormData) => {
-    // formData parameter required for server actions
+  const handleFulfill = async () => {
     setIsFulfilling(true);
     try {
       await fulfillRequest(request.id);

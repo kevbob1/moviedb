@@ -1,19 +1,19 @@
-const JELLYFIN_URL = process.env.JELLYFIN_URL || "";
-const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || "";
-
 interface JellyfinItemsResponse {
   Items?: unknown;
 }
 
 async function queryJellyfinItems(endpoint: string): Promise<JellyfinItemsResponse | null> {
-  if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
+  const jellyfinUrl = process.env.JELLYFIN_URL || "";
+  const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
+
+  if (!jellyfinUrl || !jellyfinApiKey) {
     return null;
   }
 
   try {
-    const response = await fetch(`${JELLYFIN_URL}${endpoint}`, {
+    const response = await fetch(`${jellyfinUrl}${endpoint}`, {
       headers: {
-        'Authorization': `MediaBrowser Token="${JELLYFIN_API_KEY}"`
+        'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
       }
     });
 
@@ -41,6 +41,8 @@ export async function isMovieOnJellyfin(tmdbId: number): Promise<boolean> {
 
 export async function areMoviesOnJellyfin(tmdbIds: number[]): Promise<Map<number, boolean>> {
   const result = new Map<number, boolean>();
+  const jellyfinUrl = process.env.JELLYFIN_URL || "";
+  const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
 
   if (!tmdbIds?.length) {
     return result;
@@ -49,7 +51,7 @@ export async function areMoviesOnJellyfin(tmdbIds: number[]): Promise<Map<number
   // Initialize all as false
   tmdbIds.forEach(id => result.set(id, false));
 
-  if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
+  if (!jellyfinUrl || !jellyfinApiKey) {
     return result;
   }
 

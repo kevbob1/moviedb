@@ -4,6 +4,8 @@ import { SearchInput } from '@/app/components/SearchInput';
 import { Pagination } from '@/app/components/Pagination';
 import { areMoviesOnJellyfin } from '@/lib/jellyfin';
 
+type RequestStatus = 'pending' | 'downloading' | 'fulfilled';
+
 const PAGE_SIZE = 12;
 
 export default async function RequestsPage({
@@ -35,20 +37,25 @@ export default async function RequestsPage({
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
-        Requests
-      </h1>
+const typedRequests = requests.map(r => ({
+        ...r,
+        status: r.status as RequestStatus
+      }));
 
-      <div className="mb-6">
-        <SearchInput defaultValue={query} />
-      </div>
+      return (
+        <main className="container mx-auto px-4 py-8">
+          <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+            Requests
+          </h1>
 
-      <RequestGrid
-        requests={requests}
-        onJellyfin={(tmdbId) => jellyfinAvailability.get(tmdbId || 0) || false}
-      />
+          <div className="mb-6">
+            <SearchInput defaultValue={query} />
+          </div>
+
+          <RequestGrid
+            requests={typedRequests}
+            onJellyfin={(tmdbId) => jellyfinAvailability.get(tmdbId || 0) || false}
+          />
 
       <Pagination currentPage={page} totalPages={totalPages} />
     </main>
