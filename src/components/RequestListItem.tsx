@@ -1,135 +1,114 @@
 'use client';
 
-import { getGenreNames } from '@/lib/genres';
-import { cancelRequest } from '@/app/actions/request-actions';
-import { Request } from './RequestGrid';
-import { useState } from 'react';
 import Image from 'next/image';
+import { RequestStatus, getActionsForStatus, STATUS_CONFIG } from '@/lib/request-fsm';
+import { getGenreNames } from '@/lib/genres';
+import { fulfillRequest, downloadRequest, cancelRequest } from '@/app/actions/request-actions';
+
+export interface Request {
+  id: number;
+  title: string;
+  tmdb_id?: number;
+  poster_path?: string;
+  overview?: string;
+  release_date?: string;
+  genre_ids?: number[];
+  requested_by: string;
+  requested_at: string;
+  status: RequestStatus;
+}
 
 interface Props {
   request: Request;
   onRemoved?: () => void;
-  jellyfinAvailable: boolean;
+  jellyfinAvailable?: boolean;
 }
 
-function getYear(date: string | undefined): string {
-  return date?.split('-')[0] || '';
-}
-
-export function RequestListItem({ request, onRemoved, jellyfinAvailable }: Props) {
-  const [deleted, setDeleted] = useState(false);
-  const [isCanceling, setIsCanceling] = useState(false);
-
-  const handleCancel = async () => {
-    setIsCanceling(true);
-    try {
-      await cancelRequest(request.id);
-      setDeleted(true);
-      onRemoved?.();
-    } catch (error) {
-      console.error('Failed to cancel request:', error);
-    } finally {
-      setIsCanceling(false);
-    }
-  };
+export function RequestListItem({ request, onRemoved, jellyfinAvailable = false }: Props) {
+  const statusConfig = STATUS_CONFIG[request.status];
+  const actions = getActionsForStatus(request.status);
 
   const handleMarkFulfilled = async () => {
-    setIsCanceling(true);
-    try {
-      await cancelRequest(request.id);
-      onRemoved?.();
-    } catch (error) {
-      console.error('Failed to mark as fulfilled:', error);
-    } finally {
-      setIsCanceling(false);
-    }
+    await fulfillRequest(request.id);
   };
 
-  if (deleted) {
-    return null;
-  }
+  const handleDownload = async () => {
+    await downloadRequest(request.id);
+  };
+
+  const handleCancel = async () => {
+    await cancelRequest(request.id);
+    onRemoved?.();
+  };
 
   const posterUrl = request.poster_path
-    ? `https://image.tmdb.org/t/p/w185${request.poster_path}`
+    ? `https://image.tmdb.org/t/p/w154${request.poster_path}`
     : null;
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-sm shadow-sm p-3 flex gap-4 group">
-      {posterUrl ? (
-        <div className="w-16 h-24 flex-shrink-0 cursor-pointer" role="button" onClick={() => window.location.href = `/movies`}>
+    <div className="flex gap-4 p-4 border-b">
+      {posterUrl && (
+        <div className="w-24 h-36 flex-shrink-0">
           <Image
             src={posterUrl}
             alt={request.title}
-            width={64}
-            height={96}
-            className="w-full h-full object-cover rounded-sm hover:opacity-80 transition-opacity"
+            width={96}
+            height={144}
+            className="w-full h-full object-cover rounded"
           />
         </div>
-      ) : (
-        <div className="w-16 h-24 bg-gray-200 dark:bg-gray-700 rounded-sm flex-shrink-0" />
       )}
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {request.title}
-              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-                {getYear(request.release_date)}
-              </span>
-            </h3>
-            {request.genre_ids && request.genre_ids.length > 0 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {getGenreNames(request.genre_ids).join(', ')}
-              </p>
-            )}
-          </div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-            request.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-            request.status === 'downloading' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-          }`}>
-            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="font-semibold">{request.title}</h3>
+          <span className={`px-2 py-0.5 text-xs rounded ${statusConfig.bgColor} ${statusConfig.color}`}>
+            {statusConfig.label}
           </span>
         </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-          Requested by: <span className="font-medium text-gray-900 dark:text-white">{request.requested_by}</span>
-          <span className="mx-1">•</span>
-          {formatDate(request.requested_at)}
+        <p className="text-sm text-muted-foreground mb-2">
+          Requested by {request.requested_by} • {new Date(request.requested_at).toLocaleDateString()}
         </p>
 
-        {request.overview && (
-          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
-            {request.overview}
-          </p>
-        )}
-
-        {request.status !== 'fulfilled' && (
-          <div className="flex gap-2">
-            <button
-              onClick={handleCancel}
-              disabled={isCanceling}
-              className="px-3 py-1 bg-red-600 text-white text-sm rounded-sm hover:bg-red-700 disabled:opacity-50"
-            >
-              {isCanceling ? 'Cancelling...' : 'Cancel'}
-            </button>
-            <button
-              onClick={handleMarkFulfilled}
-              disabled={isCanceling}
-              className="px-3 py-1 bg-blue-600 text-white text-sm rounded-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              Mark Fulfilled
-            </button>
+        {request.genre_ids && request.genre_ids.length > 0 && (
+          <div className="text-sm mb-2">
+            {getGenreNames(request.genre_ids).join(', ')}
           </div>
         )}
 
+        {request.overview && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{request.overview}</p>
+        )}
+
+        <div className="flex gap-2 mt-2">
+          {actions.map((action) => {
+            const handleClick =
+              action.action === 'fulfill'
+                ? handleMarkFulfilled
+                : action.action === 'download'
+                ? handleDownload
+                : action.action === 'cancel'
+                ? handleCancel
+                : undefined;
+
+            return (
+              <button
+                key={action.action}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleClick?.();
+                }}
+                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:opacity-90"
+              >
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+
         {jellyfinAvailable && (
-          <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground mt-2">
             Available in Jellyfin
           </span>
         )}

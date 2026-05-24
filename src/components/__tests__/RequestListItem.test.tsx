@@ -1,0 +1,60 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { RequestListItem } from '../RequestListItem';
+import * as genres from '@/lib/genres';
+import * as requestActions from '@/app/actions/request-actions';
+
+jest.mock('@/lib/genres');
+jest.mock('@/app/actions/request-actions');
+
+const mockRequest = {
+  id: 1,
+  title: 'Test Movie',
+  overview: 'A test movie',
+  release_date: '2024-01-01',
+  genre_ids: [28, 12],
+  poster_path: '/test.jpg',
+  requested_by: 'John Doe',
+  requested_at: '2024-01-01T00:00:00Z',
+  status: 'pending' as const,
+  tmdb_id: 123,
+  media_type: 'movie',
+};
+
+describe('RequestListItem', () => {
+  beforeEach(() => {
+    (genres.getGenreNames as jest.Mock).mockReturnValue(['Action', 'Adventure']);
+  });
+
+  it('renders request title and poster', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    expect(screen.getByText('Test Movie')).toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringContaining('test.jpg'));
+  });
+
+  it('renders status badge with correct color for pending', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    expect(screen.getByText('Pending')).toHaveClass('text-yellow-800', 'bg-yellow-100');
+  });
+
+  it('renders status badge with correct color for downloading', () => {
+    const downloadingRequest = { ...mockRequest, status: 'downloading' as const, tmdb_id: 123, media_type: 'movie' };
+    render(<RequestListItem request={downloadingRequest} jellyfinAvailable={false} />);
+    expect(screen.getByText('Downloading')).toHaveClass('text-blue-800', 'bg-blue-100');
+  });
+
+  it('renders no action buttons for fulfilled status', () => {
+    const fulfilledRequest = { ...mockRequest, status: 'fulfilled' as const, tmdb_id: 123, media_type: 'movie' };
+    render(<RequestListItem request={fulfilledRequest} jellyfinAvailable={false} />);
+    expect(screen.queryByText('Start Download')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mark Fulfilled')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+  });
+
+  it('marks fulfilled calls fulfillRequest not cancelRequest', async () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    const fulfillButton = screen.getByText('Mark Fulfilled');
+    fireEvent.click(fulfillButton);
+    expect(requestActions.fulfillRequest).toHaveBeenCalledWith(1);
+    expect(requestActions.cancelRequest).not.toHaveBeenCalled();
+  });
+});
