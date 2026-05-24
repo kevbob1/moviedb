@@ -22,7 +22,7 @@ model Request {
   poster_path  String?
   requested_at DateTime @default(now())
   requested_by String
-  status       String   @default("pending")  // "pending" | "fulfilled"
+  status       String   @default("pending")  // "pending" | "downloading" | "fulfilled"
   media_type   String   @default("movie")    // "movie" | "tv" (future)
 
   @@map("requests")
@@ -99,7 +99,7 @@ Displays all `Request` records, most recently requested first. Each card shows:
 - Title
 - `requested_by`
 - `requested_at` (relative or absolute date)
-- Status badge: **Pending** (yellow) or **Fulfilled** (green)
+- Status badge: **Pending** (yellow), **Downloading** (blue), or **Fulfilled** (green)
 - Jellyfin availability indicator (live check via `areMoviesOnJellyfin` batch call)
 
 A **"Mark fulfilled"** button on each card updates `status` to `"fulfilled"` via a server action.
