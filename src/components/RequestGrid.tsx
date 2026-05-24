@@ -13,10 +13,10 @@ interface Request {
 
 interface Props {
   requests: Request[];
-  onJellyfin: (tmdbId: number | null) => boolean;
+  jellyfinAvailability: Record<number, boolean>;
 }
 
-export function RequestGrid({ requests, onJellyfin }: Props) {
+export function RequestGrid({ requests, jellyfinAvailability }: Props) {
   if (requests.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -31,7 +31,7 @@ export function RequestGrid({ requests, onJellyfin }: Props) {
         <RequestCard
           key={request.id}
           request={request}
-          onJellyfin={onJellyfin}
+          jellyfinAvailable={!!jellyfinAvailability[request.tmdb_id || 0]}
         />
       ))}
     </div>

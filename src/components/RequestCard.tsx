@@ -18,10 +18,10 @@ interface Request {
 
 interface Props {
   request: Request;
-  onJellyfin: (tmdbId: number | null) => boolean;
+  jellyfinAvailable: boolean;
 }
 
-export function RequestCard({ request, onJellyfin }: Props) {
+export function RequestCard({ request, jellyfinAvailable }: Props) {
   const [isFulfilling, setIsFulfilling] = useState(false);
 
   const posterUrl = request.poster_path
@@ -37,8 +37,6 @@ export function RequestCard({ request, onJellyfin }: Props) {
     downloading: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
     fulfilled: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
   };
-
-  const jellyfinAvailable = onJellyfin(request.tmdb_id);
 
   const handleFulfill = async () => {
     setIsFulfilling(true);

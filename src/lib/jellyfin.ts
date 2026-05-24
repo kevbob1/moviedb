@@ -1,15 +1,16 @@
+interface JellyfinItem {
+  Name?: string;
+  ProviderIds?: { Tmdb?: string; Imdb?: string; [key: string]: string | undefined };
+  [key: string]: unknown;
+}
+
 interface JellyfinItemsResponse {
-  Items?: unknown;
+  Items?: JellyfinItem[];
+  TotalRecordCount?: number;
 }
 
 export interface JellyfinStatus {
   available: boolean;
-  error?: string;
-  configured: boolean;
-}
-
-export interface JellyfinMultiStatus {
-  status: Map<number, boolean>;
   error?: string;
   configured: boolean;
 }
@@ -21,144 +22,155 @@ export interface JellyfinCheckResult {
 }
 
 async function queryJellyfinItems(endpoint: string): Promise<{ data: JellyfinItemsResponse | null; error?: string }> {
-const jellyfinUrl = process.env.JELLYFIN_URL || "";
-const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
+  const jellyfinUrl = process.env.JELLYFIN_URL || "";
+  const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
 
-if (!jellyfinUrl || !jellyfinApiKey) {
-return { data: null, error: 'Jellyfin not configured' };
+  if (!jellyfinUrl || !jellyfinApiKey) {
+    return { data: null, error: 'Jellyfin not configured' };
+  }
+
+  try {
+    const response = await fetch(`${jellyfinUrl}${endpoint}`, {
+      headers: {
+        'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
+      }
+    });
+
+    if (!response.ok) {
+      return { data: null, error: `Jellyfin API error: ${response.status} ${response.statusText}` };
+    }
+
+    return { data: await response.json() };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Network error';
+    return { data: null, error: `Jellyfin connection failed: ${errorMessage}` };
+  }
 }
 
-try {
-const response = await fetch(`${jellyfinUrl}${endpoint}`, {
-headers: {
-'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
-}
-});
+let jellyfinTmdbCache: Set<string> | null = null;
+let jellyfinCacheTimestamp: number = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
-if (!response.ok) {
-return { data: null, error: `Jellyfin API error: ${response.status} ${response.statusText}` };
+async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string }> {
+  const now = Date.now();
+  if (jellyfinTmdbCache && (now - jellyfinCacheTimestamp) < CACHE_TTL_MS) {
+    return { ids: jellyfinTmdbCache };
+  }
+
+  const jellyfinUrl = process.env.JELLYFIN_URL || "";
+  const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
+
+  if (!jellyfinUrl || !jellyfinApiKey) {
+    return { ids: new Set(), error: 'Jellyfin not configured' };
+  }
+
+  const tmdbIds = new Set<string>();
+  let startIndex = 0;
+  const limit = 500;
+
+  try {
+    while (true) {
+      const endpoint = `/Items?IncludeItemTypes=Movie&Recursive=true&Fields=ProviderIds&Limit=${limit}&StartIndex=${startIndex}`;
+      const response = await fetch(`${jellyfinUrl}${endpoint}`, {
+        headers: {
+          'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
+        }
+      });
+
+      if (!response.ok) {
+        return { ids: tmdbIds, error: `Jellyfin API error: ${response.status} ${response.statusText}` };
+      }
+
+      const data: JellyfinItemsResponse = await response.json();
+      const items = data.Items || [];
+
+      for (const item of items) {
+        if (item.ProviderIds?.Tmdb) {
+          tmdbIds.add(item.ProviderIds.Tmdb);
+        }
+      }
+
+      const total = data.TotalRecordCount || 0;
+      startIndex += limit;
+      if (startIndex >= total || items.length === 0) break;
+    }
+
+    jellyfinTmdbCache = tmdbIds;
+    jellyfinCacheTimestamp = now;
+    return { ids: tmdbIds };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Network error';
+    return { ids: tmdbIds, error: `Jellyfin connection failed: ${errorMessage}` };
+  }
 }
 
-return { data: await response.json() };
-} catch (err) {
-const errorMessage = err instanceof Error ? err.message : 'Network error';
-return { data: null, error: `Jellyfin connection failed: ${errorMessage}` };
-}
+export function invalidateJellyfinCache(): void {
+  jellyfinTmdbCache = null;
+  jellyfinCacheTimestamp = 0;
 }
 
 export async function checkMovieOnJellyfin(tmdbId: number): Promise<JellyfinCheckResult> {
-if (!tmdbId) {
-return { results: {}, configured: false, error: 'Invalid movie ID' };
-}
+  if (!tmdbId) {
+    return { results: {}, configured: false, error: 'Invalid movie ID' };
+  }
 
-const { data, error } = await queryJellyfinItems(
-`/Items?AnyProviderIdEquals=tmdb.${tmdbId}&IncludeItemTypes=Movie`
-);
+  const { ids, error } = await getJellyfinTmdbIds();
+  const configured = ids.size > 0 || !error;
 
-if (error && !data) {
-return { results: {}, configured: false, error };
-}
-
-const isAvailable = (data?.Items as unknown[])?.length > 0 || false;
-return { 
-  results: { [tmdbId]: isAvailable }, 
-  configured: true 
-};
+  return {
+    results: { [tmdbId]: ids.has(String(tmdbId)) },
+    configured,
+    error: ids.size === 0 ? error : undefined
+  };
 }
 
 export async function checkMoviesOnJellyfin(tmdbIds: number[]): Promise<JellyfinCheckResult> {
-if (!tmdbIds?.length) {
-return { results: {}, configured: false };
-}
+  if (!tmdbIds?.length) {
+    return { results: {}, configured: false };
+  }
 
-const jellyfinUrl = process.env.JELLYFIN_URL || "";
-const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
+  const { ids, error } = await getJellyfinTmdbIds();
+  const configured = ids.size > 0 || !error;
 
-if (!jellyfinUrl || !jellyfinApiKey) {
-const results: Record<number, boolean> = {};
-tmdbIds.forEach(id => results[id] = false);
-return { results, configured: false, error: 'Jellyfin not configured' };
-}
+  const results: Record<number, boolean> = {};
+  for (const id of tmdbIds) {
+    results[id] = ids.has(String(id));
+  }
 
-const anyProviderIdEquals = tmdbIds.map(id => `tmdb.${id}`).join('|');
-const { data, error } = await queryJellyfinItems(
-`/Items?AnyProviderIdEquals=${anyProviderIdEquals}&IncludeItemTypes=Movie`
-);
-
-const results: Record<number, boolean> = {};
-tmdbIds.forEach(id => results[id] = false);
-
-if (error && !data) {
-return { results, configured: false, error };
-}
-
-if (data?.Items) {
-const items = data.Items as unknown[];
-items.forEach((item) => {
-if (item && typeof item === 'object' && 'ProviderIds' in item) {
-const providerIds = (item as { ProviderIds?: { tmdb?: string } }).ProviderIds;
-const tmdbId = providerIds?.tmdb;
-if (tmdbId && tmdbIds.includes(parseInt(tmdbId, 10))) {
-results[parseInt(tmdbId, 10)] = true;
-}
-}
-});
-}
-
-return { results, configured: true };
+  return { results, configured, error: ids.size === 0 ? error : undefined };
 }
 
 export async function isMovieOnJellyfin(tmdbId: number): Promise<JellyfinStatus> {
-if (!tmdbId) {
-return { available: false, configured: false, error: 'Invalid movie ID' };
-}
+  if (!tmdbId) {
+    return { available: false, configured: false, error: 'Invalid movie ID' };
+  }
 
-const { data, error } = await queryJellyfinItems(
-`/Items?AnyProviderIdEquals=tmdb.${tmdbId}&IncludeItemTypes=Movie`
-);
+  const { ids, error } = await getJellyfinTmdbIds();
+  const configured = ids.size > 0 || !error;
 
-if (error && !data) {
-return { available: false, configured: false, error };
-}
-
-return { 
-  available: (data?.Items as unknown[])?.length > 0, 
-  configured: true 
-};
+  return {
+    available: ids.has(String(tmdbId)),
+    configured,
+    error: ids.size === 0 ? error : undefined
+  };
 }
 
 export async function areMoviesOnJellyfin(tmdbIds: number[]): Promise<Map<number, boolean>> {
-const result = new Map<number, boolean>();
-const jellyfinUrl = process.env.JELLYFIN_URL || "";
-const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
+  const result = new Map<number, boolean>();
 
-if (!tmdbIds?.length) {
-return result;
-}
+  if (!tmdbIds?.length) {
+    return result;
+  }
 
-tmdbIds.forEach(id => result.set(id, false));
+  tmdbIds.forEach(id => result.set(id, false));
 
-if (!jellyfinUrl || !jellyfinApiKey) {
-return result;
-}
+  const { ids } = await getJellyfinTmdbIds();
 
-const anyProviderIdEquals = tmdbIds.map(id => `tmdb.${id}`).join('|');
-const { data } = await queryJellyfinItems(
-`/Items?AnyProviderIdEquals=${anyProviderIdEquals}&IncludeItemTypes=Movie`
-);
+  for (const id of tmdbIds) {
+    if (ids.has(String(id))) {
+      result.set(id, true);
+    }
+  }
 
-if (data?.Items) {
-const items = data.Items as unknown[];
-items.forEach((item) => {
-if (item && typeof item === 'object' && 'ProviderIds' in item) {
-const providerIds = (item as { ProviderIds?: { tmdb?: string } }).ProviderIds;
-const tmdbId = providerIds?.tmdb;
-if (tmdbId && result.has(parseInt(tmdbId, 10))) {
-result.set(parseInt(tmdbId, 10), true);
-}
-}
-});
-}
-
-return result;
+  return result;
 }

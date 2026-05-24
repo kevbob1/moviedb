@@ -11,7 +11,7 @@ describe('RequestGrid', () => {
     render(
       <RequestGrid
         requests={mockRequests}
-        onJellyfin={() => false}
+        jellyfinAvailability={{}}
       />
     );
     expect(screen.getByText('Movie 1')).toBeInTheDocument();
@@ -22,7 +22,7 @@ describe('RequestGrid', () => {
     render(
       <RequestGrid
         requests={[]}
-        onJellyfin={() => false}
+        jellyfinAvailability={{}}
       />
     );
     expect(screen.getByText(/no requests/i)).toBeInTheDocument();

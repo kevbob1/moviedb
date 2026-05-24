@@ -14,33 +14,33 @@ describe('RequestCard', () => {
   };
 
   it('renders request title', () => {
-    render(<RequestCard request={mockRequest} onJellyfin={() => false} />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable={false} />);
     expect(screen.getByText('Test Movie')).toBeInTheDocument();
   });
 
   it('shows requester and date', () => {
-    render(<RequestCard request={mockRequest} onJellyfin={() => false} />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable={false} />);
     expect(screen.getByText(/requested by:/i)).toBeInTheDocument();
     expect(screen.getByText('Alice')).toBeInTheDocument();
   });
 
   it('shows status badge', () => {
-    render(<RequestCard request={mockRequest} onJellyfin={() => false} />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable={false} />);
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('shows Jellyfin badge when available', () => {
-    render(<RequestCard request={mockRequest} onJellyfin={() => true} />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable={true} />);
     expect(screen.getByText('On Jellyfin')).toBeInTheDocument();
   });
 
   it('does not show Jellyfin badge when not available', () => {
-    render(<RequestCard request={mockRequest} onJellyfin={() => false} />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable={false} />);
     expect(screen.queryByText('On Jellyfin')).not.toBeInTheDocument();
   });
 
   it('shows mark fulfilled button', () => {
-    render(<RequestCard request={mockRequest} onJellyfin={() => false} />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable={false} />);
     expect(screen.getByRole('button', { name: /mark fulfilled/i })).toBeInTheDocument();
   });
 });

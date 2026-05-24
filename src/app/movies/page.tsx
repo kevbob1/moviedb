@@ -54,7 +54,7 @@ const typedRequests = requests.map(r => ({
 
           <RequestGrid
             requests={typedRequests}
-            onJellyfin={(tmdbId) => jellyfinAvailability.get(tmdbId || 0) || false}
+            jellyfinAvailability={Object.fromEntries(jellyfinAvailability)}
           />
 
       <Pagination currentPage={page} totalPages={totalPages} />
