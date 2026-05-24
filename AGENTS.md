@@ -47,3 +47,25 @@ Uses default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for
 ### Domain docs
 
 Single-context — one `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.
+
+## Helm Chart Conventions
+
+### Environment Variables
+
+**All environment variables MUST be injected via ConfigMap or Secret, never hardcoded in container specs.**
+
+| Type | Target | Example |
+|------|--------|---------|
+| Non-secret | `templates/configmap.yaml` | `NODE_ENV`, `JELLYFIN_URL` |
+| Secrets | `templates/secret.yaml` (stringData) | `TMDB_API_KEY`, `JELLYFIN_API_KEY` |
+
+**Container specs use `envFrom`:**
+```yaml
+envFrom:
+  - configMapRef:
+      name: {{ include "moviedb.fullname" . }}-env
+  - secretRef:
+      name: {{ include "moviedb.fullname" . }}
+```
+
+**Inline `env` is only for values requiring secret interpolation at template time (e.g., DATABASE_URL).
