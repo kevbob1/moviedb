@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import RequestList from '@/components/RequestList';
 import { SearchInput } from '@/app/components/SearchInput';
 import { Pagination } from '@/app/components/Pagination';
+import { ShowFulfilledCheckbox } from '@/components/ShowFulfilledCheckbox';
 import { areMoviesOnJellyfin } from '@/lib/jellyfin';
 
 type RequestStatus = 'pending' | 'downloading' | 'fulfilled';
@@ -60,21 +61,10 @@ const typedRequests = requests.map(r => ({
           </div>
 
           <div className="mb-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                defaultChecked={showFulfilled}
-                className="w-4 h-4"
-                onChange={(e) => {
-                  const params = new URLSearchParams();
-                  if (query) params.set('q', query);
-                  if (e.currentTarget.checked) params.set('showFulfilled', 'true');
-                  window.location.search = params.toString();
-                }}
-                name="showFulfilled"
-              />
-              <span className="text-gray-700 dark:text-gray-300">Show fulfilled</span>
-            </label>
+            <ShowFulfilledCheckbox
+              defaultChecked={showFulfilled}
+              query={query}
+            />
           </div>
 
           <RequestList
