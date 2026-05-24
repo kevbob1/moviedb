@@ -22,8 +22,11 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sleep", "infinity"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "moviedb.fullname" . }}-env
+            - secretRef:
+                name: {{ include "moviedb.fullname" . }}
           env:
             - name: DATABASE_URL
               value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
-            - name: TMDB_API_KEY
-              value: {{ .Values.secrets.tmdb_api_key | quote }}

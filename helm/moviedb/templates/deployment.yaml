@@ -23,13 +23,14 @@ spec:
           ports:
             - containerPort: 3000
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "moviedb.fullname" . }}-env
+            - secretRef:
+                name: {{ include "moviedb.fullname" . }}
           env:
             - name: DATABASE_URL
               value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
-            - name: NODE_ENV
-              value: {{ .Values.app.env.NODE_ENV | quote }}
-            - name: TMDB_API_KEY
-              value: {{ .Values.secrets.tmdb_api_key | quote }}
           livenessProbe:
             httpGet:
               path: /api/health/live
