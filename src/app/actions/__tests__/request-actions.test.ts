@@ -25,7 +25,8 @@ describe('request-actions', () => {
         requested_by: 'Alice'
       };
 
-      (prisma.request.create as jest.Mock<typeof mockRequest>).mockResolvedValue(mockRequest);
+      const createMock = prisma.request.create as jest.Mock;
+      createMock.mockResolvedValue(mockRequest);
 
       const result = await createRequest(123, 'Test Movie', '/test.jpg', 'Alice');
 
