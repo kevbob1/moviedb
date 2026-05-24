@@ -8,17 +8,15 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
-model Movie {
+model Request {
   id           Int      @id @default(autoincrement())
-  title        String?
-  description  String?
-  release_date Int?
-  createdAt    DateTime @map("created_at") @default(now())
-  updatedAt    DateTime @map("updated_at") @updatedAt
+  title        String
   tmdb_id      Int?     @unique
   poster_path  String?
-  vote_average Float?
-  genres       String?
+  requested_at DateTime @default(now())
+  requested_by String
+  status       String   @default("pending")  // "pending" | "downloading" | "fulfilled"
+  media_type   String   @default("movie")    // "movie" | "tv" (future)
 
-  @@map("movies")
+  @@map("requests")
 }
