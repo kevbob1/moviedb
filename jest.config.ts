@@ -1,6 +1,7 @@
 import type { Config } from "jest";
 
 const config: Config = {
+  coverageProvider: "v8",
   setupFiles: ["<rootDir>/src/test/setup.ts"],
   setupFilesAfterEnv: ["<rootDir>/src/test/setupAfterEnv.ts"],
   clearMocks: true,

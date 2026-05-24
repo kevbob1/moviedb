@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "next start",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:db": "npx dotenv -e .env.test -- prisma migrate deploy && jest",
     "postinstall": "prisma generate",
     "db:generate:migration": "prisma migrate dev --create-only",
