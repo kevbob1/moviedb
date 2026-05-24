@@ -1,7 +1,6 @@
 'use client';
 
-import { Request } from './RequestListItem';
-import RequestListItem from './RequestListItem';
+import { Request, RequestListItem } from './RequestListItem';
 
 interface RequestListProps {
   requests: Request[];
@@ -23,7 +22,7 @@ export default function RequestList({ requests, jellyfinAvailability }: RequestL
         <RequestListItem
           key={request.id}
           request={request}
-          jellyfinAvailable={jellyfinAvailability[request.id] ?? false}
+          jellyfinAvailable={jellyfinAvailability[request.tmdb_id ?? 0] ?? false}
         />
       ))}
     </div>
