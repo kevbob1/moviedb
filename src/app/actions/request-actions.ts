@@ -9,7 +9,7 @@ export async function createRequest(
   posterPath: string | null,
   requestedBy: string
 ) {
-  if (!title.trim() || !requestedBy.trim()) {
+  if (!title?.trim() || !requestedBy?.trim()) {
     throw new Error('Title and requester name are required');
   }
 
