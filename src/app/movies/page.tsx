@@ -82,7 +82,11 @@ const typedRequests = requests.map(r => ({
             jellyfinAvailability={Object.fromEntries(jellyfinAvailability)}
           />
 
-      <Pagination currentPage={page} totalPages={totalPages} />
+      <Pagination 
+        currentPage={page} 
+        totalPages={totalPages}
+        preserveParams={{ q: query, showFulfilled: params.showFulfilled || '' }}
+      />
     </main>
   );
 }

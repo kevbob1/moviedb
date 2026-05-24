@@ -3,13 +3,14 @@ import Link from 'next/link';
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
+  preserveParams?: Record<string, string>;
 }
 
-export function Pagination({ currentPage, totalPages }: PaginationProps) {
+export function Pagination({ currentPage, totalPages, preserveParams = {} }: PaginationProps) {
   if (totalPages <= 1) return null;
 
   const buildUrl = (page: number) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(preserveParams);
     params.set('page', page.toString());
     return `?${params.toString()}`;
   };

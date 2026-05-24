@@ -9,6 +9,13 @@ interface JellyfinItemsResponse {
   TotalRecordCount?: number;
 }
 
+export interface JellyfinAvailabilityResult {
+  results: Map<number, boolean>;
+  error?: string;
+  configured: boolean;
+  lastChecked: Date;
+}
+
 export interface JellyfinStatus {
   available: boolean;
   error?: string;
@@ -147,4 +154,32 @@ export async function areMoviesOnJellyfin(tmdbIds: number[]): Promise<Map<number
   }
 
   return result;
+}
+
+export async function checkAvailability(tmdbIds: number[]): Promise<JellyfinAvailabilityResult> {
+  const result = new Map<number, boolean>();
+  let error: string | undefined;
+  let configured = true;
+
+  if (!tmdbIds?.length) {
+    return { results: result, configured: true, lastChecked: new Date() };
+  }
+
+  tmdbIds.forEach(id => result.set(id, false));
+
+  const { ids, error: fetchError } = await getJellyfinTmdbIds();
+
+  if (fetchError) {
+    error = fetchError;
+    configured = false;
+    return { results: result, error, configured, lastChecked: new Date() };
+  }
+
+  for (const id of tmdbIds) {
+    if (ids.has(String(id))) {
+      result.set(id, true);
+    }
+  }
+
+  return { results: result, configured, lastChecked: new Date() };
 }

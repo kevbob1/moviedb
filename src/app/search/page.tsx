@@ -6,15 +6,9 @@ import { TMDBMovie } from '@/lib/tmdb';
 import { createRequest } from '@/app/actions/request-actions';
 import { RequestForm } from '@/components/RequestForm';
 import { JellyfinBadge } from '@/components/JellyfinBadge';
+import { GENRE_MAP } from '@/lib/genres';
 
-const GENRE_MAP: Record<number, string> = {
-  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
-  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
-  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
-  10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western'
-};
-
-function getGenreNames(ids: number[] | undefined): string {
+function getGenreNamesDisplay(ids: number[] | undefined): string {
   if (!ids?.length) return '';
   return ids.map(id => GENRE_MAP[id]).filter(Boolean).join(', ');
 }
@@ -164,7 +158,7 @@ return (
       </h3>
       {movie.genre_ids && movie.genre_ids.length > 0 && (
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-          {getGenreNames(movie.genre_ids)}
+          {getGenreNamesDisplay(movie.genre_ids)}
         </p>
       )}
     </div>

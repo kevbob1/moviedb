@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { RequestStatus, getActionsForStatus, STATUS_CONFIG } from '@/lib/request-fsm';
+import { RequestStatus, getActionsForStatus } from '@/lib/request-fsm';
+import { STATUS_CONFIG } from '@/lib/request-theme';
 import { getGenreNames } from '@/lib/genres';
 import { fulfillRequest, downloadRequest, cancelRequest } from '@/app/actions/request-actions';
 

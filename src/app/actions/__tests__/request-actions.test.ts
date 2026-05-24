@@ -132,7 +132,7 @@ describe('request-actions', () => {
       });
 
       await expect(cancelRequest(1)).rejects.toThrow(
-        'Cannot cancel request in status fulfilled'
+        'Cannot transition from fulfilled to canceled'
       );
     });
   });
