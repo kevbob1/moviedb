@@ -1,6 +1,5 @@
 // src/app/actions/__tests__/request-actions.test.ts
-
-import { createRequest, fulfillRequest } from '../request-actions';
+import { createRequest, fulfillRequest, cancelRequest, downloadRequest } from '../request-actions';
 import { prisma } from '@/lib/prisma';
 
 jest.mock('@/lib/prisma');
@@ -9,63 +8,132 @@ describe('request-actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.request doesn't exist in types, need to mock it
-    (prisma as any).request = { create: jest.fn(), update: jest.fn() };
+    (prisma as any).request = {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn()
+    };
   });
 
   describe('createRequest', () => {
-    it('creates a request and returns it', async () => {
-      const mockRequest = {
-        id: 1,
-        title: 'Test Movie',
-        tmdb_id: 123,
-        poster_path: '/test.jpg',
-        status: 'pending' as const,
-        media_type: 'movie' as const,
-        requested_at: new Date(),
-        requested_by: 'Alice'
-      };
+    it('creates a request with pending status', async () => {
+      const mockRequest = { id: 1, title: 'Test Movie', status: 'pending' };
+      (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
 
-      const createMock = prisma.request.create as jest.Mock;
-      createMock.mockResolvedValue(mockRequest);
+      const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe');
 
-      const result = await createRequest(123, 'Test Movie', '/test.jpg', 'Alice');
-
-      expect(result).toEqual(mockRequest);
       expect(prisma.request.create).toHaveBeenCalledWith({
         data: {
           tmdb_id: 123,
           title: 'Test Movie',
-          poster_path: '/test.jpg',
-          requested_by: 'Alice',
+          poster_path: '/path.jpg',
+          requested_by: 'John Doe',
           status: 'pending',
-          media_type: 'movie'
-        }
+          media_type: 'movie',
+        },
       });
+      expect(result).toEqual(mockRequest);
     });
 
-    it('throws error on failure', async () => {
-      (prisma.request.create as jest.Mock).mockRejectedValue(new Error('DB error'));
-
-      await expect(createRequest(123, 'Test', '/test.jpg', 'Alice')).rejects.toThrow();
+    it('throws if title is empty', async () => {
+      await expect(createRequest(123, '', '/path.jpg', 'John Doe')).rejects.toThrow(
+        'Title and requester name are required'
+      );
     });
   });
 
   describe('fulfillRequest', () => {
-    it('updates request status to fulfilled', async () => {
-      const mockRequest = {
+    it('updates status to fulfilled when valid', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
         id: 1,
-        status: 'fulfilled'
-      };
+        status: 'pending',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 1, status: 'fulfilled' });
 
-      (prisma.request.update as jest.Mock).mockResolvedValue(mockRequest);
+      await fulfillRequest(1);
 
-      const result = await fulfillRequest(1);
-
-      expect(result).toEqual(mockRequest);
+      expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'fulfilled' }
+        data: { status: 'fulfilled' },
       });
+    });
+
+    it('throws if request not found', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(fulfillRequest(1)).rejects.toThrow('Request not found');
+    });
+
+    it('throws if transition is invalid', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'fulfilled',
+      });
+
+      await expect(fulfillRequest(1)).rejects.toThrow(
+        'Cannot transition from fulfilled to fulfilled'
+      );
+    });
+  });
+
+  describe('downloadRequest', () => {
+    it('updates status to downloading when valid', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'pending',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 1, status: 'downloading' });
+
+      await downloadRequest(1);
+
+      expect(prisma.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'downloading' },
+      });
+    });
+
+    it('throws if transition is invalid', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'fulfilled',
+      });
+
+      await expect(downloadRequest(1)).rejects.toThrow(
+        'Cannot transition from fulfilled to downloading'
+      );
+    });
+  });
+
+  describe('cancelRequest', () => {
+    it('sets status to canceled instead of deleting', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'pending',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 1, status: 'canceled' });
+      (prisma.request.delete as jest.Mock).mockResolvedValue({});
+
+      await cancelRequest(1);
+
+      expect(prisma.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'canceled' },
+      });
+      expect(prisma.request.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws if cannot cancel current status', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'fulfilled',
+      });
+
+      await expect(cancelRequest(1)).rejects.toThrow(
+        'Cannot cancel request in status fulfilled'
+      );
     });
   });
 });
