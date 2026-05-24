@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { searchTMDBMovies, TMDBMovie } from '@/lib/tmdb';
 import { isMovieOnJellyfin } from '@/lib/jellyfin';
 import { createRequest } from '@/app/actions/request-actions';
@@ -88,11 +89,16 @@ export default function ImportPage() {
               className="bg-white dark:bg-gray-800 rounded-sm shadow-sm p-4"
             >
               {movie.poster_path && (
-                <img
-                  src={`https://image.tmdb.org/t/p/w342${movie.poster_path}`}
-                  alt={movie.title}
-                  className="w-full h-[300px] object-cover rounded-sm mb-3"
-                />
+                <div className="w-full h-[300px] mb-3">
+                  <Image
+                    src={`https://image.tmdb.org/t/p/w342${movie.poster_path}`}
+                    alt={movie.title}
+                    width={0}
+                    height={0}
+                    sizes="100vw"
+                    className="w-full h-full object-cover rounded-sm"
+                  />
+                </div>
               )}
 
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">

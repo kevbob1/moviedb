@@ -28,15 +28,3 @@ describe('RequestGrid', () => {
     expect(screen.getByText(/no requests/i)).toBeInTheDocument();
   });
 });
-
-  it('renders empty state when no requests', () => {
-    render(
-      <RequestGrid
-        requests={[]}
-        onJellyfin={() => false}
-        onFulfill={() => {}}
-      />
-    );
-    expect(screen.getByText(/no requests/i)).toBeInTheDocument();
-  });
-});

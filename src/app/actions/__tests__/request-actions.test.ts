@@ -8,6 +8,7 @@ jest.mock('@/lib/prisma');
 describe('request-actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.request doesn't exist in types, need to mock it
     (prisma as any).request = { create: jest.fn(), update: jest.fn() };
   });
 
@@ -18,13 +19,13 @@ describe('request-actions', () => {
         title: 'Test Movie',
         tmdb_id: 123,
         poster_path: '/test.jpg',
-        status: 'pending',
-        media_type: 'movie',
+        status: 'pending' as const,
+        media_type: 'movie' as const,
         requested_at: new Date(),
         requested_by: 'Alice'
       };
 
-      (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
+      (prisma.request.create as jest.Mock<typeof mockRequest>).mockResolvedValue(mockRequest);
 
       const result = await createRequest(123, 'Test Movie', '/test.jpg', 'Alice');
 

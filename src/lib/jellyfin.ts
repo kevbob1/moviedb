@@ -1,7 +1,11 @@
-async function queryJellyfinItems(endpoint: string): Promise<any | null> {
-  const JELLYFIN_URL = process.env.JELLYFIN_URL || "";
-  const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || "";
-  
+const JELLYFIN_URL = process.env.JELLYFIN_URL || "";
+const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || "";
+
+interface JellyfinItemsResponse {
+  Items?: unknown;
+}
+
+async function queryJellyfinItems(endpoint: string): Promise<JellyfinItemsResponse | null> {
   if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
     return null;
   }
@@ -18,7 +22,7 @@ async function queryJellyfinItems(endpoint: string): Promise<any | null> {
     }
 
     return await response.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -32,7 +36,7 @@ export async function isMovieOnJellyfin(tmdbId: number): Promise<boolean> {
     `/Items?AnyProviderIdEquals=tmdb.${tmdbId}&IncludeItemTypes=Movie`
   );
 
-  return data?.Items?.length > 0 || false;
+  return (data?.Items as unknown[])?.length > 0 || false;
 }
 
 export async function areMoviesOnJellyfin(tmdbIds: number[]): Promise<Map<number, boolean>> {
@@ -42,26 +46,29 @@ export async function areMoviesOnJellyfin(tmdbIds: number[]): Promise<Map<number
     return result;
   }
 
+  // Initialize all as false
   tmdbIds.forEach(id => result.set(id, false));
-
-  const JELLYFIN_URL = process.env.JELLYFIN_URL || "";
-  const JELLYFIN_API_KEY = process.env.JELLYFIN_API_KEY || "";
 
   if (!JELLYFIN_URL || !JELLYFIN_API_KEY) {
     return result;
   }
 
+  // Build provider filter: tmdb.123|tmdb.456|tmdb.789
   const anyProviderIdEquals = tmdbIds.map(id => `tmdb.${id}`).join('|');
 
   const data = await queryJellyfinItems(
     `/Items?AnyProviderIdEquals=${anyProviderIdEquals}&IncludeItemTypes=Movie`
   );
 
-  if (data?.Items?.length > 0) {
-    data.Items.forEach((item: any) => {
-      const tmdbId = item.ProviderIds?.tmdb;
-      if (tmdbId && result.has(parseInt(tmdbId, 10))) {
-        result.set(parseInt(tmdbId, 10), true);
+  if (data?.Items) {
+    const items = data.Items as unknown[];
+    items.forEach((item) => {
+      if (item && typeof item === 'object' && 'ProviderIds' in item) {
+        const providerIds = (item as { ProviderIds?: { tmdb?: string } }).ProviderIds;
+        const tmdbId = providerIds?.tmdb;
+        if (tmdbId && result.has(parseInt(tmdbId, 10))) {
+          result.set(parseInt(tmdbId, 10), true);
+        }
       }
     });
   }
