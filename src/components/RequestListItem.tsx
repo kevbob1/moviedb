@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { RequestStatus, getActionsForStatus, STATUS_CONFIG } from '@/lib/request-fsm';
 import { getGenreNames } from '@/lib/genres';
@@ -25,21 +26,48 @@ interface Props {
 }
 
 export function RequestListItem({ request, onRemoved, jellyfinAvailable = false }: Props) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
   const statusConfig = STATUS_CONFIG[request.status];
   const actions = getActionsForStatus(request.status);
 
   const handleMarkFulfilled = async () => {
-    await fulfillRequest(request.id);
+    setIsLoading(true);
+    try {
+      await fulfillRequest(request.id);
+    } catch (error) {
+      console.error('Failed to mark as fulfilled:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDownload = async () => {
-    await downloadRequest(request.id);
+    setIsLoading(true);
+    try {
+      await downloadRequest(request.id);
+    } catch (error) {
+      console.error('Failed to download:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = async () => {
-    await cancelRequest(request.id);
-    onRemoved?.();
+    setIsLoading(true);
+    try {
+      await cancelRequest(request.id);
+      setDeleted(true);
+      onRemoved?.();
+    } catch (error) {
+      console.error('Failed to cancel:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (deleted) return null;
 
   const posterUrl = request.poster_path
     ? `https://image.tmdb.org/t/p/w154${request.poster_path}`
@@ -99,9 +127,10 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
                   e.preventDefault();
                   handleClick?.();
                 }}
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:opacity-90"
+                disabled={isLoading}
+                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
               >
-                {action.label}
+                {isLoading ? 'Loading...' : action.label}
               </button>
             );
           })}
