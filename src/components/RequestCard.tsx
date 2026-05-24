@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { getGenreNames } from '@/lib/genres';
 import { JellyfinBadge } from './JellyfinBadge';
 import { fulfillRequest } from '@/app/actions/request-actions';
 import { Request } from './RequestGrid';
@@ -24,18 +25,6 @@ export function RequestCard({ request, jellyfinAvailable }: Props) {
 
   const getYear = (date: string | undefined): string => {
     return date?.split('-')[0] || '';
-  };
-
-  const GENRE_MAP: Record<number, string> = {
-    28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
-    99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
-    27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
-    10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western'
-  };
-
-  const getGenreNames = (ids: number[] | undefined): string => {
-    if (!ids?.length) return '';
-    return ids.map(id => GENRE_MAP[id]).filter(Boolean).join(', ');
   };
 
   const statusColors = {
@@ -84,7 +73,7 @@ export function RequestCard({ request, jellyfinAvailable }: Props) {
             </h3>
             {request.genre_ids && request.genre_ids.length > 0 && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                {getGenreNames(request.genre_ids)}
+                {getGenreNames(request.genre_ids).join(', ')}
               </p>
             )}
             {request.overview && (
