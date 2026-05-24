@@ -30,3 +30,9 @@ export async function fulfillRequest(requestId: number) {
     data: { status: 'fulfilled' }
   });
 }
+
+export async function cancelRequest(requestId: number) {
+  return prisma.request.delete({
+    where: { id: requestId }
+  });
+}

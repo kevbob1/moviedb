@@ -1,3 +1,5 @@
+'use client';
+
 import { RequestCard } from './RequestCard';
 
 interface Request {
@@ -9,7 +11,12 @@ interface Request {
   requested_by: string;
   status: 'pending' | 'downloading' | 'fulfilled';
   media_type: string;
+  overview?: string;
+  release_date?: string;
+  genre_ids?: number[];
 }
+
+export type { Request };
 
 interface Props {
   requests: Request[];
@@ -31,7 +38,7 @@ export function RequestGrid({ requests, jellyfinAvailability }: Props) {
         <RequestCard
           key={request.id}
           request={request}
-          jellyfinAvailable={!!jellyfinAvailability[request.tmdb_id || 0]}
+          jellyfinAvailable={!!jellyfinAvailability[request.tmdb_id ?? 0]}
         />
       ))}
     </div>

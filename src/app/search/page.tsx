@@ -7,6 +7,22 @@ import { createRequest } from '@/app/actions/request-actions';
 import { RequestForm } from '@/components/RequestForm';
 import { JellyfinBadge } from '@/components/JellyfinBadge';
 
+const GENRE_MAP: Record<number, string> = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi',
+  10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western'
+};
+
+function getGenreNames(ids: number[] | undefined): string {
+  if (!ids?.length) return '';
+  return ids.map(id => GENRE_MAP[id]).filter(Boolean).join(', ');
+}
+
+function getYear(date: string | undefined): string {
+  return date?.split('-')[0] || '';
+}
+
 interface JellyfinStatus {
   results: Record<number, boolean>;
   error?: string;
@@ -113,7 +129,7 @@ return (
 </div>
 )}
 
-<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+<div className="space-y-3">
 {results.map((movie) => {
 const onJellyfin = jellyfinStatus.get(movie.id) || false;
 const isRequesting = requesting === movie.id;
@@ -121,43 +137,63 @@ const isRequesting = requesting === movie.id;
 return (
 <div
   key={movie.id}
-  className="bg-white dark:bg-gray-800 rounded-sm shadow-sm p-4"
+  className="bg-white dark:bg-gray-800 rounded-sm shadow-sm p-3 flex gap-4"
 >
-{movie.poster_path && (
-  <div className="w-full h-[300px] mb-3">
+{movie.poster_path ? (
+  <div className="w-16 h-24 flex-shrink-0">
   <Image
-    src={`https://image.tmdb.org/t/p/w342${movie.poster_path}`}
+    src={`https://image.tmdb.org/t/p/w185${movie.poster_path}`}
     alt={movie.title}
-    width={0}
-    height={0}
-    sizes="100vw"
+    width={64}
+    height={96}
     className="w-full h-full object-cover rounded-sm"
   />
   </div>
+) : (
+  <div className="w-16 h-24 bg-gray-200 dark:bg-gray-700 rounded-sm flex-shrink-0" />
 )}
 
-<h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-  {movie.title}
-</h3>
+<div className="flex-1 min-w-0">
+  <div className="flex items-start justify-between gap-2">
+    <div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        {movie.title}
+        <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+          {getYear(movie.release_date)}
+        </span>
+      </h3>
+      {movie.genre_ids && movie.genre_ids.length > 0 && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+          {getGenreNames(movie.genre_ids)}
+        </p>
+      )}
+    </div>
+    <JellyfinBadge available={onJellyfin} />
+  </div>
 
-<JellyfinBadge available={onJellyfin} />
+  {movie.overview && (
+    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
+      {movie.overview}
+    </p>
+  )}
 
-{!onJellyfin && !isRequesting && (
-  <button
-  onClick={() => setRequesting(movie.id)}
-  className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 w-full"
-  >
-  Request
-  </button>
-)}
+  {!onJellyfin && !isRequesting && (
+    <button
+      onClick={() => setRequesting(movie.id)}
+      className="px-3 py-1 bg-blue-600 text-white text-sm rounded-sm hover:bg-blue-700"
+    >
+      Request
+    </button>
+  )}
 
-{isRequesting && (
-  <RequestForm
-  isVisible={true}
-  onSubmit={(requestedBy) => handleRequest(movie, requestedBy)}
-  onCancel={() => setRequesting(null)}
-  />
-)}
+  {isRequesting && (
+    <RequestForm
+      isVisible={true}
+      onSubmit={(requestedBy) => handleRequest(movie, requestedBy)}
+      onCancel={() => setRequesting(null)}
+    />
+  )}
+</div>
 </div>
 );
 })}

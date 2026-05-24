@@ -21,32 +21,6 @@ export interface JellyfinCheckResult {
   configured: boolean;
 }
 
-async function queryJellyfinItems(endpoint: string): Promise<{ data: JellyfinItemsResponse | null; error?: string }> {
-  const jellyfinUrl = process.env.JELLYFIN_URL || "";
-  const jellyfinApiKey = process.env.JELLYFIN_API_KEY || "";
-
-  if (!jellyfinUrl || !jellyfinApiKey) {
-    return { data: null, error: 'Jellyfin not configured' };
-  }
-
-  try {
-    const response = await fetch(`${jellyfinUrl}${endpoint}`, {
-      headers: {
-        'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
-      }
-    });
-
-    if (!response.ok) {
-      return { data: null, error: `Jellyfin API error: ${response.status} ${response.statusText}` };
-    }
-
-    return { data: await response.json() };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Network error';
-    return { data: null, error: `Jellyfin connection failed: ${errorMessage}` };
-  }
-}
-
 let jellyfinTmdbCache: Set<string> | null = null;
 let jellyfinCacheTimestamp: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
