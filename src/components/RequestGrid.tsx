@@ -14,10 +14,9 @@ interface Request {
 interface Props {
   requests: Request[];
   onJellyfin: (tmdbId: number | null) => boolean;
-  onFulfill: (requestId: number) => void;
 }
 
-export function RequestGrid({ requests, onJellyfin, onFulfill }: Props) {
+export function RequestGrid({ requests, onJellyfin }: Props) {
   if (requests.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -33,7 +32,6 @@ export function RequestGrid({ requests, onJellyfin, onFulfill }: Props) {
           key={request.id}
           request={request}
           onJellyfin={onJellyfin}
-          onFulfill={onFulfill}
         />
       ))}
     </div>

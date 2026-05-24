@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { JellyfinBadge } from './JellyfinBadge';
+import { fulfillRequest } from '@/app/actions/request-actions';
 
 interface Request {
   id: number;
@@ -17,10 +19,11 @@ interface Request {
 interface Props {
   request: Request;
   onJellyfin: (tmdbId: number | null) => boolean;
-  onFulfill: (requestId: number) => void;
 }
 
-export function RequestCard({ request, onJellyfin, onFulfill }: Props) {
+export function RequestCard({ request, onJellyfin }: Props) {
+  const [isFulfilling, setIsFulfilling] = useState(false);
+
   const posterUrl = request.poster_path
     ? `https://image.tmdb.org/t/p/w342${request.poster_path}`
     : null;
@@ -36,6 +39,17 @@ export function RequestCard({ request, onJellyfin, onFulfill }: Props) {
   };
 
   const jellyfinAvailable = onJellyfin(request.tmdb_id);
+
+  const handleFulfill = async (formData: FormData) => {
+    setIsFulfilling(true);
+    try {
+      await fulfillRequest(request.id);
+    } catch (error) {
+      console.error('Failed to fulfill request:', error);
+    } finally {
+      setIsFulfilling(false);
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-sm shadow-sm overflow-hidden">
@@ -78,12 +92,15 @@ export function RequestCard({ request, onJellyfin, onFulfill }: Props) {
             </div>
 
             {request.status !== 'fulfilled' && (
-              <button
-                onClick={() => onFulfill(request.id)}
-                className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Mark Fulfilled
-              </button>
+              <form action={handleFulfill}>
+                <button
+                  type="submit"
+                  disabled={isFulfilling}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isFulfilling ? 'Marking...' : 'Mark Fulfilled'}
+                </button>
+              </form>
             )}
           </div>
         </div>
