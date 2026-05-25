@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { checkMoviesOnJellyfin } from '@/lib/jellyfin'
+import { checkJellyfinConnectivity } from '@/lib/jellyfin'
 
 export const dynamic = 'force-static'
 
@@ -9,18 +9,9 @@ try {
 const dbConnected = await prisma.$queryRaw`SELECT 1`
 const dbStatus = dbConnected ? 'ok' : 'error'
 
-let jellyfinStatus = 'not_configured'
-try {
-const jellyfinUrl = process.env.JELLYFIN_URL || ''
-const jellyfinApiKey = process.env.JELLYFIN_API_KEY || ''
-
-if (jellyfinUrl && jellyfinApiKey) {
-const result = await checkMoviesOnJellyfin([])
-jellyfinStatus = result.configured ? 'ok' : 'error'
-}
-} catch {
-jellyfinStatus = 'error'
-}
+const jellyfinResult = await checkJellyfinConnectivity()
+const jellyfinStatus = !jellyfinResult.configured ? 'not_configured' :
+                       jellyfinResult.reachable ? 'ok' : 'error'
 
 const overallStatus = dbStatus === 'ok' && jellyfinStatus !== 'error' ? 'ok' : 'error'
 

@@ -1,4 +1,4 @@
-import { isMovieOnJellyfin, areMoviesOnJellyfin, checkMovieOnJellyfin, checkMoviesOnJellyfin, invalidateJellyfinCache } from '../jellyfin';
+import { isMovieOnJellyfin, areMoviesOnJellyfin, checkMovieOnJellyfin, checkMoviesOnJellyfin, invalidateJellyfinCache, checkJellyfinConnectivity } from '../jellyfin';
 
 describe('Jellyfin library', () => {
   const originalEnv = process.env;
@@ -170,6 +170,59 @@ describe('Jellyfin library', () => {
       const result = await areMoviesOnJellyfin([123, 456]);
       expect(result.get(123)).toBe(false);
       expect(result.get(456)).toBe(false);
+    });
+  });
+
+  describe('checkJellyfinConnectivity', () => {
+    it('returns configured:false when JELLYFIN_URL is missing', async () => {
+      delete process.env.JELLYFIN_URL;
+      const result = await checkJellyfinConnectivity();
+      expect(result.configured).toBe(false);
+      expect(result.reachable).toBe(false);
+      expect(result.error).toContain('not configured');
+    });
+
+    it('returns configured:false when JELLYFIN_API_KEY is missing', async () => {
+      delete process.env.JELLYFIN_API_KEY;
+      const result = await checkJellyfinConnectivity();
+      expect(result.configured).toBe(false);
+      expect(result.reachable).toBe(false);
+      expect(result.error).toContain('not configured');
+    });
+
+    it('returns reachable:true when System/Info returns 200', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ServerName: 'TestServer', Version: '1.0.0' })
+      } as unknown as Response);
+
+      const result = await checkJellyfinConnectivity();
+      expect(result.configured).toBe(true);
+      expect(result.reachable).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('returns reachable:false when System/Info returns error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized'
+      } as unknown as Response);
+
+      const result = await checkJellyfinConnectivity();
+      expect(result.configured).toBe(true);
+      expect(result.reachable).toBe(false);
+      expect(result.error).toContain('401');
+    });
+
+    it('returns reachable:false on network error', async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Connection refused'));
+
+      const result = await checkJellyfinConnectivity();
+      expect(result.configured).toBe(true);
+      expect(result.reachable).toBe(false);
+      expect(result.error).toContain('Connection refused');
     });
   });
 

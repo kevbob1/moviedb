@@ -80,3 +80,4 @@ next-env.d.ts
 .superpowers/
 src/generated/prisma/
 .worktrees/
+/coverage/

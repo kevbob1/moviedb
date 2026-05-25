@@ -4,6 +4,10 @@ metadata:
   name: {{ include "moviedb.fullname" . }}-env
   labels:
     {{- include "moviedb.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation
 data:
   NODE_ENV: {{ .Values.app.env.NODE_ENV | quote }}
   JELLYFIN_URL: {{ .Values.jellyfin.url | quote }}

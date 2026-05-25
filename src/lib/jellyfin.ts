@@ -22,6 +22,12 @@ export interface JellyfinStatus {
   configured: boolean;
 }
 
+export interface JellyfinConnectivityResult {
+  configured: boolean;
+  reachable: boolean;
+  error?: string;
+}
+
 export interface JellyfinCheckResult {
   results: Record<number, boolean>;
   error?: string;
@@ -88,6 +94,32 @@ async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string 
 export function invalidateJellyfinCache(): void {
   jellyfinTmdbCache = null;
   jellyfinCacheTimestamp = 0;
+}
+
+export async function checkJellyfinConnectivity(): Promise<JellyfinConnectivityResult> {
+  const jellyfinUrl = process.env.JELLYFIN_URL || '';
+  const jellyfinApiKey = process.env.JELLYFIN_API_KEY || '';
+
+  if (!jellyfinUrl || !jellyfinApiKey) {
+    return { configured: false, reachable: false, error: 'Jellyfin not configured' };
+  }
+
+  try {
+    const response = await fetch(`${jellyfinUrl}/System/Info`, {
+      headers: {
+        'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
+      }
+    });
+
+    if (!response.ok) {
+      return { configured: true, reachable: false, error: `Jellyfin API error: ${response.status} ${response.statusText}` };
+    }
+
+    return { configured: true, reachable: true };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Network error';
+    return { configured: true, reachable: false, error: `Jellyfin connection failed: ${errorMessage}` };
+  }
 }
 
 export async function checkMovieOnJellyfin(tmdbId: number): Promise<JellyfinCheckResult> {
