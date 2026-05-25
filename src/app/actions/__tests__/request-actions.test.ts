@@ -3,9 +3,6 @@ import { createRequest, fulfillRequest, cancelRequest, downloadRequest } from '.
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
-jest.mock('next/cache', () => ({
-  revalidatePath: jest.fn(),
-}));
 jest.mock('@/lib/prisma');
 
 describe('request-actions', () => {

@@ -60,7 +60,7 @@ describe('RequestListItem', () => {
 
   it('renders release year next to title', () => {
     render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
-    expect(screen.getByText(/2024/)).toBeInTheDocument();
+    expect(screen.getByText('(2024)')).toBeInTheDocument();
   });
 
   it('renders overview description', () => {
