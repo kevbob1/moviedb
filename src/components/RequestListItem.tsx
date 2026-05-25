@@ -26,6 +26,12 @@ interface Props {
   jellyfinAvailable?: boolean;
 }
 
+const ACTION_STYLES: Record<string, string> = {
+  download: 'bg-blue-600 hover:bg-blue-700',
+  fulfill: 'bg-green-600 hover:bg-green-700',
+  cancel: 'bg-red-600 hover:bg-red-700',
+};
+
 export function RequestListItem({ request, onRemoved, jellyfinAvailable = false }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [deleted, setDeleted] = useState(false);
@@ -90,25 +96,34 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
 
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold">{request.title}</h3>
+          <h3 className="font-semibold">
+            {request.title}
+            {request.release_date && (
+              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({request.release_date.split('-')[0]})
+              </span>
+            )}
+          </h3>
           <span className={`px-2 py-0.5 text-xs rounded ${statusConfig.bgColor} ${statusConfig.color}`}>
             {statusConfig.label}
           </span>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-2">
-          Requested by {request.requested_by} • {new Date(request.requested_at).toLocaleDateString()}
-        </p>
+        {request.overview && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-1">
+            {request.overview}
+          </p>
+        )}
 
         {request.genre_ids && request.genre_ids.length > 0 && (
-          <div className="text-sm mb-2">
+          <div className="text-sm text-muted-foreground mb-1">
             {getGenreNames(request.genre_ids).join(', ')}
           </div>
         )}
 
-        {request.overview && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{request.overview}</p>
-        )}
+        <p className="text-sm text-muted-foreground mb-2">
+          Requested by {request.requested_by} • {new Date(request.requested_at).toLocaleDateString()}
+        </p>
 
         <div className="flex gap-2 mt-2">
           {actions.map((action) => {
@@ -121,6 +136,8 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
                 ? handleCancel
                 : undefined;
 
+            const colorClass = ACTION_STYLES[action.action] || 'bg-primary hover:opacity-90';
+
             return (
               <button
                 key={action.action}
@@ -129,7 +146,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
                   handleClick?.();
                 }}
                 disabled={isLoading}
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+                className={`px-3 py-1 text-sm text-white rounded disabled:opacity-50 ${colorClass}`}
               >
                 {isLoading ? 'Loading...' : action.label}
               </button>
