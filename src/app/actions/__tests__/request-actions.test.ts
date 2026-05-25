@@ -1,7 +1,11 @@
 // src/app/actions/__tests__/request-actions.test.ts
 import { createRequest, fulfillRequest, cancelRequest, downloadRequest } from '../request-actions';
 import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
+jest.mock('next/cache', () => ({
+  revalidatePath: jest.fn(),
+}));
 jest.mock('@/lib/prisma');
 
 describe('request-actions', () => {
@@ -18,11 +22,11 @@ describe('request-actions', () => {
   });
 
   describe('createRequest', () => {
-    it('creates a request with pending status', async () => {
+    it('creates a request with pending status and extra fields', async () => {
       const mockRequest = { id: 1, title: 'Test Movie', status: 'pending' };
       (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
 
-      const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe');
+      const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe', '2024-01-01', 'A movie', [28, 12]);
 
       expect(prisma.request.create).toHaveBeenCalledWith({
         data: {
@@ -32,6 +36,9 @@ describe('request-actions', () => {
           requested_by: 'John Doe',
           status: 'pending',
           media_type: 'movie',
+          release_date: '2024-01-01',
+          overview: 'A movie',
+          genre_ids: [28, 12],
         },
       });
       expect(result).toEqual(mockRequest);
@@ -59,6 +66,7 @@ describe('request-actions', () => {
         where: { id: 1 },
         data: { status: 'fulfilled' },
       });
+      expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
 
     it('throws if request not found', async () => {
@@ -93,6 +101,7 @@ describe('request-actions', () => {
         where: { id: 1 },
         data: { status: 'downloading' },
       });
+      expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
 
     it('throws if transition is invalid', async () => {
@@ -123,6 +132,7 @@ describe('request-actions', () => {
         data: { status: 'canceled' },
       });
       expect(prisma.request.delete).not.toHaveBeenCalled();
+      expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
 
     it('throws if cannot cancel current status', async () => {
