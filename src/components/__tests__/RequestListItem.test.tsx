@@ -57,4 +57,37 @@ describe('RequestListItem', () => {
     expect(requestActions.fulfillRequest).toHaveBeenCalledWith(1);
     expect(requestActions.cancelRequest).not.toHaveBeenCalled();
   });
+
+  it('renders release year next to title', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    expect(screen.getByText(/2024/)).toBeInTheDocument();
+  });
+
+  it('renders overview description', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    expect(screen.getByText('A test movie')).toBeInTheDocument();
+  });
+
+  it('renders genres from genre_ids', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    expect(screen.getByText('Action, Adventure')).toBeInTheDocument();
+  });
+
+  it('renders cancel button in red', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    const cancelButton = screen.getByText('Cancel');
+    expect(cancelButton).toHaveClass('bg-red-600');
+  });
+
+  it('renders start download button in blue', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    const downloadButton = screen.getByText('Start Download');
+    expect(downloadButton).toHaveClass('bg-blue-600');
+  });
+
+  it('renders mark fulfilled button in green', () => {
+    render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
+    const fulfillButton = screen.getByText('Mark Fulfilled');
+    expect(fulfillButton).toHaveClass('bg-green-600');
+  });
 });
