@@ -70,7 +70,15 @@ setJellyfinStatus(new Map(Object.entries(jellyfinData.results).map(([k, v]) => [
 
 const handleRequest = async (movie: TMDBMovie, requestedBy: string) => {
 try {
-  await createRequest(movie.id, movie.title, movie.poster_path || null, requestedBy);
+    await createRequest(
+      movie.id,
+      movie.title,
+      movie.poster_path || null,
+      requestedBy,
+      movie.release_date,
+      movie.overview,
+      movie.genre_ids
+    );
   setRequesting(null);
 
   if (movie.id) {
