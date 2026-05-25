@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import {
   createRequest as createRequestImpl,
   fulfillRequest as fulfillRequestImpl,
@@ -11,19 +12,36 @@ export async function createRequest(
   tmdbId: number,
   title: string,
   posterPath: string | null,
-  requestedBy: string
+  requestedBy: string,
+  releaseDate?: string,
+  overview?: string,
+  genreIds?: number[]
 ) {
-  return createRequestImpl({ tmdbId, title, posterPath, requestedBy });
+  return createRequestImpl({
+    tmdbId,
+    title,
+    posterPath,
+    requestedBy,
+    releaseDate,
+    overview,
+    genreIds,
+  });
 }
 
 export async function fulfillRequest(requestId: number) {
-  return fulfillRequestImpl(requestId);
+  const result = await fulfillRequestImpl(requestId);
+  revalidatePath('/requests');
+  return result;
 }
 
 export async function downloadRequest(requestId: number) {
-  return downloadRequestImpl(requestId);
+  const result = await downloadRequestImpl(requestId);
+  revalidatePath('/requests');
+  return result;
 }
 
 export async function cancelRequest(requestId: number) {
-  return cancelRequestImpl(requestId);
+  const result = await cancelRequestImpl(requestId);
+  revalidatePath('/requests');
+  return result;
 }
