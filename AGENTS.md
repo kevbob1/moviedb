@@ -69,3 +69,13 @@ envFrom:
 ```
 
 **Inline `env` is only for values requiring secret interpolation at template time (e.g., DATABASE_URL).
+
+## Devcontainer
+
+**Run app commands inside the devcontainer for consistent environment:**
+```bash
+devcontainer exec 'npm run dev'
+devcontainer exec 'npm run check'
+```
+
+Use `devcontainer exec` instead of running npm/npx directly on the host.
