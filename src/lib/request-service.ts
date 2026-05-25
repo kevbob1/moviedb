@@ -6,6 +6,9 @@ export interface CreateRequestInput {
   title: string;
   posterPath: string | null;
   requestedBy: string;
+  releaseDate?: string;
+  overview?: string;
+  genreIds?: number[];
 }
 
 export async function createRequest(input: CreateRequestInput) {
@@ -21,6 +24,9 @@ export async function createRequest(input: CreateRequestInput) {
       requested_by: input.requestedBy,
       status: 'pending',
       media_type: 'movie',
+      release_date: input.releaseDate,
+      overview: input.overview,
+      genre_ids: input.genreIds ?? [],
     },
   });
 }
