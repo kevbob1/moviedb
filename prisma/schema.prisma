@@ -13,6 +13,9 @@ model Request {
   title        String
   tmdb_id      Int?     @unique
   poster_path  String?
+  release_date String?
+  overview     String?
+  genre_ids    Int[]    @default([])
   requested_at DateTime @default(now())
   requested_by String
   status       String   @default("pending")  // "pending" | "downloading" | "fulfilled"
