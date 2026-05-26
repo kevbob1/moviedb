@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const STORAGE_KEY = 'moviedb-requestor-name';
 
 interface Props {
   onSubmit: (requestedBy: string) => void;
@@ -11,6 +13,14 @@ interface Props {
 export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
   const [requestedBy, setRequestedBy] = useState('');
 
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrating from localStorage on mount
+      setRequestedBy(stored);
+    }
+  }, []);
+
   if (!isVisible) {
     return null;
   }
@@ -18,6 +28,7 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (requestedBy.trim()) {
+      localStorage.setItem(STORAGE_KEY, requestedBy.trim());
       onSubmit(requestedBy.trim());
       setRequestedBy('');
     }
@@ -39,17 +50,17 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
           required
         />
 
-        <div className="flex gap-2 mt-3">
+        <div className="flex flex-col md:flex-row gap-2 mt-3">
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded-sm hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-sm hover:bg-blue-700 w-full md:w-auto"
           >
             Submit Request
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-sm hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-sm hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 w-full md:w-auto"
           >
             Cancel
           </button>
