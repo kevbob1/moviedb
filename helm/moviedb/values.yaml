@@ -22,11 +22,11 @@ app:
     NODE_ENV: production
   resources:
     requests:
-      cpu: 250m
-      memory: 256Mi
-    limits:
       cpu: 500m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
 
 database:
   url: ""
@@ -38,8 +38,8 @@ ingress:
 
 hpa:
   enabled: true
-  minReplicas: 1
-  maxReplicas: 3
+  minReplicas: 2
+  maxReplicas: 5
   targetCPUUtilizationPercentage: 65
   scaleDown:
     stabilizationWindowSeconds: 300
