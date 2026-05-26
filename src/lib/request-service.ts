@@ -61,28 +61,3 @@ export async function downloadRequest(requestId: number) {
 export async function cancelRequest(requestId: number) {
   return transitionToStatus(requestId, 'canceled');
 }
-
-export async function getRequestById(id: number) {
-  return prisma.request.findUnique({ where: { id } });
-}
-
-export async function listRequests(params: {
-  skip?: number;
-  take?: number;
-  status?: RequestStatus;
-}) {
-  const { skip = 0, take = 20, status } = params;
-
-  return prisma.request.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { requested_at: 'desc' },
-    skip,
-    take,
-  });
-}
-
-export async function countRequests(status?: RequestStatus) {
-  return prisma.request.count({
-    where: status ? { status } : undefined,
-  });
-}

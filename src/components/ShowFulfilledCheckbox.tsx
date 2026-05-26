@@ -14,6 +14,7 @@ export function ShowFulfilledCheckbox({
       <input
         type="checkbox"
         defaultChecked={defaultChecked}
+        key={defaultChecked ? 'checked' : 'unchecked'}
         className="w-4 h-4"
         onChange={(e) => {
           const params = new URLSearchParams();

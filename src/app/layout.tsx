@@ -1,16 +1,21 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Link from 'next/link';
+import { Navigation } from './components/Navigation';
+
 export const metadata: Metadata = {
   title: 'Is It On Jellyfin?',
   description: 'Check if movies are on Jellyfin and request new ones',
   manifest: '/manifest.json',
-  themeColor: '#2563eb',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'MovieDB',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#2563eb',
 };
 
 export default function RootLayout({
@@ -30,14 +35,7 @@ export default function RootLayout({
             >
               Is It On Jellyfin?
             </Link>
-            <div className="flex-1 flex justify-end items-center gap-4">
-              <Link
-                href="/requests"
-                className="nav-link"
-              >
-                View Requests
-              </Link>
-            </div>
+            <Navigation />
           </div>
         </header>
         <main>{children}</main>
