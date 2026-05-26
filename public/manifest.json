@@ -1,0 +1,16 @@
+{
+  "name": "Is It On Jellyfin?",
+  "short_name": "MovieDB",
+  "description": "Check if movies are on Jellyfin and request new ones",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
