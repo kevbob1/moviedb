@@ -51,7 +51,7 @@ export default async function RequestsPage({
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6 text-gray-900 dark:text-white">
         Requests
       </h1>
 
