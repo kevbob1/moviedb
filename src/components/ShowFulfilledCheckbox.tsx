@@ -23,7 +23,7 @@ export function ShowFulfilledCheckbox({
         }}
         name="showFulfilled"
       />
-      <span className="text-gray-700 dark:text-gray-300">Show fulfilled</span>
+      <span className="text-body">Show fulfilled</span>
     </label>
   );
 }

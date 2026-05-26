@@ -26,3 +26,122 @@
 body {
   @apply bg-background text-foreground;
 }
+
+@layer components {
+  /* Layout */
+  .page-container {
+    @apply container mx-auto px-4 py-8;
+  }
+
+  /* Typography */
+  .page-title {
+    @apply text-2xl md:text-3xl font-bold mb-6 text-gray-900 dark:text-white;
+  }
+
+  .card-title {
+    @apply text-lg font-semibold text-gray-900 dark:text-white;
+  }
+
+  .text-muted {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .text-body {
+    @apply text-sm text-gray-600 dark:text-gray-300;
+  }
+
+  /* Forms */
+  .input {
+    @apply px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none;
+  }
+
+  .form-row {
+    @apply flex flex-col md:flex-row gap-2;
+  }
+
+  .form-row-lg {
+    @apply mb-8 flex flex-col md:flex-row gap-2;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply rounded-sm transition-colors disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply rounded-sm transition-colors disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700;
+  }
+
+  .btn-secondary {
+    @apply rounded-sm transition-colors disabled:opacity-50 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1 text-sm;
+  }
+
+  .btn-md {
+    @apply px-4 py-2;
+  }
+
+  .btn-responsive {
+    @apply w-full md:w-auto;
+  }
+
+  .btn-action {
+    @apply px-3 py-1 text-sm text-white rounded disabled:opacity-50;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-sm shadow-sm;
+  }
+
+  .card-row {
+    @apply bg-white dark:bg-gray-800 rounded-sm shadow-sm p-3 flex flex-col md:flex-row gap-4;
+  }
+
+  /* Alerts */
+  .alert {
+    @apply mb-4 p-4 rounded-sm;
+  }
+
+  .alert-error {
+    @apply mb-4 p-4 rounded-sm bg-red-100 border border-red-400 text-red-700;
+  }
+
+  .alert-warning {
+    @apply mb-4 p-4 rounded-sm bg-yellow-100 border border-yellow-400 text-yellow-700;
+  }
+
+  .alert-request {
+    @apply bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm p-4 mt-3;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+  }
+
+  /* Posters */
+  .poster-sm {
+    @apply w-16 h-24 flex-shrink-0;
+  }
+
+  .poster-md {
+    @apply w-24 h-36 flex-shrink-0;
+  }
+
+  .poster-img {
+    @apply w-full h-full object-cover rounded-sm;
+  }
+
+  /* Nav */
+  .nav-link {
+    @apply text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium;
+  }
+}

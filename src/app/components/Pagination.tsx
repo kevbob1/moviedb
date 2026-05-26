@@ -20,7 +20,7 @@ export function Pagination({ currentPage, totalPages, preserveParams = {} }: Pag
       {currentPage > 1 && (
         <Link
           href={buildUrl(currentPage - 1)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-sm transition-colors"
+          className="btn-primary btn-md"
         >
           Previous
         </Link>
@@ -31,7 +31,7 @@ export function Pagination({ currentPage, totalPages, preserveParams = {} }: Pag
       {currentPage < totalPages && (
         <Link
           href={buildUrl(currentPage + 1)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-sm transition-colors"
+          className="btn-primary btn-md"
         >
           Next
         </Link>

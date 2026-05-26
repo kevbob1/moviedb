@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import { RequestStatus, getActionsForStatus } from '@/lib/request-fsm';
 import { STATUS_CONFIG } from '@/lib/request-theme';
@@ -35,6 +35,7 @@ const ACTION_STYLES: Record<string, string> = {
 export function RequestListItem({ request, onRemoved, jellyfinAvailable = false }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   const statusConfig = STATUS_CONFIG[request.status];
   const actions = getActionsForStatus(request.status);
@@ -83,13 +84,13 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
   return (
     <div className="flex gap-4 p-4 border-b">
       {posterUrl && (
-        <div className="w-24 h-36 flex-shrink-0">
+        <div className="poster-md">
           <Image
             src={posterUrl}
             alt={request.title}
             width={96}
             height={144}
-            className="w-full h-full object-cover rounded"
+            className="poster-img"
           />
         </div>
       )}
@@ -99,7 +100,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
           <h3 className="font-semibold">
             {request.title}
             {request.release_date && (
-              <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+              <span className="ml-2 text-sm font-normal text-muted">
                 ({request.release_date.split('-')[0]})
               </span>
             )}
@@ -122,7 +123,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
         )}
 
         <p className="text-sm text-muted-foreground mb-2">
-          Requested by {request.requested_by} • {new Date(request.requested_at).toLocaleDateString()}
+          Requested by {request.requested_by} • {mounted ? new Date(request.requested_at).toLocaleDateString() : new Date(request.requested_at).toLocaleDateString('en-US', { timeZone: 'UTC' })}
         </p>
 
         <div className="flex gap-2 mt-2">
@@ -146,7 +147,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
                   handleClick?.();
                 }}
                 disabled={isLoading}
-                className={`px-3 py-1 text-sm text-white rounded disabled:opacity-50 ${colorClass}`}
+                className={`btn-action ${colorClass}`}
               >
                 {isLoading ? 'Loading...' : action.label}
               </button>
