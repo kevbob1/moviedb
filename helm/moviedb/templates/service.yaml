@@ -8,6 +8,7 @@ spec:
   type: ClusterIP
   selector:
     {{- include "moviedb.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
   ports:
     - port: 3000
       targetPort: 3000

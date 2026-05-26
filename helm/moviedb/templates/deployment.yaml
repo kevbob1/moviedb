@@ -15,6 +15,7 @@ spec:
     metadata:
       labels:
         {{- include "moviedb.labels" . | nindent 8 }}
+        app.kubernetes.io/component: server
     spec:
       containers:
         - name: moviedb
