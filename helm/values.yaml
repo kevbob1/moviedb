@@ -34,7 +34,9 @@ database:
 ingress:
   enabled: true
   className: nginx
-  host: moviedb.k.pd.o
+  hosts:
+    - moviedb.k.pd.o
+    - on-jf.p.drule.org
 
 hpa:
   enabled: true
