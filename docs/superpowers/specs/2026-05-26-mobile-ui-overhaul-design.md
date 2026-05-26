@@ -13,7 +13,7 @@ Redesign the MovieDB UI to work well on mobile devices while maintaining desktop
   - Persisting the user's theme choice (system, light, or dark)
   - Synchronizing with the existing CSS variables for background, foreground, muted, etc.
 - Add a theme toggle button to the header (sun/moon icon) so users can switch modes
-- Remove hardcoded `dark:` Tailwind variant classes from all components — they should no longer be needed since all colors now come from CSS variables
+- Keep existing `dark:` Tailwind variant classes — they work with ThemeProvider's `dark` class on `<html>`
 
 ## 2. Mobile-First Responsive Layout
 
@@ -57,8 +57,44 @@ Use Tailwind responsive utilities with mobile-first breakpoints:
 2. Create `ThemeProvider` component wrapping the app
 3. Add theme toggle to header
 4. Update search page with responsive layouts
-5. Update requests page with responsive layouts  
+5. Update requests page with responsive layouts
 6. Update `RequestForm` with localStorage persistence
-7. Remove hardcoded `dark:` classes from all components (handled by ThemeProvider + CSS vars)
-8. Add `.dark` class to CSS variables for dark mode state (ThemeProvider handles this)
-9. Run validation: `npm run check`
+7. Keep existing `dark:` Tailwind classes (work with ThemeProvider's `dark` class)
+8. Run validation: `npm run check`
+
+## 5. PWA Mobile Features
+
+Add basic Progressive Web App support for mobile installability:
+
+### Web App Manifest
+
+Create `public/manifest.json`:
+- `name`: "Is It On Jellyfin?"
+- `short_name`: "MovieDB"
+- `description`: "Check if movies are on Jellyfin and request new ones"
+- `start_url`: "/"
+- `display`: "standalone"
+- `background_color`: "#ffffff" (and dark variant via `prefers-color-scheme`)
+- `theme_color`: "#2563eb" (primary blue)
+- `icons`: array with at least 192x192 and 512x512 PNG icons
+- Point icons to SVG files in `public/`
+
+### Favicon
+
+Create SVG favicon (`public/favicon.svg`):
+- Simple film/reel icon or the "Is It On Jellyfin?" brand mark
+- Use the primary blue (#2563eb) as the icon color
+
+### Metadata
+
+Add to `src/app/layout.tsx`:
+- Link to manifest: `<link rel="manifest" href="/manifest.json" />`
+- Theme color meta tag: `<meta name="theme-color" content="#2563eb" />`
+- Apple mobile web app capable: `<meta name="apple-mobile-web-app-capable" content="yes" />`
+
+## Tasks (cont.)
+
+9. Create `public/manifest.json` with PWA metadata
+10. Create `public/favicon.svg` with film/reel icon
+11. Add manifest and PWA meta tags to `layout.tsx`
+12. Run validation: `npm run check`
