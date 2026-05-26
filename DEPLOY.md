@@ -64,7 +64,7 @@ kubectl get secret --namespace database postgres-postgresql -o jsonpath="{.data.
 
 ### 2. Deploy MovieDB
 ```sh
-helm upgrade --install moviedb ./helm/moviedb -f helm/moviedb/values.yaml -f secrets://helm/moviedb/values-secrets.yaml --set image.tag=1.16
+helm upgrade --install moviedb ./helm -f helm/values.yaml -f secrets://helm/values-secrets.yaml --set image.tag=1.16
 ```
 
 ## Migration Behavior
