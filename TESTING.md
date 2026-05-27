@@ -12,7 +12,7 @@ npm run dev
 ### 2. Verify Page Renders
 - Navigate to http://localhost:3000/search
 - Verify the page loads without console errors
-- Check that the heading "Request a Movie" is visible
+- Check that the heading "Search" is visible
 
 ### 3. Verify Search Functionality
 - Type a movie name in the search box
@@ -42,7 +42,7 @@ npm run dev
 ### Manual Testing Checklist
 [ ] Development server starts without errors
 [ ] Page loads correctly at http://localhost:3000/search
-[ ] "Request a Movie" heading is visible
+[ ] "Search" heading is visible
 [ ] Search functionality works (with backend)
 [ ] Request form interaction works
 [ ] Jellyfin badge integration works

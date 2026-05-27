@@ -99,7 +99,7 @@ try {
 return (
 <main className="page-container">
 <h1 className="page-title">
-  Request a Movie
+  Search
 </h1>
 
 <form onSubmit={handleSearch} className="form-row-lg">

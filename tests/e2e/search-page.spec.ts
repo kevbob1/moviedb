@@ -5,14 +5,14 @@ test('search page renders correctly', async ({ page }) => {
   await page.goto('/search');
 
   // Verify heading is visible
-  await expect(page.getByRole('heading', { name: 'Request a Movie' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Search' })).toBeVisible();
 
   // Verify search form is present
   await expect(page.getByPlaceholder('Search for a movie...')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Search' })).toBeVisible();
 
   // Check that the main content container exists
-  await expect(page.getByText('Request a Movie').locator('xpath=..')).toBeVisible();
+  await expect(page.getByText('Search').locator('xpath=..')).toBeVisible();
 });
 
 test('search page allows text input', async ({ page }) => {
