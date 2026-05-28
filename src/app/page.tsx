@@ -142,7 +142,12 @@ return (
   className="card-row"
 >
 {movie.poster_path ? (
-  <div className="poster-sm">
+  <a
+    href={`https://www.themoviedb.org/movie/${movie.id}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="poster-sm"
+  >
   <Image
     src={`https://image.tmdb.org/t/p/w185${movie.poster_path}`}
     alt={movie.title}
@@ -150,7 +155,7 @@ return (
     height={96}
     className="poster-img"
   />
-  </div>
+  </a>
 ) : (
   <div className="poster-sm bg-gray-200 dark:bg-gray-700 rounded-sm" />
 )}
@@ -159,8 +164,15 @@ return (
   <div className="flex items-start justify-between gap-2">
     <div>
       <h3 className="card-title">
-        {movie.title}
-        <span className="ml-2 text-sm font-normal text-muted">
+        <a
+          href={`https://www.themoviedb.org/movie/${movie.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          {movie.title}
+        </a>
+        <span className="ml-2 text-sm font-normal text-year">
           {getYear(movie.release_date)}
         </span>
       </h3>

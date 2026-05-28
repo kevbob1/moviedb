@@ -100,7 +100,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
           <h3 className="font-semibold">
             {request.title}
             {request.release_date && (
-              <span className="ml-2 text-sm font-normal text-muted">
+              <span className="ml-2 text-sm font-normal text-year">
                 ({request.release_date.split('-')[0]})
               </span>
             )}
