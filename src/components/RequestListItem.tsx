@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { RequestStatus, getActionsForStatus } from '@/lib/request-fsm';
 import { STATUS_CONFIG } from '@/lib/request-theme';
 import { getGenreNames } from '@/lib/genres';
+import { logger } from '@/lib/logger';
 import { fulfillRequest, downloadRequest, cancelRequest } from '@/app/actions/request-actions';
 
 export interface Request {
@@ -45,7 +46,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
     try {
       await fulfillRequest(request.id);
     } catch (error) {
-      console.error('Failed to mark as fulfilled:', error);
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to mark as fulfilled');
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +57,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
     try {
       await downloadRequest(request.id);
     } catch (error) {
-      console.error('Failed to download:', error);
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to download');
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +70,7 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
       setDeleted(true);
       onRemoved?.();
     } catch (error) {
-      console.error('Failed to cancel:', error);
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to cancel');
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { logger } from "../src/lib/logger";
 
 const url = process.env.DATABASE_URL!;
 const adapter = new PrismaPg(url);
@@ -19,7 +20,7 @@ async function seed() {
 seed()
   .then(() => prisma.$disconnect())
   .catch((e) => {
-    console.error(e);
+    logger.error({ error: e instanceof Error ? e.message : String(e) }, "Seed failed");
     prisma.$disconnect();
     process.exit(1);
   });

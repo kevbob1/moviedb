@@ -1,8 +1,14 @@
 // src/lib/__tests__/notifications.test.ts
 import { sendRequestNotification, sendDailySummary, NotificationRequest } from '../notifications';
+import { logger } from '../logger';
 import nodemailer from 'nodemailer';
 
 jest.mock('nodemailer');
+jest.mock('../logger', () => ({
+  logger: {
+    error: jest.fn(),
+  },
+}));
 
 const mockedCreateTransport = nodemailer.createTransport as jest.Mock;
 
@@ -62,7 +68,6 @@ describe('sendRequestNotification', () => {
   });
 
   it('logs error but does not throw if email fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockSendMail.mockRejectedValue(new Error('SMTP error'));
 
     const request = {
@@ -74,9 +79,10 @@ describe('sendRequestNotification', () => {
     };
 
     await expect(sendRequestNotification(request as NotificationRequest)).resolves.not.toThrow();
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to send request notification:', expect.any(Error));
-
-    consoleSpy.mockRestore();
+    expect(logger.error).toHaveBeenCalledWith(
+      { error: 'SMTP error' },
+      'Failed to send request notification'
+    );
   });
 
   it('throws if required env vars are missing', async () => {
@@ -133,13 +139,13 @@ describe('sendDailySummary', () => {
   });
 
   it('logs error but does not throw if email fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockSendMail.mockRejectedValue(new Error('SMTP error'));
 
     await expect(sendDailySummary([] as NotificationRequest[])).resolves.not.toThrow();
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to send daily summary:', expect.any(Error));
-
-    consoleSpy.mockRestore();
+    expect(logger.error).toHaveBeenCalledWith(
+      { error: 'SMTP error' },
+      'Failed to send daily summary'
+    );
   });
 
   it('throws if required env vars are missing', async () => {

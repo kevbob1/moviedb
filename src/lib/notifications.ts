@@ -1,5 +1,6 @@
 // src/lib/notifications.ts
 import nodemailer from 'nodemailer';
+import { logger } from './logger';
 
 export interface NotificationRequest {
   id: number;
@@ -41,7 +42,7 @@ export async function sendRequestNotification(request: NotificationRequest): Pro
       text: `Someone requested "${request.title}" on Jellyfin Request Tracker.`,
     });
   } catch (error) {
-    console.error('Failed to send request notification:', error);
+    logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to send request notification');
   }
 }
 
@@ -77,6 +78,6 @@ export async function sendDailySummary(requests: NotificationRequest[]): Promise
       text,
     });
   } catch (error) {
-    console.error('Failed to send daily summary:', error);
+    logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to send daily summary');
   }
 }

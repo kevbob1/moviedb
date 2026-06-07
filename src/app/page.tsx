@@ -7,6 +7,7 @@ import { createRequest } from '@/app/actions/request-actions';
 import { RequestForm } from '@/components/RequestForm';
 import { JellyfinBadge } from '@/components/JellyfinBadge';
 import { GENRE_MAP } from '@/lib/genres';
+import { logger } from '@/lib/logger';
 
 function getGenreNamesDisplay(ids: number[] | undefined): string {
   if (!ids?.length) return '';
@@ -60,7 +61,7 @@ if (jellyfinData.error) {
 setJellyfinStatus(new Map(Object.entries(jellyfinData.results).map(([k, v]) => [parseInt(k, 10), v])));
 }
 } catch (err) {
-  console.error('Search failed:', err);
+  logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Search failed');
   setError(err instanceof Error ? err.message : 'Search failed');
   setResults([]);
 } finally {
@@ -92,7 +93,7 @@ try {
     }
   }
 } catch (err) {
-  console.error('Failed to create request:', err);
+  logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to create request');
 }
 };
 
