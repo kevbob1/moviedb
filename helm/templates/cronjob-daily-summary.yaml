@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "moviedb.fullname" . }}-daily-summary
+  labels:
+    {{- include "moviedb.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.notifications.cron.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: daily-summary
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - npx
+                - tsx
+                - scripts/daily-summary.ts
+              envFrom:
+                - configMapRef:
+                    name: {{ include "moviedb.fullname" . }}-env
+                - secretRef:
+                    name: {{ include "moviedb.fullname" . }}
+              env:
+                - name: DATABASE_URL
+                  value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
+          restartPolicy: OnFailure
