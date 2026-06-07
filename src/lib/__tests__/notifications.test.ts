@@ -81,7 +81,12 @@ describe('sendRequestNotification', () => {
 
     await expect(sendRequestNotification(request as NotificationRequest)).resolves.not.toThrow();
     expect(logger.error).toHaveBeenCalledWith(
-      { error: 'SMTP error' },
+      expect.objectContaining({
+        err: expect.objectContaining({
+          message: 'SMTP error',
+          stack: expect.any(String),
+        }),
+      }),
       'Failed to send request notification'
     );
   });
@@ -143,7 +148,12 @@ describe('sendDailySummary', () => {
 
     await expect(sendDailySummary([] as NotificationRequest[])).resolves.not.toThrow();
     expect(logger.error).toHaveBeenCalledWith(
-      { error: 'SMTP error' },
+      expect.objectContaining({
+        err: expect.objectContaining({
+          message: 'SMTP error',
+          stack: expect.any(String),
+        }),
+      }),
       'Failed to send daily summary'
     );
   });

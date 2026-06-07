@@ -8,6 +8,13 @@ jest.mock('@/lib/prisma');
 jest.mock('@/lib/notifications', () => ({
   sendRequestNotification: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock('@/lib/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
 
 describe('request-actions', () => {
   beforeEach(() => {

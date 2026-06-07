@@ -8,6 +8,10 @@ secrets:
     password: CHANGE_ME
   tmdb_api_key: CHANGE_ME
   cronSecret: CHANGE_ME
+  smtp:
+    user: CHANGE_ME
+    password: CHANGE_ME
+  jellyfin_api_key: CHANGE_ME
 
 jellyfin:
   url: "http://jellyfin.pd.o:8096"

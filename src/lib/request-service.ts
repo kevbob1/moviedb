@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { canTransition, RequestStatus } from '@/lib/request-fsm';
 import { sendRequestNotification } from './notifications';
+import { logger } from './logger';
 
 export interface CreateRequestInput {
   tmdbId: number;
@@ -19,6 +20,7 @@ export async function createRequest(input: CreateRequestInput) {
 
   const existing = await prisma.request.findUnique({ where: { tmdb_id: input.tmdbId } });
   if (existing) {
+    logger.info({ tmdbId: input.tmdbId, title: input.title, requestId: existing.id }, 'Request already exists');
     return existing;
   }
 
@@ -35,6 +37,8 @@ export async function createRequest(input: CreateRequestInput) {
       genre_ids: input.genreIds ?? [],
     },
   });
+
+  logger.info({ requestId: created.id, tmdbId: input.tmdbId, title: input.title, requestedBy: input.requestedBy }, 'Request created');
 
   await sendRequestNotification(created);
 

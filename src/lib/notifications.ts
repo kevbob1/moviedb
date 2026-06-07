@@ -49,7 +49,8 @@ export async function sendRequestNotification(request: NotificationRequest): Pro
       text: `Someone requested "${request.title}" on Jellyfin Request Tracker.`,
     });
   } catch (error) {
-    logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to send request notification');
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error({ err }, 'Failed to send request notification');
   }
 }
 
@@ -93,6 +94,7 @@ export async function sendDailySummary(requests: NotificationRequest[]): Promise
       text,
     });
   } catch (error) {
-    logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to send daily summary');
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error({ err }, 'Failed to send daily summary');
   }
 }
