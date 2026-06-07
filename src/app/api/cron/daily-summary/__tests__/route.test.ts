@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 const findManyMock = jest.fn();
 const sendDailySummaryMock = jest.fn();
 const headersMock = jest.fn();
@@ -16,6 +18,13 @@ jest.mock('@/lib/notifications', () => ({
 
 jest.mock('next/headers', () => ({
   headers: () => headersMock(),
+}));
+
+jest.mock('@/lib/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 interface MockResponse {
@@ -126,7 +135,6 @@ describe('daily-summary cron API', () => {
   describe('error handling', () => {
     it('returns 500 when findMany throws', async () => {
       findManyMock.mockRejectedValue(new Error('DB error'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(500);
@@ -134,19 +142,22 @@ describe('daily-summary cron API', () => {
       const body = await response.json();
       expect(body.status).toBe('error');
       expect(body).toHaveProperty('message', 'Daily summary failed');
-
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'DB error' }),
+        'Daily summary cron failed'
+      );
     });
 
     it('returns 500 when sendDailySummary throws', async () => {
       findManyMock.mockResolvedValue([{ id: 1 }]);
       sendDailySummaryMock.mockRejectedValue(new Error('SMTP error'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(500);
-
-      consoleSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'SMTP error' }),
+        'Daily summary cron failed'
+      );
     });
   });
 });

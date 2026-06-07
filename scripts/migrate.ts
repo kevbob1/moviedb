@@ -1,9 +1,5 @@
-import pino from 'pino';
+import { logger } from '../src/lib/logger';
 import { execSync } from 'child_process';
-
-const logger = pino({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-});
 
 const start = performance.now();
 logger.info('migration_start');
