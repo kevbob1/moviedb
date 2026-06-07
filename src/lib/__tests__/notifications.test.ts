@@ -1,5 +1,5 @@
 // src/lib/__tests__/notifications.test.ts
-import { sendRequestNotification, sendDailySummary } from '../notifications';
+import { sendRequestNotification, sendDailySummary, NotificationRequest } from '../notifications';
 import nodemailer from 'nodemailer';
 
 jest.mock('nodemailer');
@@ -42,7 +42,7 @@ describe('sendRequestNotification', () => {
       requested_at: new Date('2026-06-06T10:00:00Z'),
     };
 
-    await sendRequestNotification(request as any);
+    await sendRequestNotification(request as NotificationRequest);
 
     expect(mockedCreateTransport).toHaveBeenCalledWith({
       host: 'smtp.gmail.com',
@@ -73,7 +73,7 @@ describe('sendRequestNotification', () => {
       requested_at: new Date('2026-06-06T10:00:00Z'),
     };
 
-    await expect(sendRequestNotification(request as any)).resolves.not.toThrow();
+    await expect(sendRequestNotification(request as NotificationRequest)).resolves.not.toThrow();
     expect(consoleSpy).toHaveBeenCalledWith('Failed to send request notification:', expect.any(Error));
 
     consoleSpy.mockRestore();
@@ -92,7 +92,7 @@ describe('sendRequestNotification', () => {
       requested_at: new Date('2026-06-06T10:00:00Z'),
     };
 
-    await expect(sendRequestNotification(request as any)).rejects.toThrow(
+    await expect(sendRequestNotification(request as NotificationRequest)).rejects.toThrow(
       'Missing required SMTP configuration'
     );
   });
@@ -117,7 +117,7 @@ describe('sendDailySummary', () => {
       },
     ];
 
-    await sendDailySummary(requests as any);
+    await sendDailySummary(requests as NotificationRequest[]);
 
     expect(mockSendMail).toHaveBeenCalledWith({
       from: 'test@gmail.com',
@@ -136,7 +136,7 @@ describe('sendDailySummary', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     mockSendMail.mockRejectedValue(new Error('SMTP error'));
 
-    await expect(sendDailySummary([] as any)).resolves.not.toThrow();
+    await expect(sendDailySummary([] as NotificationRequest[])).resolves.not.toThrow();
     expect(consoleSpy).toHaveBeenCalledWith('Failed to send daily summary:', expect.any(Error));
 
     consoleSpy.mockRestore();
@@ -148,7 +148,7 @@ describe('sendDailySummary', () => {
     delete process.env.NOTIFICATION_EMAIL;
     delete process.env.APP_BASE_URL;
 
-    await expect(sendDailySummary([] as any)).rejects.toThrow(
+    await expect(sendDailySummary([] as NotificationRequest[])).rejects.toThrow(
       'Missing required SMTP configuration'
     );
   });

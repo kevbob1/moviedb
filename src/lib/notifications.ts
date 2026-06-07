@@ -1,7 +1,7 @@
 // src/lib/notifications.ts
 import nodemailer from 'nodemailer';
 
-interface Request {
+export interface NotificationRequest {
   id: number;
   title: string;
   requested_by: string;
@@ -28,7 +28,7 @@ function getTransporter() {
   });
 }
 
-export async function sendRequestNotification(request: Request): Promise<void> {
+export async function sendRequestNotification(request: NotificationRequest): Promise<void> {
   const transporter = getTransporter();
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
@@ -45,7 +45,7 @@ export async function sendRequestNotification(request: Request): Promise<void> {
   }
 }
 
-export async function sendDailySummary(requests: Request[]): Promise<void> {
+export async function sendDailySummary(requests: NotificationRequest[]): Promise<void> {
   const transporter = getTransporter();
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
