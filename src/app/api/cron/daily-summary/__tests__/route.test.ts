@@ -23,7 +23,7 @@ interface MockResponse {
   json(): Promise<Record<string, unknown>>;
 }
 
-let GET: () => Promise<MockResponse>;
+let GET: (req: Request) => Promise<MockResponse>;
 
 beforeAll(() => {
   jest.isolateModules(() => {
@@ -34,6 +34,8 @@ beforeAll(() => {
 });
 
 describe('daily-summary cron API', () => {
+  const mockRequest = { url: 'http://localhost/api/cron/daily-summary', method: 'GET' } as unknown as Request;
+
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.CRON_SECRET;
@@ -48,7 +50,7 @@ describe('daily-summary cron API', () => {
 
   describe('authentication', () => {
     it('allows access when CRON_SECRET is not set', async () => {
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(200);
     });
 
@@ -56,7 +58,7 @@ describe('daily-summary cron API', () => {
       process.env.CRON_SECRET = 'secret-token';
       headersMock.mockResolvedValue(new Headers());
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(401);
 
       const body = await response.json();
@@ -67,7 +69,7 @@ describe('daily-summary cron API', () => {
       process.env.CRON_SECRET = 'secret-token';
       headersMock.mockResolvedValue(new Headers({ authorization: 'Bearer wrong' }));
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(401);
     });
 
@@ -75,7 +77,7 @@ describe('daily-summary cron API', () => {
       process.env.CRON_SECRET = 'secret-token';
       headersMock.mockResolvedValue(new Headers({ authorization: 'Bearer secret-token' }));
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(200);
     });
   });
@@ -84,7 +86,7 @@ describe('daily-summary cron API', () => {
     it('returns 200 with count of requests', async () => {
       findManyMock.mockResolvedValue([{ id: 1 }, { id: 2 }]);
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -95,7 +97,7 @@ describe('daily-summary cron API', () => {
     it('returns 200 with count 0 when no active requests', async () => {
       findManyMock.mockResolvedValue([]);
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -103,7 +105,7 @@ describe('daily-summary cron API', () => {
     });
 
     it('queries for pending and downloading requests', async () => {
-      await GET();
+      await GET(mockRequest);
 
       expect(findManyMock).toHaveBeenCalledWith({
         where: { status: { in: ['pending', 'downloading'] } },
@@ -115,7 +117,7 @@ describe('daily-summary cron API', () => {
       const requests = [{ id: 1 }, { id: 2 }];
       findManyMock.mockResolvedValue(requests);
 
-      await GET();
+      await GET(mockRequest);
 
       expect(sendDailySummaryMock).toHaveBeenCalledWith(requests);
     });
@@ -126,7 +128,7 @@ describe('daily-summary cron API', () => {
       findManyMock.mockRejectedValue(new Error('DB error'));
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(500);
 
       const body = await response.json();
@@ -141,7 +143,7 @@ describe('daily-summary cron API', () => {
       sendDailySummaryMock.mockRejectedValue(new Error('SMTP error'));
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      const response = await GET();
+      const response = await GET(mockRequest);
       expect(response.status).toBe(500);
 
       consoleSpy.mockRestore();

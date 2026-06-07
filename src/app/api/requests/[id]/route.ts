@@ -1,8 +1,10 @@
 import { prisma } from '@/lib/prisma';
+import { withLogging } from '@/lib/with-logging';
+import { logger } from '@/lib/logger';
 
-export async function DELETE(
+async function handler(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } = { params: Promise.resolve({ id: '' }) }
 ) {
   try {
     const { id } = await params;
@@ -15,7 +17,6 @@ export async function DELETE(
       );
     }
 
-    // Check if request exists
     const existingRequest = await prisma.request.findUnique({
       where: { id: requestId },
     });
@@ -27,7 +28,6 @@ export async function DELETE(
       );
     }
 
-    // Delete the request
     await prisma.request.delete({
       where: { id: requestId },
     });
@@ -37,10 +37,12 @@ export async function DELETE(
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error deleting request:', error);
+    logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Error deleting request');
     return new Response(
       JSON.stringify({ error: 'Failed to delete request' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
+
+export const DELETE = withLogging(handler);
