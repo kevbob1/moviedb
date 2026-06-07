@@ -32,11 +32,21 @@ function getTransporter() {
 
 function getYear(releaseDate?: string | null): string {
   if (!releaseDate) return 'Unknown';
+  const match = releaseDate.match(/^(\d{4})/);
+  if (match) return match[1];
   const year = new Date(releaseDate).getFullYear();
   return isNaN(year) ? 'Unknown' : String(year);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildRequestNotificationContent(
   request: NotificationRequest,
   baseUrl: string
@@ -52,11 +62,13 @@ Year: ${year}
 
 View request: ${requestUrl}`;
 
+  const encodedRequestUrl = encodeURI(requestUrl);
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>New Request: ${request.title}</title>
+  <title>New Request: ${escapeHtml(request.title)}</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
   <h2 style="color: #2c3e50;">New Media Request</h2>
@@ -64,11 +76,11 @@ View request: ${requestUrl}`;
   <table style="margin: 20px 0; border-collapse: collapse;">
     <tr>
       <td style="padding: 8px 16px 8px 0; font-weight: bold;">Requestor:</td>
-      <td style="padding: 8px 0;">${request.requested_by}</td>
+      <td style="padding: 8px 0;">${escapeHtml(request.requested_by)}</td>
     </tr>
     <tr>
       <td style="padding: 8px 16px 8px 0; font-weight: bold;">Movie:</td>
-      <td style="padding: 8px 0; font-size: 1.2em; font-weight: bold;">${request.title}</td>
+      <td style="padding: 8px 0; font-size: 1.2em; font-weight: bold;">${escapeHtml(request.title)}</td>
     </tr>
     <tr>
       <td style="padding: 8px 16px 8px 0; font-weight: bold;">Year:</td>
@@ -76,10 +88,10 @@ View request: ${requestUrl}`;
     </tr>
   </table>
   <p>
-    <a href="${requestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View Request</a>
+    <a href="${encodedRequestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View Request</a>
   </p>
   <p style="color: #666; font-size: 0.9em;">
-    <a href="${requestUrl}">${requestUrl}</a>
+    <a href="${encodedRequestUrl}">${escapeHtml(requestUrl)}</a>
   </p>
 </body>
 </html>`;
@@ -87,7 +99,6 @@ View request: ${requestUrl}`;
   return { text, html };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildDailySummaryContent(
   requests: NotificationRequest[],
   baseUrl: string
@@ -108,6 +119,8 @@ function buildDailySummaryContent(
     text += `\nView all requests: ${listUrl}`;
   }
 
+  const encodedListUrl = encodeURI(listUrl);
+
   let html = `<!DOCTYPE html>
 <html>
 <head>
@@ -125,20 +138,21 @@ function buildDailySummaryContent(
     requests.forEach((req) => {
       const year = getYear(req.release_date);
       const requestUrl = `${baseUrl}/requests/${req.id}`;
+      const encodedRequestUrl = encodeURI(requestUrl);
       html += `<li style="margin: 8px 0;">
-        <strong>${req.title}</strong> (${year}) — 
-        requested by ${req.requested_by} (${req.status}) 
-        <a href="${requestUrl}">View</a>
+        <strong>${escapeHtml(req.title)}</strong> (${year}) — 
+        requested by ${escapeHtml(req.requested_by)} (${escapeHtml(req.status)}) 
+        <a href="${encodedRequestUrl}">View</a>
       </li>`;
     });
     html += '</ul>';
   }
 
   html += `<p style="margin-top: 24px;">
-    <a href="${listUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View All Requests</a>
+    <a href="${encodedListUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View All Requests</a>
   </p>
   <p style="color: #666; font-size: 0.9em;">
-    <a href="${listUrl}">${listUrl}</a>
+    <a href="${encodedListUrl}">${escapeHtml(listUrl)}</a>
   </p>
 </body>
 </html>`;
@@ -150,20 +164,30 @@ export async function sendRequestNotification(request: NotificationRequest): Pro
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
+  const baseUrl = process.env.APP_BASE_URL;
 
   if (!from || !pass || !to) {
     logger.warn('Skipping request notification: SMTP not configured');
     return;
   }
 
+  if (!baseUrl) {
+    logger.warn('Skipping request notification: APP_BASE_URL not configured');
+    return;
+  }
+
   const transporter = getTransporter();
+  const year = getYear(request.release_date);
+  const subject = `[JELLYFIN REQUEST] New Request: ${request.title} (${year})`;
+  const { text, html } = buildRequestNotificationContent(request, baseUrl);
 
   try {
     await transporter.sendMail({
       from,
       to,
-      subject: `New Request: ${request.title}`,
-      text: `Someone requested "${request.title}" on Jellyfin Request Tracker.`,
+      subject,
+      text,
+      html,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -188,20 +212,7 @@ export async function sendDailySummary(requests: NotificationRequest[]): Promise
   }
 
   const transporter = getTransporter();
-
-  const count = requests.length;
-  const subject = `Daily Summary: ${count} active request${count === 1 ? '' : 's'}`;
-
-  let text = `Daily Summary: ${count} active request${count === 1 ? '' : 's'}\n\n`;
-
-  if (count === 0) {
-    text += 'No active requests at this time.';
-  } else {
-    requests.forEach((req) => {
-      text += `- "${req.title}" requested by ${req.requested_by} (${req.status})\n`;
-    });
-    text += `\nView all requests: ${baseUrl}/requests\n`;
-  }
+  const { text, html, subject } = buildDailySummaryContent(requests, baseUrl);
 
   try {
     await transporter.sendMail({
@@ -209,6 +220,7 @@ export async function sendDailySummary(requests: NotificationRequest[]): Promise
       to,
       subject,
       text,
+      html,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
