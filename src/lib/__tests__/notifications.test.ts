@@ -216,6 +216,17 @@ describe('sendDailySummary', () => {
     );
   });
 
+  it('sends an email with empty array content', async () => {
+    await sendDailySummary([] as NotificationRequest[]);
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('No active requests at this time.'),
+        html: expect.stringContaining('No active requests at this time.'),
+      })
+    );
+  });
+
   it('escapes HTML special characters in the email body', async () => {
     const requests = [
       {

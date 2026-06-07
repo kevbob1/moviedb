@@ -32,7 +32,7 @@ function getTransporter() {
 
 function getYear(releaseDate?: string | null): string {
   if (!releaseDate) return 'Unknown';
-  const match = releaseDate.match(/^(\d{4})/);
+  const match = releaseDate.match(/^(\d{4})(?:[-/T]|$)/);
   if (match) return match[1];
   const year = new Date(releaseDate).getFullYear();
   return isNaN(year) ? 'Unknown' : String(year);
@@ -50,9 +50,10 @@ function escapeHtml(str: string): string {
 function buildRequestNotificationContent(
   request: NotificationRequest,
   baseUrl: string
-): { text: string; html: string } {
+): { text: string; html: string; subject: string } {
   const year = getYear(request.release_date);
-  const requestUrl = `${baseUrl}/requests/${request.id}`;
+  const requestUrl = `${baseUrl}/requests/${encodeURIComponent(request.id)}`;
+  const subject = `[JELLYFIN REQUEST] New Request: ${request.title} (${year})`;
 
   const text = `A new media request has been submitted.
 
@@ -61,8 +62,6 @@ Movie: ${request.title}
 Year: ${year}
 
 View request: ${requestUrl}`;
-
-  const encodedRequestUrl = encodeURI(requestUrl);
 
   const html = `<!DOCTYPE html>
 <html>
@@ -88,15 +87,15 @@ View request: ${requestUrl}`;
     </tr>
   </table>
   <p>
-    <a href="${encodedRequestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View Request</a>
+    <a href="${requestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View Request</a>
   </p>
   <p style="color: #666; font-size: 0.9em;">
-    <a href="${encodedRequestUrl}">${escapeHtml(requestUrl)}</a>
+    <a href="${requestUrl}">${escapeHtml(requestUrl)}</a>
   </p>
 </body>
 </html>`;
 
-  return { text, html };
+  return { text, html, subject };
 }
 
 function buildDailySummaryContent(
@@ -137,12 +136,11 @@ function buildDailySummaryContent(
     html += '<ul style="padding-left: 20px;">';
     requests.forEach((req) => {
       const year = getYear(req.release_date);
-      const requestUrl = `${baseUrl}/requests/${req.id}`;
-      const encodedRequestUrl = encodeURI(requestUrl);
+      const requestUrl = `${baseUrl}/requests/${encodeURIComponent(req.id)}`;
       html += `<li style="margin: 8px 0;">
         <strong>${escapeHtml(req.title)}</strong> (${year}) — 
         requested by ${escapeHtml(req.requested_by)} (${escapeHtml(req.status)}) 
-        <a href="${encodedRequestUrl}">View</a>
+        <a href="${requestUrl}">View</a>
       </li>`;
     });
     html += '</ul>';
@@ -177,9 +175,7 @@ export async function sendRequestNotification(request: NotificationRequest): Pro
   }
 
   const transporter = getTransporter();
-  const year = getYear(request.release_date);
-  const subject = `[JELLYFIN REQUEST] New Request: ${request.title} (${year})`;
-  const { text, html } = buildRequestNotificationContent(request, baseUrl);
+  const { text, html, subject } = buildRequestNotificationContent(request, baseUrl);
 
   try {
     await transporter.sendMail({
