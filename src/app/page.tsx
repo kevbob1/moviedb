@@ -114,7 +114,7 @@ return (
 <button
   type="submit"
   disabled={loading}
-  className="btn-primary btn-md btn-responsive"
+  className="btn-primary btn-md"
 >
   {loading ? 'Searching...' : 'Search'}
 </button>
@@ -195,7 +195,7 @@ return (
   {!onJellyfin && !isRequesting && (
     <button
       onClick={() => setRequesting(movie.id)}
-      className="btn-primary btn-sm btn-responsive"
+      className="btn-primary btn-sm"
     >
       Request
     </button>
