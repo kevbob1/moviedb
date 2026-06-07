@@ -80,4 +80,7 @@ next-env.d.ts
 .superpowers/
 src/generated/prisma/
 .worktrees/
+
+# Compiled migration script
+scripts/migrate.js
 /coverage/
