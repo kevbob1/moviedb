@@ -11,3 +11,7 @@ metadata:
 data:
   NODE_ENV: {{ .Values.app.env.NODE_ENV | quote }}
   JELLYFIN_URL: {{ .Values.jellyfin.url | quote }}
+  SMTP_HOST: {{ .Values.notifications.smtp.host | quote }}
+  SMTP_PORT: {{ .Values.notifications.smtp.port | quote }}
+  NOTIFICATION_EMAIL: {{ .Values.notifications.email | quote }}
+  APP_BASE_URL: {{ .Values.app.baseUrl | quote }}
