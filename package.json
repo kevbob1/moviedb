@@ -20,7 +20,6 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run db:generate-client && npm run lint && npm run test && npm run typecheck && NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production npm run build",
     "db:migrate": "prisma migrate deploy",
-    "db:migrate:prod": "node scripts/migrate.js",
     "db:migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:generate-client": "prisma generate",
