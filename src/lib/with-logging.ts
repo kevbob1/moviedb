@@ -18,17 +18,15 @@ export function withLogging<T>(
     const requestId = randomUUID();
     const start = performance.now();
 
-    logger.info({ method: req.method, path: pathname, requestId }, 'request_start');
-
     try {
       const response = await handler(req, context);
       const durationMs = Math.round(performance.now() - start);
-      logger.info({ status: response.status, durationMs, requestId }, 'request_complete');
+      logger.info({ method: req.method, path: pathname, status: response.status, durationMs, requestId }, 'request_complete');
       return response;
     } catch (error) {
       const durationMs = Math.round(performance.now() - start);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage, durationMs, requestId }, 'request_error');
+      logger.error({ method: req.method, path: pathname, error: errorMessage, durationMs, requestId }, 'request_error');
       throw error;
     }
   };

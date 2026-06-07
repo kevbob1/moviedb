@@ -1,11 +1,11 @@
-import { logger } from '../src/lib/logger';
+import { logger } from '../src/lib/logger.js';
 import { execSync } from 'child_process';
 
 const start = performance.now();
 logger.info('migration_start');
 
 try {
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  execSync('node ./node_modules/prisma/build/index.js migrate deploy', { stdio: 'inherit' });
   const durationMs = Math.round(performance.now() - start);
   logger.info({ durationMs }, 'migration_complete');
 } catch (error) {

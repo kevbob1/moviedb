@@ -30,7 +30,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Compile the migration script for runtime
-RUN npx tsc scripts/migrate.ts --outDir . --esModuleInterop --module commonjs --target es2020 --resolveJsonModule --ignoreConfig
+RUN npx tsc scripts/migrate.ts --outDir . --esModuleInterop --module esnext --target es2020 --resolveJsonModule --ignoreConfig
 
 # ---------------------------------------------------------------------------
 # Stage 3 – Production runner
@@ -60,8 +60,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 
-# Copy compiled migration script
+# Copy compiled migration script and its local dependency
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.js ./scripts/migrate.js
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/logger.js ./src/lib/logger.js
 
 # Copy full node_modules for prisma migrate deploy (transitive deps too deep to enumerate)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
