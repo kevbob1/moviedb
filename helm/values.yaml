@@ -18,6 +18,7 @@ image:
 
 app:
   port: 3000
+  baseUrl: "https://on-jf.p.drule.org"
   env:
     NODE_ENV: production
   resources:
@@ -27,6 +28,14 @@ app:
     limits:
       cpu: 1000m
       memory: 1Gi
+
+notifications:
+  smtp:
+    host: "smtp.gmail.com"
+    port: "587"
+  email: "kev+onjf@drule.org"
+  cron:
+    schedule: "0 8 * * *"
 
 database:
   url: ""
