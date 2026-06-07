@@ -8,6 +8,7 @@ export interface NotificationRequest {
   requested_by: string;
   status: string;
   requested_at: Date;
+  release_date?: string | null;
 }
 
 function getTransporter() {
