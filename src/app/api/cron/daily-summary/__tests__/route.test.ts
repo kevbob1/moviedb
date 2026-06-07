@@ -27,6 +27,7 @@ let GET: () => Promise<MockResponse>;
 
 beforeAll(() => {
   jest.isolateModules(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const route = require('../route');
     GET = route.GET;
   });
@@ -59,7 +60,7 @@ describe('daily-summary cron API', () => {
       expect(response.status).toBe(401);
 
       const body = await response.json();
-      expect(body.message).toBe('Unauthorized');
+      expect(body).toHaveProperty('message', 'Unauthorized');
     });
 
     it('returns 401 when CRON_SECRET is set and Authorization header is wrong', async () => {
@@ -88,7 +89,7 @@ describe('daily-summary cron API', () => {
 
       const body = await response.json();
       expect(body.status).toBe('ok');
-      expect(body.count).toBe(2);
+      expect(body).toHaveProperty('count', 2);
     });
 
     it('returns 200 with count 0 when no active requests', async () => {
@@ -98,7 +99,7 @@ describe('daily-summary cron API', () => {
       expect(response.status).toBe(200);
 
       const body = await response.json();
-      expect(body.count).toBe(0);
+      expect(body).toHaveProperty('count', 0);
     });
 
     it('queries for pending and downloading requests', async () => {
@@ -130,7 +131,7 @@ describe('daily-summary cron API', () => {
 
       const body = await response.json();
       expect(body.status).toBe('error');
-      expect(body.message).toBe('Daily summary failed');
+      expect(body).toHaveProperty('message', 'Daily summary failed');
 
       consoleSpy.mockRestore();
     });
@@ -147,3 +148,5 @@ describe('daily-summary cron API', () => {
     });
   });
 });
+
+export {};
