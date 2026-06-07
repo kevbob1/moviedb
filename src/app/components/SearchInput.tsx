@@ -30,7 +30,7 @@ export function SearchInput({ defaultValue = '' }: { defaultValue?: string }) {
       value={value}
       onChange={(e) => setValue(e.target.value)}
       placeholder="Search movies..."
-      className="input w-full md:w-96"
+      className="input w-full"
     />
   );
 }
