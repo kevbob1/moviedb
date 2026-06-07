@@ -30,9 +30,16 @@ function getTransporter() {
 }
 
 export async function sendRequestNotification(request: NotificationRequest): Promise<void> {
-  const transporter = getTransporter();
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!from || !pass || !to) {
+    logger.warn('Skipping request notification: SMTP not configured');
+    return;
+  }
+
+  const transporter = getTransporter();
 
   try {
     await transporter.sendMail({
@@ -47,14 +54,22 @@ export async function sendRequestNotification(request: NotificationRequest): Pro
 }
 
 export async function sendDailySummary(requests: NotificationRequest[]): Promise<void> {
-  const transporter = getTransporter();
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
   const baseUrl = process.env.APP_BASE_URL;
 
-  if (!baseUrl) {
-    throw new Error('Missing required SMTP configuration');
+  if (!from || !pass || !to) {
+    logger.warn('Skipping daily summary: SMTP not configured');
+    return;
   }
+
+  if (!baseUrl) {
+    logger.warn('Skipping daily summary: APP_BASE_URL not configured');
+    return;
+  }
+
+  const transporter = getTransporter();
 
   const count = requests.length;
   const subject = `Daily Summary: ${count} active request${count === 1 ? '' : 's'}`;

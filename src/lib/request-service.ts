@@ -17,6 +17,11 @@ export async function createRequest(input: CreateRequestInput) {
     throw new Error('Title and requester name are required');
   }
 
+  const existing = await prisma.request.findUnique({ where: { tmdb_id: input.tmdbId } });
+  if (existing) {
+    return existing;
+  }
+
   const created = await prisma.request.create({
     data: {
       tmdb_id: input.tmdbId,

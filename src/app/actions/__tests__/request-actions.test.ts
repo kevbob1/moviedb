@@ -25,10 +25,12 @@ describe('request-actions', () => {
   describe('createRequest', () => {
     it('creates a request with pending status and extra fields', async () => {
       const mockRequest = { id: 1, title: 'Test Movie', status: 'pending' };
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
 
       const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe', '2024-01-01', 'A movie', [28, 12]);
 
+      expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { tmdb_id: 123 } });
       expect(prisma.request.create).toHaveBeenCalledWith({
         data: {
           tmdb_id: 123,
@@ -44,6 +46,17 @@ describe('request-actions', () => {
       });
       expect(sendRequestNotification).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockRequest);
+    });
+
+    it('returns existing request if tmdb_id already exists', async () => {
+      const existingRequest = { id: 5, title: 'Existing Movie', tmdb_id: 123, status: 'pending' };
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(existingRequest);
+
+      const result = await createRequest(123, 'Existing Movie', '/path.jpg', 'John Doe');
+
+      expect(result).toEqual(existingRequest);
+      expect(prisma.request.create).not.toHaveBeenCalled();
+      expect(sendRequestNotification).not.toHaveBeenCalled();
     });
 
     it('throws if title is empty', async () => {

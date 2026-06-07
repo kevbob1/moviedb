@@ -7,6 +7,7 @@ jest.mock('nodemailer');
 jest.mock('../logger', () => ({
   logger: {
     error: jest.fn(),
+    warn: jest.fn(),
   },
 }));
 
@@ -85,7 +86,7 @@ describe('sendRequestNotification', () => {
     );
   });
 
-  it('throws if required env vars are missing', async () => {
+  it('returns gracefully if required env vars are missing', async () => {
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASS;
     delete process.env.NOTIFICATION_EMAIL;
@@ -98,9 +99,8 @@ describe('sendRequestNotification', () => {
       requested_at: new Date('2026-06-06T10:00:00Z'),
     };
 
-    await expect(sendRequestNotification(request as NotificationRequest)).rejects.toThrow(
-      'Missing required SMTP configuration'
-    );
+    await expect(sendRequestNotification(request as NotificationRequest)).resolves.not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith('Skipping request notification: SMTP not configured');
   });
 });
 
@@ -148,14 +148,19 @@ describe('sendDailySummary', () => {
     );
   });
 
-  it('throws if required env vars are missing', async () => {
+  it('returns gracefully if SMTP env vars are missing', async () => {
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASS;
     delete process.env.NOTIFICATION_EMAIL;
+
+    await expect(sendDailySummary([] as NotificationRequest[])).resolves.not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith('Skipping daily summary: SMTP not configured');
+  });
+
+  it('returns gracefully if APP_BASE_URL is missing', async () => {
     delete process.env.APP_BASE_URL;
 
-    await expect(sendDailySummary([] as NotificationRequest[])).rejects.toThrow(
-      'Missing required SMTP configuration'
-    );
+    await expect(sendDailySummary([] as NotificationRequest[])).resolves.not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith('Skipping daily summary: APP_BASE_URL not configured');
   });
 });
