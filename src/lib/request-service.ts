@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { canTransition, RequestStatus } from '@/lib/request-fsm';
+import { sendRequestNotification } from './notifications';
 
 export interface CreateRequestInput {
   tmdbId: number;
@@ -16,7 +17,7 @@ export async function createRequest(input: CreateRequestInput) {
     throw new Error('Title and requester name are required');
   }
 
-  return prisma.request.create({
+  const created = await prisma.request.create({
     data: {
       tmdb_id: input.tmdbId,
       title: input.title,
@@ -29,6 +30,10 @@ export async function createRequest(input: CreateRequestInput) {
       genre_ids: input.genreIds ?? [],
     },
   });
+
+  await sendRequestNotification(created);
+
+  return created;
 }
 
 export async function transitionToStatus(requestId: number, targetStatus: RequestStatus) {

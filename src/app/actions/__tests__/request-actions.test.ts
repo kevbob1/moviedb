@@ -2,8 +2,12 @@
 import { createRequest, fulfillRequest, cancelRequest, downloadRequest } from '../request-actions';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { sendRequestNotification } from '@/lib/notifications';
 
 jest.mock('@/lib/prisma');
+jest.mock('@/lib/notifications', () => ({
+  sendRequestNotification: jest.fn().mockResolvedValue(undefined),
+}));
 
 describe('request-actions', () => {
   beforeEach(() => {
@@ -38,6 +42,7 @@ describe('request-actions', () => {
           genre_ids: [28, 12],
         },
       });
+      expect(sendRequestNotification).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockRequest);
     });
 
