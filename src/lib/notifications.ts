@@ -30,6 +30,122 @@ function getTransporter() {
   });
 }
 
+function getYear(releaseDate?: string | null): string {
+  if (!releaseDate) return 'Unknown';
+  const year = new Date(releaseDate).getFullYear();
+  return isNaN(year) ? 'Unknown' : String(year);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function buildRequestNotificationContent(
+  request: NotificationRequest,
+  baseUrl: string
+): { text: string; html: string } {
+  const year = getYear(request.release_date);
+  const requestUrl = `${baseUrl}/requests/${request.id}`;
+
+  const text = `A new media request has been submitted.
+
+Requestor: ${request.requested_by}
+Movie: ${request.title}
+Year: ${year}
+
+View request: ${requestUrl}`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>New Request: ${request.title}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <h2 style="color: #2c3e50;">New Media Request</h2>
+  <p>A new media request has been submitted.</p>
+  <table style="margin: 20px 0; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Requestor:</td>
+      <td style="padding: 8px 0;">${request.requested_by}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Movie:</td>
+      <td style="padding: 8px 0; font-size: 1.2em; font-weight: bold;">${request.title}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Year:</td>
+      <td style="padding: 8px 0;">${year}</td>
+    </tr>
+  </table>
+  <p>
+    <a href="${requestUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View Request</a>
+  </p>
+  <p style="color: #666; font-size: 0.9em;">
+    <a href="${requestUrl}">${requestUrl}</a>
+  </p>
+</body>
+</html>`;
+
+  return { text, html };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function buildDailySummaryContent(
+  requests: NotificationRequest[],
+  baseUrl: string
+): { text: string; html: string; subject: string } {
+  const count = requests.length;
+  const subject = `[JELLYFIN REQUEST] Daily Summary: ${count} active request${count === 1 ? '' : 's'}`;
+  const listUrl = `${baseUrl}/requests`;
+
+  let text = `Daily Summary: ${count} active request${count === 1 ? '' : 's'}\n\n`;
+
+  if (count === 0) {
+    text += 'No active requests at this time.';
+  } else {
+    requests.forEach((req) => {
+      const year = getYear(req.release_date);
+      text += `- "${req.title}" (${year}) — requested by ${req.requested_by} (${req.status})\n`;
+    });
+    text += `\nView all requests: ${listUrl}`;
+  }
+
+  let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Daily Summary</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <h2 style="color: #2c3e50;">Daily Summary</h2>
+  <p>${count} active request${count === 1 ? '' : 's'}.</p>`;
+
+  if (count === 0) {
+    html += '<p>No active requests at this time.</p>';
+  } else {
+    html += '<ul style="padding-left: 20px;">';
+    requests.forEach((req) => {
+      const year = getYear(req.release_date);
+      const requestUrl = `${baseUrl}/requests/${req.id}`;
+      html += `<li style="margin: 8px 0;">
+        <strong>${req.title}</strong> (${year}) — 
+        requested by ${req.requested_by} (${req.status}) 
+        <a href="${requestUrl}">View</a>
+      </li>`;
+    });
+    html += '</ul>';
+  }
+
+  html += `<p style="margin-top: 24px;">
+    <a href="${listUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View All Requests</a>
+  </p>
+  <p style="color: #666; font-size: 0.9em;">
+    <a href="${listUrl}">${listUrl}</a>
+  </p>
+</body>
+</html>`;
+
+  return { text, html, subject };
+}
+
 export async function sendRequestNotification(request: NotificationRequest): Promise<void> {
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
