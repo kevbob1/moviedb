@@ -53,14 +53,14 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
         <div className="form-row mt-3">
           <button
             type="submit"
-            className="btn-primary btn-md btn-responsive"
+            className="btn-primary btn-md"
           >
             Submit Request
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="btn-secondary btn-md btn-responsive"
+            className="btn-secondary btn-md"
           >
             Cancel
           </button>
