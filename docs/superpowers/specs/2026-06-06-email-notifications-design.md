@@ -67,7 +67,7 @@ export async function sendDailySummary(requests: Request[]): Promise<void>
 
 **Daily summary:**
 - Subject: `Daily Summary: {N} active requests`
-- Body: A list of all active requests with title, requester, and a link to `/requests`.
+- Body: A list of all active requests. Each request shows title, requester, and a link to the requests page (`{APP_BASE_URL}/requests`). Since the app does not have individual request detail pages, all links point to the list page.
 
 ## Data Flow
 
