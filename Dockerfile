@@ -29,6 +29,9 @@ RUN npm run db:generate-client
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Compile the migration script for runtime
+RUN npx tsc scripts/migrate.ts --outDir scripts --esModuleInterop --module commonjs --target es2020 --resolveJsonModule --ignoreConfig
+
 # ---------------------------------------------------------------------------
 # Stage 3 – Production runner
 # ---------------------------------------------------------------------------
@@ -56,6 +59,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
+
+# Copy compiled migration script
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.js ./scripts/migrate.js
+
 # Copy full node_modules for prisma migrate deploy (transitive deps too deep to enumerate)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
