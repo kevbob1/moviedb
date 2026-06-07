@@ -1,0 +1,149 @@
+const findManyMock = jest.fn();
+const sendDailySummaryMock = jest.fn();
+const headersMock = jest.fn();
+
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    request: {
+      findMany: findManyMock,
+    },
+  },
+}));
+
+jest.mock('@/lib/notifications', () => ({
+  sendDailySummary: (...args: unknown[]) => sendDailySummaryMock(...args),
+}));
+
+jest.mock('next/headers', () => ({
+  headers: () => headersMock(),
+}));
+
+interface MockResponse {
+  status: number;
+  json(): Promise<Record<string, unknown>>;
+}
+
+let GET: () => Promise<MockResponse>;
+
+beforeAll(() => {
+  jest.isolateModules(() => {
+    const route = require('../route');
+    GET = route.GET;
+  });
+});
+
+describe('daily-summary cron API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.CRON_SECRET;
+    headersMock.mockResolvedValue(new Headers());
+    sendDailySummaryMock.mockResolvedValue(undefined);
+    findManyMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    delete process.env.CRON_SECRET;
+  });
+
+  describe('authentication', () => {
+    it('allows access when CRON_SECRET is not set', async () => {
+      const response = await GET();
+      expect(response.status).toBe(200);
+    });
+
+    it('returns 401 when CRON_SECRET is set and Authorization header is missing', async () => {
+      process.env.CRON_SECRET = 'secret-token';
+      headersMock.mockResolvedValue(new Headers());
+
+      const response = await GET();
+      expect(response.status).toBe(401);
+
+      const body = await response.json();
+      expect(body.message).toBe('Unauthorized');
+    });
+
+    it('returns 401 when CRON_SECRET is set and Authorization header is wrong', async () => {
+      process.env.CRON_SECRET = 'secret-token';
+      headersMock.mockResolvedValue(new Headers({ authorization: 'Bearer wrong' }));
+
+      const response = await GET();
+      expect(response.status).toBe(401);
+    });
+
+    it('allows access when CRON_SECRET matches Authorization header', async () => {
+      process.env.CRON_SECRET = 'secret-token';
+      headersMock.mockResolvedValue(new Headers({ authorization: 'Bearer secret-token' }));
+
+      const response = await GET();
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe('successful execution', () => {
+    it('returns 200 with count of requests', async () => {
+      findManyMock.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+
+      const response = await GET();
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.status).toBe('ok');
+      expect(body.count).toBe(2);
+    });
+
+    it('returns 200 with count 0 when no active requests', async () => {
+      findManyMock.mockResolvedValue([]);
+
+      const response = await GET();
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.count).toBe(0);
+    });
+
+    it('queries for pending and downloading requests', async () => {
+      await GET();
+
+      expect(findManyMock).toHaveBeenCalledWith({
+        where: { status: { in: ['pending', 'downloading'] } },
+        orderBy: { requested_at: 'desc' },
+      });
+    });
+
+    it('passes requests to sendDailySummary', async () => {
+      const requests = [{ id: 1 }, { id: 2 }];
+      findManyMock.mockResolvedValue(requests);
+
+      await GET();
+
+      expect(sendDailySummaryMock).toHaveBeenCalledWith(requests);
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns 500 when findMany throws', async () => {
+      findManyMock.mockRejectedValue(new Error('DB error'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const response = await GET();
+      expect(response.status).toBe(500);
+
+      const body = await response.json();
+      expect(body.status).toBe('error');
+      expect(body.message).toBe('Daily summary failed');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('returns 500 when sendDailySummary throws', async () => {
+      findManyMock.mockResolvedValue([{ id: 1 }]);
+      sendDailySummaryMock.mockRejectedValue(new Error('SMTP error'));
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const response = await GET();
+      expect(response.status).toBe(500);
+
+      consoleSpy.mockRestore();
+    });
+  });
+});

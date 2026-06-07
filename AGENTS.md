@@ -68,7 +68,13 @@ envFrom:
       name: {{ include "moviedb.fullname" . }}
 ```
 
-**Inline `env` is only for values requiring secret interpolation at template time (e.g., DATABASE_URL).
+**Inline `env` is only for values requiring secret interpolation at template time (e.g., DATABASE_URL).**
+
+## CLI & Dependency Conventions
+
+**Never run `npx` or `tsx` in helm-deployed/production environments.** All dependencies must be installed at build time. CLI entrypoints must be defined as `npm run <name>` scripts in `package.json`. No ad-hoc package downloads at runtime.
+
+**Cron jobs and scheduled tasks must be implemented as API routes** (`/api/cron/...`) and invoked via `curl` from Kubernetes CronJobs — not via `npm run` or `node` scripts that require `tsx`. Local dev scripts using `tsx` are acceptable.
 
 ## Devcontainer
 

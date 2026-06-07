@@ -43,7 +43,7 @@ This project uses a devcontainer for consistent development environment.
 
 ### Running the App
 
-The devcontainer automatically runs `npm install` and `npx prisma generate` on startup.
+The devcontainer automatically runs `npm install` and `npm run db:generate-client` on startup.
 
 To start the development server:
 
@@ -80,5 +80,5 @@ npm run test
 4. **Prisma Studio**
    Open the visual database editor to inspect or edit data:
    ```bash
-   npx prisma studio
+   npm run db:studio
    ```

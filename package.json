@@ -12,7 +12,7 @@
     "start": "next start",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:db": "npx dotenv -e .env.test -- prisma migrate deploy && jest",
+    "test:db": "dotenv -e .env.test -- prisma migrate deploy && jest",
     "postinstall": "prisma generate",
     "db:generate:migration": "prisma migrate dev --create-only",
     "db:migrate:dev": "prisma migrate dev",
@@ -20,10 +20,12 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run db:generate-client && npm run lint && npm run test && npm run typecheck && NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production npm run build",
     "db:migrate": "prisma migrate deploy",
-    "db:migrate:test": "npx dotenv -e .env.test -- prisma migrate deploy",
+    "db:migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:generate-client": "prisma generate",
-    "test:e2e": "npx dotenv -e .env.test -- prisma migrate reset --force && npx dotenv -e .env.test -- prisma migrate deploy && npx dotenv -e .env.test -- tsx tests/seed.ts && npx dotenv -e .env.test -- next dev -p 3000 & SERVER_PID=$! && npx wait-on http://localhost:3000 && npx playwright test; kill $SERVER_PID 2>/dev/null"
+    "daily-summary": "tsx scripts/daily-summary.ts",
+    "db:studio": "prisma studio",
+    "test:e2e": "dotenv -e .env.test -- prisma migrate reset --force && dotenv -e .env.test -- prisma migrate deploy && dotenv -e .env.test -- tsx tests/seed.ts && dotenv -e .env.test -- next dev -p 3000 & SERVER_PID=$! && wait-on http://localhost:3000 && playwright test; kill $SERVER_PID 2>/dev/null"
   },
   "repository": {
     "type": "git",

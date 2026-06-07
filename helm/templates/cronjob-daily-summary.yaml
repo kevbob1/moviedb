@@ -15,9 +15,10 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               command:
-                - npx
-                - tsx
-                - scripts/daily-summary.ts
+                - sh
+                - -c
+                - |
+                  curl -sf -H "Authorization: Bearer ${CRON_SECRET}" http://{{ include "moviedb.fullname" . }}:{{ .Values.app.port }}/api/cron/daily-summary
               envFrom:
                 - configMapRef:
                     name: {{ include "moviedb.fullname" . }}-env
@@ -26,4 +27,9 @@ spec:
               env:
                 - name: DATABASE_URL
                   value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "moviedb.fullname" . }}
+                      key: CRON_SECRET
           restartPolicy: OnFailure
