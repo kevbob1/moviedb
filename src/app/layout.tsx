@@ -6,12 +6,6 @@ import { Navigation } from './components/Navigation';
 export const metadata: Metadata = {
   title: 'Is It On Jellyfin?',
   description: 'Check if movies are on Jellyfin and request new ones',
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'MovieDB',
-  },
 };
 
 export const viewport: Viewport = {
