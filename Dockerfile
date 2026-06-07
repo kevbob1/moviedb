@@ -30,7 +30,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Compile the migration script for runtime
-RUN npx tsc scripts/migrate.ts --outDir scripts --esModuleInterop --module commonjs --target es2020 --resolveJsonModule --ignoreConfig
+RUN npx tsc scripts/migrate.ts --outDir scripts --esModuleInterop --module ES2020 --target es2020 --resolveJsonModule --ignoreConfig
 
 # ---------------------------------------------------------------------------
 # Stage 3 – Production runner
