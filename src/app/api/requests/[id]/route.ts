@@ -4,9 +4,9 @@ import { logger } from '@/lib/logger';
 
 async function handler(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context?: { params: Promise<{ id: string }> }
 ) {
-  const { params } = context;
+  const { params } = context!;
   try {
     const { id } = await params;
     const requestId = parseInt(id, 10);

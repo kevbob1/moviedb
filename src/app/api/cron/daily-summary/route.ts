@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-async function handler(request: Request) {
+async function handler() {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = (await headers()).get('authorization');

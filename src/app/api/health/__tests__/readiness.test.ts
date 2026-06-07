@@ -24,7 +24,7 @@ jest.mock('@/lib/jellyfin', () => {
   };
 });
 
-let GET: () => Promise<MockResponse>;
+let GET: (req: Request) => Promise<MockResponse>;
 
 beforeAll(() => {
   jest.isolateModules(() => {
@@ -53,7 +53,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockRejectedValueOnce(new Error('DB connection failed'));
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(503);
 
       const body = await response.json();
@@ -65,7 +65,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -79,7 +79,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -93,7 +93,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: false, reachable: false, error: 'Jellyfin not configured' });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(200);
 
       const body = await response.json();
@@ -105,7 +105,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: false, error: 'Connection refused' });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(503);
 
       const body = await response.json();
@@ -119,7 +119,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: false, error: 'Jellyfin API error: 500' });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(503);
 
       const body = await response.json();
@@ -131,7 +131,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockRejectedValueOnce(new Error('connection refused'));
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(503);
     });
 
@@ -139,7 +139,7 @@ describe('readiness API', () => {
       prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
-      const response = await GET!();
+      const response = await GET!({ url: 'http://localhost:3000/api/health/readiness', method: 'GET' } as unknown as Request);
       expect(response.status).toBe(200);
 
       const body = await response.json();

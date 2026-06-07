@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import { withLogging } from '@/lib/with-logging';
 
-export const dynamic = 'force-static'
+export const dynamic = 'force-static';
 
-export async function GET() {
-  const response = NextResponse.json({ status: 'ok' })
-  response.headers.set('Cache-Control', 'no-cache, private, no-store')
-
-  return response
+async function handler() {
+  const response = NextResponse.json({ status: 'ok' });
+  response.headers.set('Cache-Control', 'no-cache, private, no-store');
+  return response;
 }
+
+export const GET = withLogging(handler);
