@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchTMDBMovies } from '@/lib/tmdb';
+import { withLogging } from '@/lib/with-logging';
+import { logger } from '@/lib/logger';
 
-export async function GET(request: NextRequest) {
+async function handler(request: Request | NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
@@ -13,10 +15,12 @@ export async function GET(request: NextRequest) {
     const results = await searchTMDBMovies(query);
     return NextResponse.json({ results });
   } catch (error) {
-    console.error('TMDB search failed:', error);
+    logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'TMDB search failed');
     return NextResponse.json(
       { error: 'Search failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
 }
+
+export const GET = withLogging(handler);

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkMovieOnJellyfin, checkMoviesOnJellyfin } from '@/lib/jellyfin';
+import { withLogging } from '@/lib/with-logging';
+import { logger } from '@/lib/logger';
 
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
+async function handler(request: Request | NextRequest) {
+  const searchParams = new URL(request.url).searchParams;
   const ids = searchParams.get('ids')?.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
 
   if (!ids || ids.length === 0) {
@@ -16,12 +18,12 @@ export async function GET(request: NextRequest) {
     } else {
       result = await checkMoviesOnJellyfin(ids);
     }
-    
+
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Jellyfin check failed:', error);
+    logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Jellyfin check failed');
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to check Jellyfin status',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
@@ -29,3 +31,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withLogging(handler);
