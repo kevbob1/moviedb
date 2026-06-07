@@ -21,7 +21,7 @@ spec:
         - name: db-migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["npm", "run", "db:migrate"]
+          command: ["node", "scripts/migrate.js"]
           envFrom:
             - configMapRef:
                 name: {{ include "moviedb.fullname" . }}-env
