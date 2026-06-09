@@ -72,17 +72,6 @@ describe('RequestDetail', () => {
   });
 
   it('does not redirect on cancel error', async () => {
-    const handleUnhandled = (reason: unknown) => {
-      if (reason instanceof Error && reason.message === 'cancel failed') {
-        return;
-      }
-      if (reason instanceof Error) {
-        throw reason;
-      }
-      throw new Error(String(reason));
-    };
-    process.on('unhandledRejection', handleUnhandled);
-
     (cancelRequest as jest.Mock).mockRejectedValueOnce(new Error('cancel failed'));
     render(<RequestDetail request={mockRequest} jellyfinAvailable={false} />);
     fireEvent.click(screen.getByText('Cancel'));
@@ -90,7 +79,5 @@ describe('RequestDetail', () => {
       expect(cancelRequest).toHaveBeenCalledWith(mockRequest.id);
       expect(mockPush).not.toHaveBeenCalled();
     });
-
-    process.removeListener('unhandledRejection', handleUnhandled);
   });
 });

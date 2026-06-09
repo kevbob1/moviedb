@@ -20,7 +20,6 @@ export default function RequestDetail({ request, jellyfinAvailable }: RequestDet
       router.refresh();
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to mark as fulfilled');
-      throw error;
     }
   };
 
@@ -30,7 +29,6 @@ export default function RequestDetail({ request, jellyfinAvailable }: RequestDet
       router.refresh();
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to download');
-      throw error;
     }
   };
 
@@ -40,7 +38,6 @@ export default function RequestDetail({ request, jellyfinAvailable }: RequestDet
       router.push('/requests');
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to cancel');
-      throw error;
     }
   };
 

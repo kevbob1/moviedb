@@ -31,19 +31,14 @@ export default function RequestCard({
   formattedDate,
 }: RequestCardProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
 
   const statusConfig = STATUS_CONFIG[request.status];
   const actions = getActionsForStatus(request.status);
-
-  if (error) throw error;
 
   const handleAction = async (handler: () => void | Promise<void>) => {
     setIsLoading(true);
     try {
       await handler();
-    } catch (e) {
-      setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setIsLoading(false);
     }
