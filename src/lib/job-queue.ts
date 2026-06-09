@@ -52,10 +52,16 @@ export async function processPendingJobs(): Promise<ProcessResult> {
   let failed = 0;
 
   for (const job of pendingJobs) {
-    await prisma.job.update({
-      where: { id: job.id },
+    const claimResult = await prisma.job.updateMany({
+      where: { id: job.id, status: 'pending' },
       data: { status: 'processing', attempts: { increment: 1 } },
     });
+
+    if (claimResult.count === 0) {
+      continue;
+    }
+
+    const currentAttempts = job.attempts + 1;
 
     try {
       await processJob(job);
@@ -65,10 +71,19 @@ export async function processPendingJobs(): Promise<ProcessResult> {
       });
       processed++;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
       logger.error({ err: error, jobId: job.id, jobType: job.type }, 'Job failed');
 
-      if (job.attempts + 1 >= job.maxAttempts) {
+      if (errorMessage.startsWith('No handler for job type:')) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: { status: 'failed', error: errorMessage },
+        });
+        failed++;
+        continue;
+      }
+
+      if (currentAttempts >= job.maxAttempts) {
         await prisma.job.update({
           where: { id: job.id },
           data: { status: 'failed', error: errorMessage },

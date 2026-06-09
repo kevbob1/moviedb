@@ -84,6 +84,10 @@ describe('job-queue', () => {
       const result = await processPendingJobs();
 
       expect(handler).toHaveBeenCalledWith({ a: 1 });
+      expect(prisma.job.updateMany).toHaveBeenCalledWith({
+        where: { id: 1, status: 'pending' },
+        data: { status: 'processing', attempts: { increment: 1 } },
+      });
       expect(prisma.job.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'completed', completed_at: expect.any(Date) },
@@ -124,9 +128,13 @@ describe('job-queue', () => {
       const result = await processPendingJobs();
 
       expect(handler).toHaveBeenCalled();
+      expect(prisma.job.updateMany).toHaveBeenCalledWith({
+        where: { id: 2, status: 'pending' },
+        data: { status: 'processing', attempts: { increment: 1 } },
+      });
       expect(prisma.job.update).toHaveBeenCalledWith({
         where: { id: 2 },
-        data: { status: 'failed', error: 'SMTP down' },
+        data: { status: 'failed', error: expect.stringContaining('SMTP down') },
       });
       expect(result.failed).toBe(1);
     });
@@ -146,10 +154,51 @@ describe('job-queue', () => {
 
       const result = await processPendingJobs();
 
+      expect(prisma.job.updateMany).toHaveBeenCalledWith({
+        where: { id: 3, status: 'pending' },
+        data: { status: 'processing', attempts: { increment: 1 } },
+      });
       expect(prisma.job.update).toHaveBeenCalledWith({
         where: { id: 3 },
-        data: { status: 'pending', error: 'transient' },
+        data: { status: 'pending', error: expect.stringContaining('transient') },
       });
+      expect(result.failed).toBe(0);
+    });
+
+    it('fails unknown job type immediately without retry', async () => {
+      const jobs = [
+        { id: 4, type: 'unknown_type', payload: {}, status: 'pending', attempts: 0, maxAttempts: 3, error: null, created_at: new Date(), updated_at: new Date(), completed_at: null },
+      ];
+
+      (prisma.job.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.job.findMany as jest.Mock).mockResolvedValue(jobs);
+      (prisma.job.update as jest.Mock).mockResolvedValue({});
+
+      const result = await processPendingJobs();
+
+      expect(prisma.job.update).toHaveBeenCalledWith({
+        where: { id: 4 },
+        data: { status: 'failed', error: expect.stringContaining('No handler for job type:') },
+      });
+      expect(result.failed).toBe(1);
+      expect(result.processed).toBe(0);
+    });
+
+    it('skips job when another worker already claimed it', async () => {
+      const handler = jest.fn().mockResolvedValue(undefined);
+      registerJobType('skip_test', { handle: handler });
+
+      const jobs = [
+        { id: 5, type: 'skip_test', payload: {}, status: 'pending', attempts: 0, maxAttempts: 3, error: null, created_at: new Date(), updated_at: new Date(), completed_at: null },
+      ];
+
+      (prisma.job.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.job.findMany as jest.Mock).mockResolvedValue(jobs);
+
+      const result = await processPendingJobs();
+
+      expect(handler).not.toHaveBeenCalled();
+      expect(result.processed).toBe(0);
       expect(result.failed).toBe(0);
     });
   });
