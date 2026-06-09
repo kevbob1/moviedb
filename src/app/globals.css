@@ -5,6 +5,7 @@
   --color-foreground: hsl(var(--foreground));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
 }
 
 @layer base {
@@ -13,6 +14,7 @@
     --foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
+    --border: 0 0% 85%;
   }
 
   .dark {
@@ -20,6 +22,7 @@
     --foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
+    --border: 0 0% 25%;
   }
 }
 
@@ -35,28 +38,28 @@ body {
 
   /* Typography */
   .page-title {
-    @apply text-2xl font-bold mb-6 text-gray-900 dark:text-white;
+    @apply text-2xl font-bold mb-6 text-foreground;
   }
 
   .card-title {
-    @apply text-lg font-semibold text-gray-900 dark:text-white;
+    @apply text-lg font-semibold text-foreground;
   }
 
   .text-muted {
-    @apply text-gray-500 dark:text-gray-400;
+    @apply text-muted-foreground;
   }
 
   .text-year {
-    @apply text-gray-400 dark:text-gray-500;
+    @apply text-muted-foreground;
   }
 
   .text-body {
-    @apply text-sm text-gray-600 dark:text-gray-300;
+    @apply text-sm text-muted-foreground;
   }
 
   /* Forms */
   .input {
-    @apply px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none;
+    @apply px-4 py-2 border border-border rounded-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:outline-none;
   }
 
   .form-row {
@@ -77,7 +80,7 @@ body {
   }
 
   .btn-secondary {
-    @apply rounded-sm transition-colors disabled:opacity-50 bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600;
+    @apply rounded-sm transition-colors disabled:opacity-50 bg-muted text-muted-foreground hover:bg-muted-foreground/20;
   }
 
   .btn-sm {
@@ -94,11 +97,11 @@ body {
 
   /* Cards */
   .card {
-    @apply bg-white dark:bg-gray-800 rounded-sm shadow-sm;
+    @apply bg-background rounded-sm shadow-sm;
   }
 
   .card-row {
-    @apply bg-white dark:bg-gray-800 rounded-sm shadow-sm p-3 flex flex-col gap-4;
+    @apply bg-background rounded-sm shadow-sm p-3 flex flex-col gap-4;
   }
 
   /* Alerts */
@@ -115,7 +118,7 @@ body {
   }
 
   .alert-request {
-    @apply bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-sm p-4 mt-3;
+    @apply bg-muted border border-border rounded-sm p-4 mt-3;
   }
 
   /* Badges */
@@ -124,7 +127,7 @@ body {
   }
 
   .badge-success {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800;
   }
 
   /* Posters */
@@ -142,6 +145,6 @@ body {
 
   /* Nav */
   .nav-link {
-    @apply text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium;
+    @apply text-blue-600 hover:text-blue-700 font-medium;
   }
 }
