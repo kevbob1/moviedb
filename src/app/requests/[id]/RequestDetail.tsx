@@ -17,16 +17,20 @@ export default function RequestDetail({ request, jellyfinAvailable }: RequestDet
   const handleMarkFulfilled = async () => {
     try {
       await fulfillRequest(request.id);
+      router.refresh();
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to mark as fulfilled');
+      throw error;
     }
   };
 
   const handleDownload = async () => {
     try {
       await downloadRequest(request.id);
+      router.refresh();
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to download');
+      throw error;
     }
   };
 
@@ -36,6 +40,7 @@ export default function RequestDetail({ request, jellyfinAvailable }: RequestDet
       router.push('/requests');
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Failed to cancel');
+      throw error;
     }
   };
 
