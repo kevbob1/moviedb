@@ -114,7 +114,7 @@ describe('job-queue', () => {
       registerJobType('fail_test', { handle: handler });
 
       const jobs = [
-        { id: 2, type: 'fail_test', payload: {}, status: 'processing', attempts: 2, maxAttempts: 3, error: null, created_at: new Date(), updated_at: new Date(), completed_at: null },
+        { id: 2, type: 'fail_test', payload: {}, status: 'pending', attempts: 2, maxAttempts: 3, error: null, created_at: new Date(), updated_at: new Date(), completed_at: null },
       ];
 
       (prisma.job.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
@@ -137,7 +137,7 @@ describe('job-queue', () => {
       registerJobType('retry_test', { handle: handler });
 
       const jobs = [
-        { id: 3, type: 'retry_test', payload: {}, status: 'processing', attempts: 1, maxAttempts: 3, error: null, created_at: new Date(), updated_at: new Date(), completed_at: null },
+        { id: 3, type: 'retry_test', payload: {}, status: 'pending', attempts: 1, maxAttempts: 3, error: null, created_at: new Date(), updated_at: new Date(), completed_at: null },
       ];
 
       (prisma.job.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
