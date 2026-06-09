@@ -24,3 +24,20 @@ model Request {
 
   @@map("requests")
 }
+
+model Job {
+  id           Int       @id @default(autoincrement())
+  type         String
+  payload      Json      @db.JsonB
+  status       String    @default("pending")
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(3)
+  error        String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  completed_at DateTime?
+
+  @@index([status])
+  @@index([status, created_at])
+  @@map("jobs")
+}

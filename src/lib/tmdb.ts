@@ -39,6 +39,8 @@ export interface TMDBSearchTVResponse {
 export interface TMDBTVDetailsResponse {
   id: number;
   name: string;
+  poster_path?: string;
+  first_air_date?: string;
   seasons: TMDBSeason[];
 }
 

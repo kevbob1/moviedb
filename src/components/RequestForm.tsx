@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react';
 const STORAGE_KEY = 'moviedb-requestor-name';
 
 interface Props {
-  onSubmit: (requestedBy: string) => void;
+  onSubmit: (requestedBy: string) => Promise<void>;
   onCancel: () => void;
   isVisible: boolean;
 }
 
 export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
   const [requestedBy, setRequestedBy] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -25,14 +26,27 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (requestedBy.trim()) {
       localStorage.setItem(STORAGE_KEY, requestedBy.trim());
-      onSubmit(requestedBy.trim());
-      setRequestedBy('');
+      setSubmitting(true);
+      try {
+        await onSubmit(requestedBy.trim());
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
+
+  if (submitting) {
+    return (
+      <div className="alert-request flex items-center gap-2">
+        <span className="spinner" />
+        <span className="text-sm text-muted-foreground">Submitting...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="alert-request">

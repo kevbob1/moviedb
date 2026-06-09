@@ -119,6 +119,11 @@ body {
     @apply px-3 py-1 text-sm text-white rounded disabled:opacity-50;
   }
 
+  /* Spinner */
+  .spinner {
+    @apply inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin;
+  }
+
   /* Cards */
   .card {
     @apply bg-background rounded-sm shadow-sm;

@@ -126,6 +126,7 @@ export default function ImportPage() {
       setJellyfinResults(prev => ({ ...prev, [movie.id]: jellyfinData.results[movie.id] || false }));
     } catch (err) {
       logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to create request');
+      throw err;
     }
   };
 
@@ -138,6 +139,7 @@ export default function ImportPage() {
       setJellyfinSeasons(prev => ({ ...prev, [show.id]: jellyfinData.seasons[show.id] || [] }));
     } catch (err) {
       logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to create request');
+      throw err;
     }
   };
 
@@ -150,6 +152,7 @@ export default function ImportPage() {
       setJellyfinSeasons(prev => ({ ...prev, [show.id]: jellyfinData.seasons[show.id] || [] }));
     } catch (err) {
       logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to create TV requests');
+      throw err;
     }
   };
 
