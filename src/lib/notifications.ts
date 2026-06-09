@@ -164,6 +164,103 @@ function buildDailySummaryContent(
   return { text, html, subject };
 }
 
+export interface TvSeriesNotificationPayload {
+  title: string;
+  requestedBy: string;
+  seasons: number[];
+  totalSeasons: number;
+  posterPath: string | null;
+  releaseDate: string | null;
+}
+
+function buildTvSeriesNotificationContent(
+  payload: TvSeriesNotificationPayload,
+  baseUrl: string
+): { text: string; html: string; subject: string } {
+  const year = getYear(payload.releaseDate);
+  const listUrl = `${baseUrl}/requests`;
+  const seasonRange = payload.seasons.length === 1
+    ? `Season ${payload.seasons[0]}`
+    : `Seasons ${payload.seasons[0]}-${payload.seasons[payload.seasons.length - 1]}`;
+  const subject = `[JELLYFIN REQUEST] New TV Request: ${payload.title} (${seasonRange}, ${year})`;
+
+  const seasonList = payload.seasons.map(s => `Season ${s}`).join(', ');
+
+  const text = `A new TV series request has been submitted.
+
+Requestor: ${payload.requestedBy}
+Show: ${payload.title}
+${seasonList}
+Year: ${year}
+
+View requests: ${listUrl}`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <h2 style="color: #2c3e50;">New TV Series Request</h2>
+  <p>A new TV series request has been submitted.</p>
+  <table style="margin: 20px 0; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Requestor:</td>
+      <td style="padding: 8px 0;">${escapeHtml(payload.requestedBy)}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Show:</td>
+      <td style="padding: 8px 0; font-size: 1.2em; font-weight: bold;">${escapeHtml(payload.title)}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Seasons:</td>
+      <td style="padding: 8px 0;">${escapeHtml(seasonList)}</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Year:</td>
+      <td style="padding: 8px 0;">${year}</td>
+    </tr>
+  </table>
+  <p>
+    <a href="${listUrl}" style="display: inline-block; padding: 12px 24px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px;">View Requests</a>
+  </p>
+  <p style="color: #666; font-size: 0.9em;">
+    <a href="${listUrl}">${escapeHtml(listUrl)}</a>
+  </p>
+</body>
+</html>`;
+
+  return { text, html, subject };
+}
+
+export async function sendTvSeriesNotification(payload: TvSeriesNotificationPayload): Promise<void> {
+  const to = process.env.NOTIFICATION_EMAIL;
+  const from = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const baseUrl = process.env.APP_BASE_URL;
+
+  if (!from || !pass || !to) {
+    logger.warn('Skipping TV series notification: SMTP not configured');
+    return;
+  }
+
+  if (!baseUrl) {
+    logger.warn('Skipping TV series notification: APP_BASE_URL not configured');
+    return;
+  }
+
+  const transporter = getTransporter();
+  const { text, html, subject } = buildTvSeriesNotificationContent(payload, baseUrl);
+
+  try {
+    await transporter.sendMail({ from, to, subject, text, html });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error({ err }, 'Failed to send TV series notification');
+  }
+}
+
 export async function sendRequestNotification(request: NotificationRequest): Promise<void> {
   const to = process.env.NOTIFICATION_EMAIL;
   const from = process.env.SMTP_USER;
