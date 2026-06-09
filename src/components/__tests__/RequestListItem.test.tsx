@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RequestListItem } from '../RequestListItem';
+import { RequestListItem, type Request } from '../RequestListItem';
 import * as genres from '@/lib/genres';
 import * as requestActions from '@/app/actions/request-actions';
 
@@ -89,5 +89,21 @@ describe('RequestListItem', () => {
     render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
     const fulfillButton = screen.getByText('Mark Fulfilled');
     expect(fulfillButton).toHaveClass('bg-green-600');
+  });
+
+  it('shows TV badge and season for TV requests', () => {
+    const tvRequest: Request = {
+      id: 1,
+      title: 'Best Show',
+      tmdb_id: 100,
+      season_number: 3,
+      media_type: 'tv',
+      requested_by: 'Alice',
+      requested_at: '2026-01-01',
+      status: 'pending',
+    };
+    render(<RequestListItem request={tvRequest} />);
+    expect(screen.getByText('TV')).toBeInTheDocument();
+    expect(screen.getByText(/Season 3/)).toBeInTheDocument();
   });
 });

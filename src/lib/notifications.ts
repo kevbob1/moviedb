@@ -9,6 +9,8 @@ export interface NotificationRequest {
   status: string;
   requested_at: Date;
   release_date?: string | null;
+  media_type?: string;
+  season_number?: number | null;
 }
 
 function getTransporter() {
@@ -53,12 +55,14 @@ function buildRequestNotificationContent(
 ): { text: string; html: string; subject: string } {
   const year = getYear(request.release_date);
   const requestUrl = `${baseUrl}/requests/${encodeURIComponent(request.id)}`;
-  const subject = `[JELLYFIN REQUEST] New Request: ${request.title} (${year})`;
+  const mediaLabel = request.media_type === 'tv' ? 'TV Show' : 'Movie';
+  const seasonSuffix = request.season_number ? ` — Season ${request.season_number}` : '';
+  const subject = `[JELLYFIN REQUEST] New Request: ${request.title}${seasonSuffix} (${year})`;
 
   const text = `A new media request has been submitted.
 
 Requestor: ${request.requested_by}
-Movie: ${request.title}
+${mediaLabel}: ${request.title}${seasonSuffix}
 Year: ${year}
 
 View request: ${requestUrl}`;
@@ -78,8 +82,8 @@ View request: ${requestUrl}`;
       <td style="padding: 8px 0;">${escapeHtml(request.requested_by)}</td>
     </tr>
     <tr>
-      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Movie:</td>
-      <td style="padding: 8px 0; font-size: 1.2em; font-weight: bold;">${escapeHtml(request.title)}</td>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">${mediaLabel}:</td>
+      <td style="padding: 8px 0; font-size: 1.2em; font-weight: bold;">${escapeHtml(request.title)}${seasonSuffix}</td>
     </tr>
     <tr>
       <td style="padding: 8px 16px 8px 0; font-weight: bold;">Year:</td>
@@ -113,7 +117,8 @@ function buildDailySummaryContent(
   } else {
     requests.forEach((req) => {
       const year = getYear(req.release_date);
-      text += `- "${req.title}" (${year}) — requested by ${req.requested_by} (${req.status})\n`;
+      const seasonLabel = req.season_number ? ` S${req.season_number}` : '';
+      text += `- "${req.title}"${seasonLabel} (${year}) — requested by ${req.requested_by} (${req.status})\n`;
     });
     text += `\nView all requests: ${listUrl}`;
   }
@@ -137,8 +142,9 @@ function buildDailySummaryContent(
     requests.forEach((req) => {
       const year = getYear(req.release_date);
       const requestUrl = `${baseUrl}/requests/${encodeURIComponent(req.id)}`;
+      const seasonLabel = req.season_number ? ` S${req.season_number}` : '';
       html += `<li style="margin: 8px 0;">
-        <strong>${escapeHtml(req.title)}</strong> (${year}) — 
+        <strong>${escapeHtml(req.title)}</strong>${seasonLabel} (${year}) — 
         requested by ${escapeHtml(req.requested_by)} (${escapeHtml(req.status)}) 
         <a href="${requestUrl}">View</a>
       </li>`;

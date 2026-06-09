@@ -22,6 +22,7 @@ describe('request-actions', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.request doesn't exist in types, need to mock it
     (prisma as any).request = {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -32,12 +33,12 @@ describe('request-actions', () => {
   describe('createRequest', () => {
     it('creates a request with pending status and extra fields', async () => {
       const mockRequest = { id: 1, title: 'Test Movie', status: 'pending' };
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.request.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
 
-      const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe', '2024-01-01', 'A movie', [28, 12]);
+      const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe', '2024-01-01', 'A movie', [28, 12], 'movie');
 
-      expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { tmdb_id: 123 } });
+      expect(prisma.request.findFirst).toHaveBeenCalledWith({ where: { tmdb_id: 123, season_number: null } });
       expect(prisma.request.create).toHaveBeenCalledWith({
         data: {
           tmdb_id: 123,
@@ -49,6 +50,7 @@ describe('request-actions', () => {
           release_date: '2024-01-01',
           overview: 'A movie',
           genre_ids: [28, 12],
+          season_number: null,
         },
       });
       expect(sendRequestNotification).toHaveBeenCalledWith(mockRequest);
@@ -57,7 +59,7 @@ describe('request-actions', () => {
 
     it('returns existing request if tmdb_id already exists', async () => {
       const existingRequest = { id: 5, title: 'Existing Movie', tmdb_id: 123, status: 'pending' };
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(existingRequest);
+      (prisma.request.findFirst as jest.Mock).mockResolvedValue(existingRequest);
 
       const result = await createRequest(123, 'Existing Movie', '/path.jpg', 'John Doe');
 
@@ -70,6 +72,17 @@ describe('request-actions', () => {
       await expect(createRequest(123, '', '/path.jpg', 'John Doe')).rejects.toThrow(
         'Title and requester name are required'
       );
+    });
+
+    it('creates a TV request with season_number', async () => {
+      const mockRequest = { id: 2, title: 'Test Show', status: 'pending', season_number: 3, media_type: 'tv' };
+      (prisma.request.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
+
+      const result = await createRequest(456, 'Test Show', '/path.jpg', 'Alice', undefined, undefined, undefined, 'tv', 3);
+
+      expect(prisma.request.findFirst).toHaveBeenCalledWith({ where: { tmdb_id: 456, season_number: 3 } });
+      expect(result).toEqual(mockRequest);
     });
   });
 

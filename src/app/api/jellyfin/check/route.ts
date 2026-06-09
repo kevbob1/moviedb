@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkMovieOnJellyfin, checkMoviesOnJellyfin } from '@/lib/jellyfin';
+import { checkMoviesOnJellyfin, checkSeasonsOnJellyfin } from '@/lib/jellyfin';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
 
@@ -8,18 +8,21 @@ async function handler(request: Request | NextRequest) {
   const ids = searchParams.get('ids')?.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
 
   if (!ids || ids.length === 0) {
-    return NextResponse.json({ error: 'No valid movie IDs provided' }, { status: 400 });
+    return NextResponse.json({ error: 'No valid IDs provided' }, { status: 400 });
   }
 
   try {
-    let result;
-    if (ids.length === 1) {
-      result = await checkMovieOnJellyfin(ids[0]);
-    } else {
-      result = await checkMoviesOnJellyfin(ids);
-    }
+    const [moviesResult, seasonsResult] = await Promise.all([
+      checkMoviesOnJellyfin(ids),
+      checkSeasonsOnJellyfin(ids),
+    ]);
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      results: moviesResult.results,
+      seasons: seasonsResult.seasons,
+      configured: moviesResult.configured || seasonsResult.configured,
+      error: moviesResult.error || seasonsResult.error,
+    });
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Jellyfin check failed');
     return NextResponse.json(

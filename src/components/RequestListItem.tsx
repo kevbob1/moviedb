@@ -12,6 +12,7 @@ export interface Request {
   id: number;
   title: string;
   tmdb_id?: number;
+  season_number?: number | null;
   poster_path?: string;
   overview?: string;
   release_date?: string;
@@ -19,6 +20,7 @@ export interface Request {
   requested_by: string;
   requested_at: string;
   status: RequestStatus;
+  media_type?: string;
 }
 
 interface Props {
@@ -100,7 +102,10 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
         <div className="flex items-center gap-2 mb-1">
           <h3 className="font-semibold">
             {request.title}
-            {request.release_date && (
+            {request.season_number && (
+              <span className="ml-1 text-sm font-normal text-year">— Season {request.season_number}</span>
+            )}
+            {request.release_date && request.media_type !== 'tv' && (
               <span className="ml-2 text-sm font-normal text-year">
                 ({request.release_date.split('-')[0]})
               </span>
@@ -109,6 +114,11 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
           <span className={`px-2 py-0.5 text-xs rounded ${statusConfig.bgColor} ${statusConfig.color}`}>
             {statusConfig.label}
           </span>
+          {request.media_type === 'tv' && (
+            <span className="px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+              TV
+            </span>
+          )}
         </div>
 
         {request.overview && (

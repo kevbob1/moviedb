@@ -1,4 +1,4 @@
-import { isMovieOnJellyfin, areMoviesOnJellyfin, checkMovieOnJellyfin, checkMoviesOnJellyfin, invalidateJellyfinCache, checkJellyfinConnectivity } from '../jellyfin';
+import { isMovieOnJellyfin, areMoviesOnJellyfin, checkMovieOnJellyfin, checkMoviesOnJellyfin, checkSeasonsOnJellyfin, invalidateJellyfinCache, checkJellyfinConnectivity } from '../jellyfin';
 
 describe('Jellyfin library', () => {
   const originalEnv = process.env;
@@ -252,6 +252,60 @@ describe('Jellyfin library', () => {
       const result = await areMoviesOnJellyfin([456]);
       expect(result.get(456)).toBe(true);
       expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('checkSeasonsOnJellyfin', () => {
+    beforeEach(() => {
+      invalidateJellyfinCache();
+    });
+
+    it('returns empty seasons when no IDs provided', async () => {
+      const result = await checkSeasonsOnJellyfin([]);
+      expect(result.seasons).toEqual({});
+      expect(result.configured).toBe(false);
+    });
+
+    it('returns configured:false when JELLYFIN_URL is missing', async () => {
+      delete process.env.JELLYFIN_URL;
+      const result = await checkSeasonsOnJellyfin([100]);
+      expect(result.configured).toBe(false);
+    });
+
+    it('returns season availability from Jellyfin', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          Items: [
+            { ProviderIds: { Tmdb: '100' }, IndexNumber: 1 },
+            { ProviderIds: { Tmdb: '100' }, IndexNumber: 2 },
+            { ProviderIds: { Tmdb: '200' }, IndexNumber: 1 },
+          ],
+          TotalRecordCount: 3,
+        }),
+      } as unknown as Response);
+
+      const result = await checkSeasonsOnJellyfin([100, 200, 300]);
+      expect(result.seasons).toEqual({
+        100: [1, 2],
+        200: [1],
+        300: [],
+      });
+      expect(result.configured).toBe(true);
+    });
+
+    it('caches season results', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          Items: [{ ProviderIds: { Tmdb: '100' }, IndexNumber: 1 }],
+          TotalRecordCount: 1,
+        }),
+      } as unknown as Response);
+
+      await checkSeasonsOnJellyfin([100]);
+      await checkSeasonsOnJellyfin([100]);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 });
