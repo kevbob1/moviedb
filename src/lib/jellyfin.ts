@@ -1,6 +1,7 @@
 interface JellyfinItem {
   Name?: string;
   ProviderIds?: { Tmdb?: string; Imdb?: string; [key: string]: string | undefined };
+  IndexNumber?: number;
   [key: string]: unknown;
 }
 
@@ -34,13 +35,20 @@ export interface JellyfinCheckResult {
   configured: boolean;
 }
 
+export interface JellyfinSeasonCheckResult {
+  seasons: Record<number, number[]>;
+  error?: string;
+  configured: boolean;
+}
+
 let jellyfinTmdbCache: Set<string> | null = null;
+let jellyfinSeasonCache: Map<string, Set<number>> | null = null;
 let jellyfinCacheTimestamp: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string }> {
   const now = Date.now();
-  if (jellyfinTmdbCache && (now - jellyfinCacheTimestamp) < CACHE_TTL_MS) {
+  if (jellyfinTmdbCache && jellyfinSeasonCache && (now - jellyfinCacheTimestamp) < CACHE_TTL_MS) {
     return { ids: jellyfinTmdbCache };
   }
 
@@ -57,7 +65,7 @@ async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string 
 
   try {
     while (true) {
-      const endpoint = `/Items?IncludeItemTypes=Movie&Recursive=true&Fields=ProviderIds&Limit=${limit}&StartIndex=${startIndex}`;
+      const endpoint = `/Items?IncludeItemTypes=Movie,Season&Recursive=true&Fields=ProviderIds,IndexNumber&Limit=${limit}&StartIndex=${startIndex}`;
       const response = await fetch(`${jellyfinUrl}${endpoint}`, {
         headers: {
           'Authorization': `MediaBrowser Token="${jellyfinApiKey}"`
@@ -72,8 +80,14 @@ async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string 
       const items = data.Items || [];
 
       for (const item of items) {
-        if (item.ProviderIds?.Tmdb) {
-          tmdbIds.add(item.ProviderIds.Tmdb);
+        const tmdbId = item.ProviderIds?.Tmdb;
+        if (tmdbId) {
+          tmdbIds.add(tmdbId);
+          if (item.IndexNumber !== undefined) {
+            if (!jellyfinSeasonCache) jellyfinSeasonCache = new Map();
+            if (!jellyfinSeasonCache.has(tmdbId)) jellyfinSeasonCache.set(tmdbId, new Set());
+            jellyfinSeasonCache.get(tmdbId)!.add(item.IndexNumber);
+          }
         }
       }
 
@@ -83,6 +97,7 @@ async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string 
     }
 
     jellyfinTmdbCache = tmdbIds;
+    if (!jellyfinSeasonCache) jellyfinSeasonCache = new Map();
     jellyfinCacheTimestamp = now;
     return { ids: tmdbIds };
   } catch (err) {
@@ -93,6 +108,7 @@ async function getJellyfinTmdbIds(): Promise<{ ids: Set<string>; error?: string 
 
 export function invalidateJellyfinCache(): void {
   jellyfinTmdbCache = null;
+  jellyfinSeasonCache = null;
   jellyfinCacheTimestamp = 0;
 }
 
@@ -151,6 +167,24 @@ export async function checkMoviesOnJellyfin(tmdbIds: number[]): Promise<Jellyfin
   }
 
   return { results, configured, error: ids.size === 0 ? error : undefined };
+}
+
+export async function checkSeasonsOnJellyfin(tmdbIds: number[]): Promise<JellyfinSeasonCheckResult> {
+  if (!tmdbIds?.length) {
+    return { seasons: {}, configured: false };
+  }
+
+  const { ids, error } = await getJellyfinTmdbIds();
+  const configured = ids.size > 0 || !error;
+
+  const seasons: Record<number, number[]> = {};
+  for (const id of tmdbIds) {
+    const key = String(id);
+    const seasonSet = jellyfinSeasonCache?.get(key);
+    seasons[id] = seasonSet ? Array.from(seasonSet).sort((a, b) => a - b) : [];
+  }
+
+  return { seasons, configured, error: !configured ? error : undefined };
 }
 
 export async function isMovieOnJellyfin(tmdbId: number): Promise<JellyfinStatus> {
