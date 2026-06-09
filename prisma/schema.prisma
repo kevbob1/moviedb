@@ -37,5 +37,7 @@ model Job {
   updated_at   DateTime  @updatedAt
   completed_at DateTime?
 
+  @@index([status])
+  @@index([status, created_at])
   @@map("jobs")
 }
