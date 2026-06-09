@@ -1,6 +1,7 @@
 'use client';
 
-import { Request, RequestListItem } from './RequestListItem';
+import { Request } from '@/types/request';
+import { RequestListItem } from './RequestListItem';
 
 interface RequestListProps {
   requests: Request[];
@@ -29,4 +30,3 @@ export default function RequestList({ requests, jellyfinAvailability }: RequestL
   );
 }
 
-export type { Request };

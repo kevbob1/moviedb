@@ -19,7 +19,7 @@ const mockRequest = {
   release_date: '2023-01-01',
   genre_ids: [28, 35],
   requested_by: 'Alice',
-  requested_at: '6/1/2023',
+  requested_at: '2023-06-01T00:00:00Z',
   status: 'pending' as RequestStatus,
   media_type: 'movie',
 };
@@ -30,26 +30,31 @@ const mockHandlers = {
   onCancel: jest.fn(),
 };
 
+const defaultProps = {
+  ...mockHandlers,
+  formattedDate: '6/1/2023',
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
 describe('RequestCard', () => {
   it('renders title and status', () => {
-    render(<RequestCard request={mockRequest} {...mockHandlers} />);
+    render(<RequestCard request={mockRequest} {...defaultProps} />);
     expect(screen.getByText('Test Movie')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('renders action buttons for pending status', () => {
-    render(<RequestCard request={mockRequest} {...mockHandlers} />);
+    render(<RequestCard request={mockRequest} {...defaultProps} />);
     expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument();
     expect(screen.getByText('Start Download')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
   it('calls handlers on button clicks', async () => {
-    render(<RequestCard request={mockRequest} {...mockHandlers} />);
+    render(<RequestCard request={mockRequest} {...defaultProps} />);
     fireEvent.click(screen.getByText('Mark Fulfilled'));
     await waitFor(() => expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument());
     expect(mockHandlers.onMarkFulfilled).toHaveBeenCalledTimes(1);
@@ -63,26 +68,26 @@ describe('RequestCard', () => {
 
   it('shows loading state during async actions', async () => {
     const slowHandler = jest.fn(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
-    render(<RequestCard request={mockRequest} {...mockHandlers} onMarkFulfilled={slowHandler} />);
+    render(<RequestCard request={mockRequest} {...defaultProps} onMarkFulfilled={slowHandler} />);
     fireEvent.click(screen.getByText('Mark Fulfilled'));
     expect(screen.getAllByText('Loading...')).toHaveLength(3);
     await waitFor(() => expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument());
   });
 
   it('renders jellyfin available indicator', () => {
-    render(<RequestCard request={mockRequest} {...mockHandlers} jellyfinAvailable />);
+    render(<RequestCard request={mockRequest} {...defaultProps} jellyfinAvailable />);
     expect(screen.getByText('Available in Jellyfin')).toBeInTheDocument();
   });
 
   it('renders TV badge and season number', () => {
     const tvRequest = { ...mockRequest, title: 'Test Show', media_type: 'tv', season_number: 2 };
-    render(<RequestCard request={tvRequest} {...mockHandlers} />);
+    render(<RequestCard request={tvRequest} {...defaultProps} />);
     expect(screen.getByText('TV')).toBeInTheDocument();
     expect(screen.getByText(/Season 2/)).toBeInTheDocument();
   });
 
   it('renders poster image', () => {
-    render(<RequestCard request={mockRequest} {...mockHandlers} />);
+    render(<RequestCard request={mockRequest} {...defaultProps} />);
     const img = screen.getByRole('img');
     expect(img).toHaveAttribute('src', expect.stringContaining('test.jpg'));
     expect(img).toHaveAttribute('alt', 'Test Movie');
