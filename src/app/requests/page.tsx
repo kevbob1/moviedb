@@ -46,7 +46,9 @@ export default async function RequestsPage({
     overview: r.overview ?? undefined,
     release_date: r.release_date ?? undefined,
     requested_at: r.requested_at.toISOString(),
-    status: r.status as RequestStatus
+    status: r.status as RequestStatus,
+    season_number: r.season_number ?? undefined,
+    media_type: r.media_type ?? undefined,
   }));
 
   return (
