@@ -1,4 +1,4 @@
-import { searchTMDBMovies } from '../tmdb';
+import { searchTMDBMovies, searchTMDBTV, getTMDBTVDetails } from '../tmdb';
 
 describe('TMDB library', () => {
   const originalEnv = process.env;
@@ -45,6 +45,50 @@ describe('TMDB library', () => {
     it('throws on API error', async () => {
       mockFailedResponse(401, 'Unauthorized');
       await expect(searchTMDBMovies('test')).rejects.toThrow('TMDB API error: 401 Unauthorized');
+    });
+  });
+
+  describe('searchTMDBTV', () => {
+    it('returns shows on successful search', async () => {
+      const mockShows = [
+        { id: 100, name: 'Show 1', overview: 'Test 1', first_air_date: '2020-01-01' },
+        { id: 200, name: 'Show 2', overview: 'Test 2', first_air_date: '2021-06-15' },
+      ];
+      mockSuccessfulResponse({ results: mockShows, page: 1, total_pages: 1, total_results: 2 });
+
+      const results = await searchTMDBTV('test');
+      expect(results).toEqual(mockShows);
+    });
+
+    it('throws on API error', async () => {
+      mockFailedResponse(401, 'Unauthorized');
+      await expect(searchTMDBTV('test')).rejects.toThrow('TMDB API error: 401 Unauthorized');
+    });
+  });
+
+  describe('getTMDBTVDetails', () => {
+    it('returns seasons array', async () => {
+      const mockDetails = {
+        id: 100,
+        name: 'Test Show',
+        seasons: [
+          { season_number: 1, name: 'Season 1', episode_count: 10, poster_path: '/s1.jpg' },
+          { season_number: 2, name: 'Season 2', episode_count: 8, poster_path: null },
+          { season_number: 0, name: 'Specials', episode_count: 2, poster_path: null },
+        ],
+      };
+      mockSuccessfulResponse(mockDetails);
+
+      const result = await getTMDBTVDetails(100);
+      expect(result.seasons).toHaveLength(3);
+      expect(result.seasons[0].season_number).toBe(1);
+      expect(result.seasons[1].season_number).toBe(2);
+      expect(result.seasons[2].season_number).toBe(0);
+    });
+
+    it('throws on API error', async () => {
+      mockFailedResponse(404, 'Not Found');
+      await expect(getTMDBTVDetails(999)).rejects.toThrow('TMDB API error: 404 Not Found');
     });
   });
 });
