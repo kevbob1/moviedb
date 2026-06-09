@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "moviedb.fullname" . }}-process-jobs
+  labels:
+    {{- include "moviedb.labels" . | nindent 4 }}
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: process-jobs
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -H "Authorization: Bearer ${CRON_SECRET}" http://{{ include "moviedb.fullname" . }}:{{ .Values.app.port }}/api/cron/process-jobs
+              envFrom:
+                - configMapRef:
+                    name: {{ include "moviedb.fullname" . }}-env
+                - secretRef:
+                    name: {{ include "moviedb.fullname" . }}
+              env:
+                - name: DATABASE_URL
+                  value: postgresql://{{ .Values.secrets.database.username }}:{{ .Values.secrets.database.password }}@postgres-postgresql.database:5432/moviedb_production
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "moviedb.fullname" . }}
+                      key: CRON_SECRET
+          restartPolicy: OnFailure
