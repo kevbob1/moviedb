@@ -1,5 +1,3 @@
-import nodemailer from 'nodemailer';
-
 const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-id' });
 
 jest.mock('nodemailer', () => ({
@@ -13,6 +11,10 @@ jest.mock('../../logger', () => ({
 }));
 
 describe('tv_series_request_notification handler', () => {
+  let sendTvSeriesNotification: (
+    payload?: Record<string, unknown>
+  ) => Promise<void>;
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.SMTP_HOST = 'smtp.test.com';
@@ -31,9 +33,12 @@ describe('tv_series_request_notification handler', () => {
   });
 
   it('sends a single email listing all seasons', async () => {
-    require('../tv-series-request-notification');
-
-    const { sendTvSeriesNotification } = require('../../notifications');
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../tv-series-request-notification');
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    ({ sendTvSeriesNotification } = require('../../notifications'));
 
     await sendTvSeriesNotification({
       title: 'Best Show',
@@ -54,7 +59,8 @@ describe('tv_series_request_notification handler', () => {
   it('skips sending when SMTP is not configured', async () => {
     delete process.env.SMTP_USER;
 
-    const { sendTvSeriesNotification } = require('../../notifications');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    ({ sendTvSeriesNotification } = require('../../notifications'));
 
     await sendTvSeriesNotification({
       title: 'No SMTP Show',

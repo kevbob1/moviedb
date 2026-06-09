@@ -2,12 +2,8 @@
 import { createRequest, fulfillRequest, cancelRequest, downloadRequest } from '../request-actions';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { sendRequestNotification } from '@/lib/notifications';
 
 jest.mock('@/lib/prisma');
-jest.mock('@/lib/notifications', () => ({
-  sendRequestNotification: jest.fn().mockResolvedValue(undefined),
-}));
 jest.mock('@/lib/logger', () => ({
   logger: {
     info: jest.fn(),
@@ -15,11 +11,12 @@ jest.mock('@/lib/logger', () => ({
     warn: jest.fn(),
   },
 }));
+jest.mock('@/lib/jobs', () => ({}));
 
 describe('request-actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.request doesn't exist in types, need to mock it
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     (prisma as any).request = {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -28,6 +25,20 @@ describe('request-actions', () => {
       update: jest.fn(),
       delete: jest.fn()
     };
+    (prisma as any).job = {
+      create: jest.fn(),
+    };
+    (prisma as unknown as Record<string, unknown>).$transaction = jest.fn().mockImplementation(
+      async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const prismaAny = prisma as unknown as Record<string, unknown>;
+        const tx = {
+          request: { ...(prismaAny.request as Record<string, unknown>) },
+          job: { ...(prismaAny.job as Record<string, unknown>) },
+        };
+        return await fn(tx);
+      }
+    );
+    /* eslint-enable @typescript-eslint/no-explicit-any */
   });
 
   describe('createRequest', () => {
@@ -53,7 +64,6 @@ describe('request-actions', () => {
           season_number: null,
         },
       });
-      expect(sendRequestNotification).toHaveBeenCalledWith(mockRequest);
       expect(result).toEqual(mockRequest);
     });
 
@@ -65,7 +75,6 @@ describe('request-actions', () => {
 
       expect(result).toEqual(existingRequest);
       expect(prisma.request.create).not.toHaveBeenCalled();
-      expect(sendRequestNotification).not.toHaveBeenCalled();
     });
 
     it('throws if title is empty', async () => {

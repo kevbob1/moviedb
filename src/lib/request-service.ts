@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { canTransition, RequestStatus } from '@/lib/request-fsm';
-import { sendRequestNotification } from './notifications';
 import { logger } from './logger';
 import { getTMDBTVDetails } from './tmdb';
+
+import './jobs';
 
 export interface CreateRequestInput {
   tmdbId: number;
@@ -32,24 +33,34 @@ export async function createRequest(input: CreateRequestInput) {
     return existing;
   }
 
-  const created = await prisma.request.create({
-    data: {
-      tmdb_id: input.tmdbId,
-      title: input.title,
-      poster_path: input.posterPath,
-      requested_by: input.requestedBy,
-      status: 'pending',
-      media_type: input.mediaType,
-      season_number: input.seasonNumber ?? null,
-      release_date: input.releaseDate,
-      overview: input.overview,
-      genre_ids: input.genreIds ?? [],
-    },
+  const created = await prisma.$transaction(async (tx) => {
+    const request = await tx.request.create({
+      data: {
+        tmdb_id: input.tmdbId,
+        title: input.title,
+        poster_path: input.posterPath,
+        requested_by: input.requestedBy,
+        status: 'pending',
+        media_type: input.mediaType,
+        season_number: input.seasonNumber ?? null,
+        release_date: input.releaseDate,
+        overview: input.overview,
+        genre_ids: input.genreIds ?? [],
+      },
+    });
+
+    await tx.job.create({
+      data: {
+        type: 'request_notification',
+        payload: { ...request },
+        status: 'pending',
+      },
+    });
+
+    return request;
   });
 
   logger.info({ requestId: created.id, tmdbId: input.tmdbId, seasonNumber: input.seasonNumber, title: input.title, mediaType: input.mediaType, requestedBy: input.requestedBy }, 'Request created');
-
-  await sendRequestNotification(created);
 
   return created;
 }
@@ -62,33 +73,50 @@ export async function createTvRequests(tmdbId: number, requestedBy: string) {
   const details = await getTMDBTVDetails(tmdbId);
   const seasons = details.seasons.filter(s => s.season_number > 0);
 
-  const results: Awaited<ReturnType<typeof createRequest>>[] = [];
+  const results = await prisma.$transaction(async (tx) => {
+    const created: Awaited<ReturnType<typeof tx.request.create>>[] = [];
 
-  for (const season of seasons) {
-    const input: CreateRequestInput = {
-      tmdbId,
-      title: details.name,
-      posterPath: season.poster_path ?? null,
-      requestedBy,
-      releaseDate: undefined,
-      overview: undefined,
-      genreIds: undefined,
-      mediaType: 'tv',
-      seasonNumber: season.season_number,
-    };
+    for (const season of seasons) {
+      const existing = await tx.request.findFirst({
+        where: { tmdb_id: tmdbId, season_number: season.season_number },
+      });
 
-    const existing = await prisma.request.findFirst({
-      where: { tmdb_id: tmdbId, season_number: season.season_number },
-    });
+      if (existing) {
+        created.push(existing);
+        continue;
+      }
 
-    if (existing) {
-      results.push(existing);
-      continue;
+      const req = await tx.request.create({
+        data: {
+          tmdb_id: tmdbId,
+          title: details.name,
+          poster_path: season.poster_path ?? null,
+          requested_by: requestedBy,
+          status: 'pending',
+          media_type: 'tv',
+          season_number: season.season_number,
+        },
+      });
+      created.push(req);
     }
 
-    const created = await createRequest(input);
-    results.push(created);
-  }
+    await tx.job.create({
+      data: {
+        type: 'tv_series_request_notification',
+        payload: {
+          title: details.name,
+          requestedBy,
+          seasons: seasons.map(s => s.season_number),
+          totalSeasons: seasons.length,
+          posterPath: details.poster_path ?? null,
+          releaseDate: details.first_air_date ?? null,
+        },
+        status: 'pending',
+      },
+    });
+
+    return created;
+  });
 
   logger.info({ tmdbId, seasonCount: seasons.length, requestedBy }, 'TV show fan-out complete');
 
