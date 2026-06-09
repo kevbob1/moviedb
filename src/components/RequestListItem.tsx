@@ -84,10 +84,6 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
     ? `https://image.tmdb.org/t/p/w154${request.poster_path}`
     : null;
 
-  const tmdbUrl = request.tmdb_id
-    ? `https://www.themoviedb.org/${request.media_type === 'tv' ? 'tv' : 'movie'}/${request.tmdb_id}`
-    : '#';
-
   return (
     <div className="flex gap-4 p-4 border-b">
       {posterUrl && (
