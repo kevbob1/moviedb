@@ -158,7 +158,7 @@ return (
   />
   </a>
 ) : (
-  <div className="poster-sm bg-gray-200 dark:bg-gray-700 rounded-sm" />
+  <div className="poster-sm bg-muted rounded-sm" />
 )}
 
 <div className="flex-1 min-w-0">

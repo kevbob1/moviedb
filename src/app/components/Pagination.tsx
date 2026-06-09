@@ -25,7 +25,7 @@ export function Pagination({ currentPage, totalPages, preserveParams = {} }: Pag
           Previous
         </Link>
       )}
-      <span className="px-4 py-2 text-gray-600 dark:text-gray-400">
+      <span className="px-4 py-2 text-muted-foreground">
         Page {currentPage} of {totalPages}
       </span>
       {currentPage < totalPages && (

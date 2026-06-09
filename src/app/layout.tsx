@@ -18,14 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body>
-        <header className="border-b border-gray-200 dark:border-gray-800">
+        <header className="border-b border-border">
           <div className="container mx-auto px-4 py-6 flex items-center">
             <div className="flex-1" />
             <Link
               href="/"
-              className="text-3xl font-bold text-gray-900 dark:text-white hover:opacity-80 transition-opacity"
+              className="text-3xl font-bold text-foreground hover:opacity-80 transition-opacity"
             >
               Is It On Jellyfin?
             </Link>

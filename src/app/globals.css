@@ -6,6 +6,14 @@
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-border: hsl(var(--border));
+  --color-status-pending-text: hsl(var(--status-pending-text));
+  --color-status-pending-bg: hsl(var(--status-pending-bg));
+  --color-status-downloading-text: hsl(var(--status-downloading-text));
+  --color-status-downloading-bg: hsl(var(--status-downloading-bg));
+  --color-status-fulfilled-text: hsl(var(--status-fulfilled-text));
+  --color-status-fulfilled-bg: hsl(var(--status-fulfilled-bg));
+  --color-status-canceled-text: hsl(var(--status-canceled-text));
+  --color-status-canceled-bg: hsl(var(--status-canceled-bg));
 }
 
 @layer base {
@@ -15,6 +23,14 @@
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
     --border: 0 0% 85%;
+    --status-pending-text: 32 80% 28%;
+    --status-pending-bg: 53 95% 88%;
+    --status-downloading-text: 220 70% 34%;
+    --status-downloading-bg: 220 100% 93%;
+    --status-fulfilled-text: 150 55% 28%;
+    --status-fulfilled-bg: 150 80% 92%;
+    --status-canceled-text: 0 65% 32%;
+    --status-canceled-bg: 0 95% 93%;
   }
 
   .dark {
@@ -23,6 +39,14 @@
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
     --border: 0 0% 25%;
+    --status-pending-text: 53 95% 77%;
+    --status-pending-bg: 28 30% 18%;
+    --status-downloading-text: 220 95% 78%;
+    --status-downloading-bg: 220 50% 20%;
+    --status-fulfilled-text: 150 60% 72%;
+    --status-fulfilled-bg: 150 35% 16%;
+    --status-canceled-text: 0 90% 78%;
+    --status-canceled-bg: 0 45% 17%;
   }
 }
 

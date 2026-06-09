@@ -33,13 +33,13 @@ describe('RequestListItem', () => {
 
   it('renders status badge with correct color for pending', () => {
     render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
-    expect(screen.getByText('Pending')).toHaveClass('text-yellow-800', 'bg-yellow-100');
+    expect(screen.getByText('Pending')).toHaveClass('text-status-pending-text', 'bg-status-pending-bg');
   });
 
   it('renders status badge with correct color for downloading', () => {
     const downloadingRequest = { ...mockRequest, status: 'downloading' as const, tmdb_id: 123, media_type: 'movie' };
     render(<RequestListItem request={downloadingRequest} jellyfinAvailable={false} />);
-    expect(screen.getByText('Downloading')).toHaveClass('text-blue-800', 'bg-blue-100');
+    expect(screen.getByText('Downloading')).toHaveClass('text-status-downloading-text', 'bg-status-downloading-bg');
   });
 
   it('renders no action buttons for fulfilled status', () => {

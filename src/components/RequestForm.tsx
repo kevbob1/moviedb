@@ -37,7 +37,7 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
   return (
     <div className="alert-request">
       <form onSubmit={handleSubmit}>
-        <label htmlFor="requestedBy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label htmlFor="requestedBy" className="block text-sm font-medium text-muted-foreground mb-2">
           Requested by (your name):
         </label>
         <input
