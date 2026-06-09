@@ -6,6 +6,7 @@ import {
   fulfillRequest as fulfillRequestImpl,
   downloadRequest as downloadRequestImpl,
   cancelRequest as cancelRequestImpl,
+  createTvRequests,
 } from '@/lib/request-service';
 
 export async function createRequest(
@@ -15,7 +16,9 @@ export async function createRequest(
   requestedBy: string,
   releaseDate?: string,
   overview?: string,
-  genreIds?: number[]
+  genreIds?: number[],
+  mediaType: string = 'movie',
+  seasonNumber?: number
 ) {
   return createRequestImpl({
     tmdbId,
@@ -25,7 +28,15 @@ export async function createRequest(
     releaseDate,
     overview,
     genreIds,
+    mediaType,
+    seasonNumber,
   });
+}
+
+export async function createTvShowRequests(tmdbId: number, requestedBy: string) {
+  const result = await createTvRequests(tmdbId, requestedBy);
+  revalidatePath('/requests');
+  return result;
 }
 
 export async function fulfillRequest(requestId: number) {
