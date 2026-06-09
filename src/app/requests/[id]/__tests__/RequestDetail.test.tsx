@@ -46,7 +46,18 @@ describe('RequestDetail', () => {
     render(<RequestDetail request={mockRequest} jellyfinAvailable={false} />);
     fireEvent.click(screen.getByText('Cancel'));
     await waitFor(() => {
+      expect(cancelRequest).toHaveBeenCalledWith(mockRequest.id);
       expect(mockPush).toHaveBeenCalledWith('/requests');
     });
+  });
+
+  it('does not redirect on cancel error', async () => {
+    (cancelRequest as jest.Mock).mockRejectedValueOnce(new Error('cancel failed'));
+    render(<RequestDetail request={mockRequest} jellyfinAvailable={false} />);
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => {
+      expect(cancelRequest).toHaveBeenCalledWith(mockRequest.id);
+    });
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });
