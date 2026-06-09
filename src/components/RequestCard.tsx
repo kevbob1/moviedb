@@ -2,30 +2,16 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { RequestStatus, getActionsForStatus } from '@/lib/request-fsm';
+import { getActionsForStatus } from '@/lib/request-fsm';
 import { STATUS_CONFIG } from '@/lib/request-theme';
 import { getGenreNames } from '@/lib/genres';
-
-export interface Request {
-  id: number;
-  title: string;
-  tmdb_id?: number;
-  season_number?: number | null;
-  poster_path?: string;
-  overview?: string;
-  release_date?: string;
-  genre_ids?: number[];
-  requested_by: string;
-  requested_at: string;
-  status: RequestStatus;
-  media_type?: string;
-}
+import { Request } from './RequestListItem';
 
 interface RequestCardProps {
   request: Request;
-  onMarkFulfilled: () => void;
-  onDownload: () => void;
-  onCancel: () => void;
+  onMarkFulfilled: () => void | Promise<void>;
+  onDownload: () => void | Promise<void>;
+  onCancel: () => void | Promise<void>;
   jellyfinAvailable?: boolean;
 }
 
@@ -47,10 +33,10 @@ export default function RequestCard({
   const statusConfig = STATUS_CONFIG[request.status];
   const actions = getActionsForStatus(request.status);
 
-  const handleAction = async (action: string, handler: () => void) => {
+  const handleAction = async (action: string, handler: () => void | Promise<void>) => {
     setIsLoading(true);
     try {
-      handler();
+      await handler();
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +98,7 @@ export default function RequestCard({
         )}
 
         <p className="text-sm text-muted-foreground mb-2">
-          Requested by {request.requested_by} • {new Date(request.requested_at).toLocaleDateString()}
+          Requested by {request.requested_by} • {request.requested_at}
         </p>
 
         <div className="flex gap-2 mt-2">

@@ -4,7 +4,23 @@ import { useState, useSyncExternalStore } from 'react';
 
 import { logger } from '@/lib/logger';
 import { fulfillRequest, downloadRequest, cancelRequest } from '@/app/actions/request-actions';
-import RequestCard, { Request } from './RequestCard';
+import RequestCard from './RequestCard';
+import { RequestStatus } from '@/lib/request-fsm';
+
+export interface Request {
+  id: number;
+  title: string;
+  tmdb_id?: number;
+  season_number?: number | null;
+  poster_path?: string;
+  overview?: string;
+  release_date?: string;
+  genre_ids?: number[];
+  requested_by: string;
+  requested_at: string;
+  status: RequestStatus;
+  media_type?: string;
+}
 
 interface Props {
   request: Request;
@@ -44,11 +60,15 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
 
   if (deleted) return null;
 
+  const formattedDate = mounted
+    ? new Date(request.requested_at).toLocaleDateString()
+    : new Date(request.requested_at).toLocaleDateString('en-US', { timeZone: 'UTC' });
+
   return (
     <RequestCard
       request={{
         ...request,
-        requested_at: mounted ? request.requested_at : request.requested_at,
+        requested_at: formattedDate,
       }}
       onMarkFulfilled={handleMarkFulfilled}
       onDownload={handleDownload}
@@ -57,5 +77,3 @@ export function RequestListItem({ request, onRemoved, jellyfinAvailable = false 
     />
   );
 }
-
-export type { Request };
