@@ -3,8 +3,7 @@ import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
 import { ShowFulfilledCheckbox } from '@/components/ShowFulfilledCheckbox';
 import { areMoviesOnJellyfin } from '@/lib/jellyfin';
-
-type RequestStatus = 'pending' | 'downloading' | 'fulfilled';
+import { toRequestModel } from '@/lib/request-utils';
 
 const PAGE_SIZE = 12;
 
@@ -39,17 +38,7 @@ export default async function RequestsPage({
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const typedRequests = requests.map(r => ({
-    ...r,
-    tmdb_id: r.tmdb_id ?? undefined,
-    poster_path: r.poster_path ?? undefined,
-    overview: r.overview ?? undefined,
-    release_date: r.release_date ?? undefined,
-    requested_at: r.requested_at.toISOString(),
-    status: r.status as RequestStatus,
-    season_number: r.season_number ?? undefined,
-    media_type: r.media_type ?? undefined,
-  }));
+  const typedRequests = requests.map(toRequestModel);
 
   return (
     <main className="page-container">

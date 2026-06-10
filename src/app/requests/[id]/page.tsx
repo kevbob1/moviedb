@@ -2,8 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { areMoviesOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 import RequestDetail from './RequestDetail';
-
-import type { RequestStatus } from '@/lib/request-fsm';
+import { toRequestModel } from '@/lib/request-utils';
 
 export default async function RequestPage({
   params,
@@ -32,17 +31,7 @@ export default async function RequestPage({
     jellyfinAvailability = availabilityMap.get(tmdbId) ?? false;
   }
 
-  const typedRequest = {
-    ...request,
-    tmdb_id: request.tmdb_id ?? undefined,
-    poster_path: request.poster_path ?? undefined,
-    overview: request.overview ?? undefined,
-    release_date: request.release_date ?? undefined,
-    requested_at: request.requested_at.toISOString(),
-    status: request.status as RequestStatus,
-    season_number: request.season_number ?? undefined,
-    media_type: request.media_type ?? undefined,
-  };
+  const typedRequest = toRequestModel(request);
 
   return (
     <main className="page-container">

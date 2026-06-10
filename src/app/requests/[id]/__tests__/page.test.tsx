@@ -17,10 +17,7 @@ jest.mock('next/navigation', () => ({
   notFound: jest.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
-  useRouter: jest.fn(() => ({
-    refresh: jest.fn(),
-    push: jest.fn(),
-  })),
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
 }));
 
 import { prisma } from '@/lib/prisma';
@@ -66,5 +63,25 @@ describe('RequestPage', () => {
     ).rejects.toThrow('NEXT_NOT_FOUND');
 
     expect(notFound).toHaveBeenCalled();
+  });
+
+  it('calls notFound for invalid id', async () => {
+    await expect(
+      RequestPage({ params: Promise.resolve({ id: 'not-a-number' }) })
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+
+    expect(notFound).toHaveBeenCalled();
+    expect(prisma.request.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('does not call areMoviesOnJellyfin when tmdbId is null', async () => {
+    const requestWithoutTmdb = { ...mockRequest, tmdb_id: null };
+    (prisma.request.findUnique as jest.Mock).mockResolvedValueOnce(requestWithoutTmdb);
+
+    const Component = await RequestPage({ params: Promise.resolve({ id: '1' }) });
+    render(Component);
+
+    expect(areMoviesOnJellyfin).not.toHaveBeenCalled();
+    expect(screen.getByText('Test Movie')).toBeInTheDocument();
   });
 });
