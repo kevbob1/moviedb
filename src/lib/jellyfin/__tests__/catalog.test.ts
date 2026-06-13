@@ -1,4 +1,4 @@
-import { createJellyfinCatalog, AvailabilityResult, SeasonsResult, PingResult } from '../catalog';
+import { createJellyfinCatalog, AvailabilityResult, SeasonsResult } from '../catalog';
 import { InMemoryJellyfinAdapter } from '../adapter';
 
 const fixture = () =>
