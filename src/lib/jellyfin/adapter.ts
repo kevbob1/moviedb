@@ -107,3 +107,40 @@ export class HttpJellyfinAdapter implements JellyfinAdapter {
     }
   }
 }
+
+interface InMemoryJellyfinAdapterInit {
+  movies?: string[];
+  seasons?: Record<string, Set<number>>;
+  error?: string;
+  ping?: { reachable: boolean; error?: string };
+}
+
+export class InMemoryJellyfinAdapter implements JellyfinAdapter {
+  private readonly data: JellyfinCatalogData;
+  private readonly pingResult: { reachable: boolean; error?: string };
+
+  constructor(init: InMemoryJellyfinAdapterInit = {}) {
+    this.data = {
+      movies: new Set(init.movies ?? []),
+      seasons: new Map(
+        Object.entries(init.seasons ?? {}).map(([k, v]) => [k, new Set(v)])
+      ),
+      error: init.error,
+    };
+    this.pingResult = init.ping ?? { reachable: true };
+  }
+
+  async fetchCatalog(): Promise<JellyfinCatalogData> {
+    return {
+      movies: new Set(this.data.movies),
+      seasons: new Map(
+        Array.from(this.data.seasons.entries()).map(([k, v]) => [k, new Set(v)])
+      ),
+      error: this.data.error,
+    };
+  }
+
+  async ping(): Promise<{ reachable: boolean; error?: string }> {
+    return { ...this.pingResult };
+  }
+}
