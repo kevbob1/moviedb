@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { checkJellyfinConnectivity } from '@/lib/jellyfin';
+import { ping } from '@/lib/jellyfin';
 import { withLogging } from '@/lib/with-logging';
 
 export const dynamic = 'force-static';
@@ -10,7 +10,7 @@ async function handler() {
     const dbConnected = await prisma.$queryRaw`SELECT 1`;
     const dbStatus = dbConnected ? 'ok' : 'error';
 
-    const jellyfinResult = await checkJellyfinConnectivity();
+    const jellyfinResult = await ping();
     const jellyfinStatus = !jellyfinResult.configured ? 'not_configured' :
                            jellyfinResult.reachable ? 'ok' : 'error';
 
