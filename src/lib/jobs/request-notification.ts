@@ -1,11 +1,11 @@
 import { registerJobType } from '../job-queue';
-import { sendRequestNotification, NotificationRequest } from '../notifications';
+import { sendRequest, NotificationRequest } from '@/lib/notifications';
 
 type RequestNotificationPayload = NotificationRequest;
 
 registerJobType<RequestNotificationPayload>('request_notification', {
   handle: async (payload) => {
-    await sendRequestNotification(payload);
+    await sendRequest(payload);
   },
 });
 
