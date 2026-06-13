@@ -94,6 +94,10 @@ View request: ${requestUrl}`;
       <td style="padding: 8px 16px 8px 0; font-weight: bold;">Year:</td>
       <td style="padding: 8px 0;">${year}</td>
     </tr>
+    <tr>
+      <td style="padding: 8px 16px 8px 0; font-weight: bold;">Status:</td>
+      <td style="padding: 8px 0;">${escapeHtml(request.status)}</td>
+    </tr>
   </table>
   ${linkButton(requestUrl, 'View Request')}
 `;
