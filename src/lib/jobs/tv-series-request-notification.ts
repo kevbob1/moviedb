@@ -1,5 +1,5 @@
 import { registerJobType } from '../job-queue';
-import { sendTvSeriesNotification } from '../notifications';
+import { sendTvSeries } from '@/lib/notifications';
 
 interface TvSeriesRequestNotificationPayload {
   title: string;
@@ -11,7 +11,7 @@ interface TvSeriesRequestNotificationPayload {
 }
 
 registerJobType<TvSeriesRequestNotificationPayload>('tv_series_request_notification', {
-  handle: sendTvSeriesNotification,
+  handle: sendTvSeries,
 });
 
 export type { TvSeriesRequestNotificationPayload };
