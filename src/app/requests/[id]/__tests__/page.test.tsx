@@ -10,7 +10,7 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 jest.mock('@/lib/jellyfin', () => ({
-  areMoviesOnJellyfin: jest.fn(),
+  isOnJellyfin: jest.fn(),
 }));
 
 jest.mock('next/navigation', () => ({
@@ -21,7 +21,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 import { prisma } from '@/lib/prisma';
-import { areMoviesOnJellyfin } from '@/lib/jellyfin';
+import { isOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 
 beforeEach(() => {
@@ -46,7 +46,7 @@ const mockRequest = {
 describe('RequestPage', () => {
   it('renders request detail for valid id', async () => {
     (prisma.request.findUnique as jest.Mock).mockResolvedValueOnce(mockRequest);
-    (areMoviesOnJellyfin as jest.Mock).mockResolvedValueOnce(new Map([[123, true]]));
+    (isOnJellyfin as jest.Mock).mockResolvedValueOnce({ available: true, configured: true });
 
     const Component = await RequestPage({ params: Promise.resolve({ id: '1' }) });
     render(Component);
@@ -74,14 +74,14 @@ describe('RequestPage', () => {
     expect(prisma.request.findUnique).not.toHaveBeenCalled();
   });
 
-  it('does not call areMoviesOnJellyfin when tmdbId is null', async () => {
+  it('does not call isOnJellyfin when tmdbId is null', async () => {
     const requestWithoutTmdb = { ...mockRequest, tmdb_id: null };
     (prisma.request.findUnique as jest.Mock).mockResolvedValueOnce(requestWithoutTmdb);
 
     const Component = await RequestPage({ params: Promise.resolve({ id: '1' }) });
     render(Component);
 
-    expect(areMoviesOnJellyfin).not.toHaveBeenCalled();
+    expect(isOnJellyfin).not.toHaveBeenCalled();
     expect(screen.getByText('Test Movie')).toBeInTheDocument();
   });
 });

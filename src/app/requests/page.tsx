@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
 import { ShowFulfilledCheckbox } from '@/components/ShowFulfilledCheckbox';
-import { areMoviesOnJellyfin } from '@/lib/jellyfin';
+import { availabilityFor } from '@/lib/jellyfin';
 import { toRequestModel } from '@/lib/request-utils';
 
 const PAGE_SIZE = 12;
@@ -34,7 +34,10 @@ export default async function RequestsPage({
   ]);
 
   const tmdbIds = requests.map(r => r.tmdb_id).filter((id): id is number => id !== null);
-  const jellyfinAvailability = await areMoviesOnJellyfin(tmdbIds);
+  const jellyfinAvailabilityResult = await availabilityFor(tmdbIds);
+  const jellyfinAvailability = Object.fromEntries(
+    Object.entries(jellyfinAvailabilityResult).map(([k, v]) => [k, v.available])
+  );
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -55,7 +58,7 @@ export default async function RequestsPage({
 
       <RequestList
         requests={typedRequests}
-        jellyfinAvailability={Object.fromEntries(jellyfinAvailability)}
+        jellyfinAvailability={jellyfinAvailability}
       />
 
       <Pagination
