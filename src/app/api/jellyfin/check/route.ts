@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkMoviesOnJellyfin, checkSeasonsOnJellyfin } from '@/lib/jellyfin';
+import { availabilityFor, seasonsForMany } from '@/lib/jellyfin';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
 
@@ -12,16 +12,31 @@ async function handler(request: Request | NextRequest) {
   }
 
   try {
-    const [moviesResult, seasonsResult] = await Promise.all([
-      checkMoviesOnJellyfin(ids),
-      checkSeasonsOnJellyfin(ids),
+    const [availability, seasons] = await Promise.all([
+      availabilityFor(ids),
+      seasonsForMany(ids),
     ]);
 
+    const results: Record<number, boolean> = {};
+    let configured = false;
+    let error: string | undefined;
+    for (const [id, v] of Object.entries(availability)) {
+      results[Number(id)] = v.available;
+      if (v.configured) configured = true;
+      if (v.error) error = v.error;
+    }
+    const seasonMap: Record<number, number[]> = {};
+    for (const [id, v] of Object.entries(seasons)) {
+      seasonMap[Number(id)] = v.seasons;
+      if (v.configured) configured = true;
+      if (!error && v.error) error = v.error;
+    }
+
     return NextResponse.json({
-      results: moviesResult.results,
-      seasons: seasonsResult.seasons,
-      configured: moviesResult.configured || seasonsResult.configured,
-      error: moviesResult.error || seasonsResult.error,
+      results,
+      seasons: seasonMap,
+      configured,
+      error,
     });
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Jellyfin check failed');
