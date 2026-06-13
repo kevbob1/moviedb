@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { areMoviesOnJellyfin } from '@/lib/jellyfin';
+import { isOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 import RequestDetail from './RequestDetail';
 import { toRequestModel } from '@/lib/request-utils';
@@ -27,8 +27,8 @@ export default async function RequestPage({
   const tmdbId = request.tmdb_id;
   let jellyfinAvailability = false;
   if (tmdbId !== null) {
-    const availabilityMap = await areMoviesOnJellyfin([tmdbId]);
-    jellyfinAvailability = availabilityMap.get(tmdbId) ?? false;
+    const result = await isOnJellyfin(tmdbId);
+    jellyfinAvailability = result.available;
   }
 
   const typedRequest = toRequestModel(request);
