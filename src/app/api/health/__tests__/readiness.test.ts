@@ -20,7 +20,7 @@ jest.mock('@/lib/jellyfin', () => {
   const actual = jest.requireActual('@/lib/jellyfin');
   return {
     ...actual,
-    checkJellyfinConnectivity: (...args: unknown[]) => mockJellyfinFn(...args),
+    ping: (...args: unknown[]) => mockJellyfinFn(...args),
   };
 });
 
