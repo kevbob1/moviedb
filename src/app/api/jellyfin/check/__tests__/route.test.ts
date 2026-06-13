@@ -20,8 +20,8 @@ jest.mock('next/server', () => ({
 }));
 
 jest.mock('@/lib/jellyfin', () => ({
-  checkMoviesOnJellyfin: jest.fn(),
-  checkSeasonsOnJellyfin: jest.fn(),
+  availabilityFor: jest.fn(),
+  seasonsForMany: jest.fn(),
 }));
 
 jest.mock('@/lib/logger', () => ({
@@ -47,16 +47,13 @@ describe('Jellyfin Check API', () => {
   });
 
   it('returns movies availability for movie IDs', async () => {
-    const checkMoviesOnJellyfin = jest.requireMock('@/lib/jellyfin').checkMoviesOnJellyfin;
-    const checkSeasonsOnJellyfin = jest.requireMock('@/lib/jellyfin').checkSeasonsOnJellyfin;
-    checkMoviesOnJellyfin.mockResolvedValue({
-      results: { 1: true, 2: false },
-      configured: true,
+    const availabilityFor = jest.requireMock('@/lib/jellyfin').availabilityFor;
+    const seasonsForMany = jest.requireMock('@/lib/jellyfin').seasonsForMany;
+    availabilityFor.mockResolvedValue({
+      1: { available: true, configured: true },
+      2: { available: false, configured: true },
     });
-    checkSeasonsOnJellyfin.mockResolvedValue({
-      seasons: {},
-      configured: true,
-    });
+    seasonsForMany.mockResolvedValue({});
 
     const req = mockReq('http://localhost/api/jellyfin/check?ids=1,2');
     const res = await GET(req);
@@ -67,15 +64,15 @@ describe('Jellyfin Check API', () => {
   });
 
   it('includes seasons field in response', async () => {
-    const checkMoviesOnJellyfin = jest.requireMock('@/lib/jellyfin').checkMoviesOnJellyfin;
-    const checkSeasonsOnJellyfin = jest.requireMock('@/lib/jellyfin').checkSeasonsOnJellyfin;
-    checkMoviesOnJellyfin.mockResolvedValue({
-      results: { 1: false, 2: false },
-      configured: true,
+    const availabilityFor = jest.requireMock('@/lib/jellyfin').availabilityFor;
+    const seasonsForMany = jest.requireMock('@/lib/jellyfin').seasonsForMany;
+    availabilityFor.mockResolvedValue({
+      1: { available: false, configured: true },
+      2: { available: false, configured: true },
     });
-    checkSeasonsOnJellyfin.mockResolvedValue({
-      seasons: { 1: [1, 2], 2: [1] },
-      configured: true,
+    seasonsForMany.mockResolvedValue({
+      1: { seasons: [1, 2], configured: true },
+      2: { seasons: [1], configured: true },
     });
 
     const req = mockReq('http://localhost/api/jellyfin/check?ids=1,2');
