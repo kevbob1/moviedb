@@ -17,7 +17,7 @@ services:
       - "3000:3000"
 
   db:
-    image: postgres:16
+    image: postgres:18.4
     restart: unless-stopped
     environment:
       POSTGRES_USER: moviedb

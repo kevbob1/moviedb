@@ -5,7 +5,7 @@ A Next.js application with PostgreSQL.
 ## Tech Stack
 
 - **Framework**: Next.js 16 + React 19
-- **Database**: PostgreSQL 16 + Prisma 5
+- **Database**: PostgreSQL 18.4 + Prisma 5
 - **Language**: TypeScript
 
 ## Prerequisites
