@@ -103,14 +103,16 @@ describe('daily-summary cron API', () => {
       expect(body).toHaveProperty('count', 2);
     });
 
-    it('returns 200 with count 0 when no active requests', async () => {
+    it('returns 200 with status skipped when no active requests', async () => {
       findManyMock.mockResolvedValue([]);
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
 
       const body = await response.json();
+      expect(body.status).toBe('skipped');
       expect(body).toHaveProperty('count', 0);
+      expect(sendDailySummaryMock).not.toHaveBeenCalled();
     });
 
     it('queries for pending and downloading requests', async () => {

@@ -28,6 +28,11 @@ async function handler() {
       },
     });
 
+    if (requests.length === 0) {
+      logger.info('Skipped daily summary: no active requests');
+      return NextResponse.json({ status: 'skipped', count: 0 });
+    }
+
     await sendDailySummary(requests);
 
     return NextResponse.json({ status: 'ok', count: requests.length });
