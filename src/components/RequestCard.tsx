@@ -5,6 +5,9 @@ import Image from 'next/image';
 import { getActionsForStatus } from '@/lib/request-fsm';
 import { STATUS_CONFIG } from '@/lib/request-theme';
 import { getGenreNames } from '@/lib/genres';
+import { Pill } from '@/components/ui/Pill';
+import { Button } from '@/components/ui/Button';
+import { Surface } from '@/components/ui/Surface';
 import { Request } from '@/types/request';
 
 interface RequestCardProps {
@@ -16,11 +19,18 @@ interface RequestCardProps {
   formattedDate?: string;
 }
 
-const ACTION_STYLES: Record<'download' | 'fulfill' | 'cancel', string> = {
-  download: 'bg-blue-600 hover:bg-blue-700',
-  fulfill: 'bg-green-600 hover:bg-green-700',
-  cancel: 'bg-red-600 hover:bg-red-700',
-};
+const PILL_VARIANT = {
+  pending: 'pending',
+  downloading: 'downloading',
+  fulfilled: 'fulfilled',
+  canceled: 'canceled',
+} as const;
+
+const ACTION_VARIANT = {
+  download: 'primary',
+  fulfill: 'success',
+  cancel: 'danger',
+} as const;
 
 export default function RequestCard({
   request,
@@ -31,18 +41,8 @@ export default function RequestCard({
   formattedDate,
 }: RequestCardProps) {
   const [isLoading, setIsLoading] = useState(false);
-
   const statusConfig = STATUS_CONFIG[request.status];
   const actions = getActionsForStatus(request.status);
-
-  const handleAction = async (handler: () => void | Promise<void>) => {
-    setIsLoading(true);
-    try {
-      await handler();
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handlerMap: Record<string, () => void | Promise<void>> = {
     fulfill: onMarkFulfilled,
@@ -50,94 +50,79 @@ export default function RequestCard({
     cancel: onCancel,
   };
 
+  const handleAction = async (handler: () => void | Promise<void>) => {
+    setIsLoading(true);
+    try { await handler(); } finally { setIsLoading(false); }
+  };
+
   const posterUrl = request.poster_path
     ? `https://image.tmdb.org/t/p/w154${request.poster_path}`
     : null;
 
   return (
-    <div className="flex gap-4 p-4 border-b">
-      {posterUrl && (
-        <div className="poster-md">
-          <Image
-            src={posterUrl}
-            alt={request.title}
-            width={96}
-            height={144}
-            className="poster-img"
-          />
-        </div>
+    <Surface elevation="raised" className="flex gap-3 p-3 sm:gap-4 sm:p-4">
+      {posterUrl ? (
+        <a
+          href={`https://www.themoviedb.org/${request.media_type === 'tv' ? 'tv' : 'movie'}/${request.tmdb_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-14 flex-shrink-0 sm:w-20"
+        >
+          <Image src={posterUrl} alt={request.title} width={80} height={120} className="h-auto w-full rounded-lg object-cover" />
+        </a>
+      ) : (
+        <div className="h-[80px] w-14 flex-shrink-0 rounded-lg bg-surface sm:h-[120px] sm:w-20" />
       )}
 
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold">
-            {request.title}
-            {request.season_number && (
-              <span className="ml-1 text-sm font-normal text-year">
-                — Season {request.season_number}
-              </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-semibold text-foreground">
+              {request.title}
+              {request.season_number && (
+                <span className="ml-1 text-sm font-normal text-muted-foreground">— S{request.season_number}</span>
+              )}
+              {request.release_date && request.media_type !== 'tv' && (
+                <span className="ml-1 text-sm font-normal text-muted-foreground">({request.release_date.split('-')[0]})</span>
+              )}
+            </h3>
+            {request.genre_ids && request.genre_ids.length > 0 && (
+              <p className="text-xs text-muted-foreground">{getGenreNames(request.genre_ids).join(', ')}</p>
             )}
-            {request.release_date && request.media_type !== 'tv' && (
-              <span className="ml-2 text-sm font-normal text-year">
-                ({request.release_date.split('-')[0]})
-              </span>
-            )}
-          </h3>
-          <span className={`px-2 py-0.5 text-xs rounded ${statusConfig.bgColor} ${statusConfig.color}`}>
-            {statusConfig.label}
-          </span>
-          {request.media_type === 'tv' && (
-            <span className="px-2 py-0.5 text-xs rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-              TV
-            </span>
-          )}
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            <Pill variant={PILL_VARIANT[request.status]} label={statusConfig.label} />
+            {request.media_type === 'tv' && <Pill variant="downloading" label="TV" />}
+            {jellyfinAvailable && <Pill variant="available" label="On Jellyfin" />}
+          </div>
         </div>
 
         {request.overview && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-1">
-            {request.overview}
-          </p>
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{request.overview}</p>
         )}
 
-        {request.genre_ids && request.genre_ids.length > 0 && (
-          <div className="text-sm text-muted-foreground mb-1">
-            {getGenreNames(request.genre_ids).join(', ')}
-          </div>
-        )}
-
-        <p className="text-sm text-muted-foreground mb-2">
-          Requested by {request.requested_by} • {formattedDate ?? new Date(request.requested_at).toLocaleDateString()}
+        <p className="mt-1 text-xs text-muted-foreground">
+          Requested by {request.requested_by} · {formattedDate ?? new Date(request.requested_at).toLocaleDateString()}
         </p>
 
-        <div className="flex gap-2 mt-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {actions.map((action) => {
             const handler = handlerMap[action.action];
             if (!handler) return null;
-
-            const colorClass = ACTION_STYLES[action.action as keyof typeof ACTION_STYLES] || 'bg-primary hover:opacity-90';
-
             return (
-              <button
+              <Button
                 key={action.action}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleAction(handler);
-                }}
-                disabled={isLoading}
-                className={`btn-action ${colorClass}`}
+                size="sm"
+                variant={ACTION_VARIANT[action.action as keyof typeof ACTION_VARIANT] ?? 'secondary'}
+                loading={isLoading}
+                onClick={() => handleAction(handler)}
               >
-                {isLoading ? 'Loading...' : action.label}
-              </button>
+                {action.label}
+              </Button>
             );
           })}
         </div>
-
-        {jellyfinAvailable && (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground mt-2">
-            Available in Jellyfin
-          </span>
-        )}
       </div>
-    </div>
+    </Surface>
   );
 }

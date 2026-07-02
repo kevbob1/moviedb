@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
-import { ShowFulfilledCheckbox } from '@/components/ShowFulfilledCheckbox';
+import { ShowFulfilledSwitch } from '@/components/ShowFulfilledSwitch';
 import { availabilityFor } from '@/lib/jellyfin';
 import { toRequestModel } from '@/lib/request-utils';
 
@@ -44,13 +44,13 @@ export default async function RequestsPage({
   const typedRequests = requests.map(toRequestModel);
 
   return (
-    <main className="page-container">
-      <h1 className="page-title">
+    <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
+      <h1 className="mb-6 text-2xl font-bold text-foreground">
         Requests
       </h1>
 
       <div className="mb-4">
-        <ShowFulfilledCheckbox
+        <ShowFulfilledSwitch
           defaultChecked={showFulfilled}
           query=""
         />

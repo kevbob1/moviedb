@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
 
 interface PaginationProps {
   currentPage: number;
@@ -16,24 +17,18 @@ export function Pagination({ currentPage, totalPages, preserveParams = {} }: Pag
   };
 
   return (
-    <nav className="mt-8 flex justify-center gap-4">
+    <nav aria-label="Pagination" className="mt-8 flex items-center justify-center gap-3">
       {currentPage > 1 && (
-        <Link
-          href={buildUrl(currentPage - 1)}
-          className="btn-primary btn-md"
-        >
-          Previous
+        <Link href={buildUrl(currentPage - 1)}>
+          <Button variant="secondary" size="md">Previous</Button>
         </Link>
       )}
-      <span className="px-4 py-2 text-muted-foreground">
+      <span className="px-2 text-sm text-muted-foreground">
         Page {currentPage} of {totalPages}
       </span>
       {currentPage < totalPages && (
-        <Link
-          href={buildUrl(currentPage + 1)}
-          className="btn-primary btn-md"
-        >
-          Next
+        <Link href={buildUrl(currentPage + 1)}>
+          <Button variant="primary" size="md">Next</Button>
         </Link>
       )}
     </nav>

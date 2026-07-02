@@ -2,10 +2,16 @@
 
 @theme {
   --color-background: hsl(var(--background));
+  --color-surface: hsl(var(--surface));
+  --color-surface-elevated: hsl(var(--surface-elevated));
   --color-foreground: hsl(var(--foreground));
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-border: hsl(var(--border));
+  --color-border-subtle: hsl(var(--border-subtle));
+  --color-accent: hsl(var(--accent));
+  --color-accent-hover: hsl(var(--accent-hover));
+  --color-accent-fg: hsl(var(--accent-fg));
   --color-status-pending-text: hsl(var(--status-pending-text));
   --color-status-pending-bg: hsl(var(--status-pending-bg));
   --color-status-downloading-text: hsl(var(--status-downloading-text));
@@ -18,162 +24,31 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --border: 0 0% 85%;
-    --status-pending-text: 32 80% 28%;
-    --status-pending-bg: 53 95% 88%;
-    --status-downloading-text: 220 70% 34%;
-    --status-downloading-bg: 220 100% 93%;
-    --status-fulfilled-text: 150 55% 28%;
-    --status-fulfilled-bg: 150 80% 92%;
-    --status-canceled-text: 0 65% 32%;
-    --status-canceled-bg: 0 95% 93%;
-  }
+    --background:       24 10% 5%;
+    --surface:          24 9% 11%;
+    --surface-elevated: 24 8% 16%;
+    --border:           24 6% 26%;
+    --border-subtle:    24 6% 18%;
 
-  .dark {
-    --background: 0 0% 9%;
-    --foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --border: 0 0% 25%;
-    --status-pending-text: 53 95% 77%;
-    --status-pending-bg: 28 30% 18%;
-    --status-downloading-text: 220 95% 78%;
-    --status-downloading-bg: 220 50% 20%;
-    --status-fulfilled-text: 150 60% 72%;
-    --status-fulfilled-bg: 150 35% 16%;
-    --status-canceled-text: 0 90% 78%;
-    --status-canceled-bg: 0 45% 17%;
+    --foreground:       60 9% 98%;
+    --muted:            24 6% 20%;
+    --muted-foreground: 24 5% 64%;
+
+    --accent:           38 92% 50%;
+    --accent-hover:     38 95% 60%;
+    --accent-fg:        24 10% 9%;
+
+    --status-pending-text:    38 92% 60%;
+    --status-pending-bg:      38 70% 16%;
+    --status-downloading-text: 217 91% 70%;
+    --status-downloading-bg:   217 60% 18%;
+    --status-fulfilled-text:  142 71% 60%;
+    --status-fulfilled-bg:    142 50% 14%;
+    --status-canceled-text:   0 84% 70%;
+    --status-canceled-bg:     0 60% 18%;
   }
 }
 
 body {
   @apply bg-background text-foreground;
-}
-
-@layer components {
-  /* Layout */
-  .page-container {
-    @apply container mx-auto px-4 py-8;
-  }
-
-  /* Typography */
-  .page-title {
-    @apply text-2xl font-bold mb-6 text-foreground;
-  }
-
-  .card-title {
-    @apply text-lg font-semibold text-foreground;
-  }
-
-  .text-muted {
-    @apply text-muted-foreground;
-  }
-
-  .text-year {
-    @apply text-muted-foreground;
-  }
-
-  .text-body {
-    @apply text-sm text-muted-foreground;
-  }
-
-  /* Forms */
-  .input {
-    @apply px-4 py-2 border border-border rounded-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:outline-none;
-  }
-
-  .form-row {
-    @apply flex flex-col gap-2;
-  }
-
-  .form-row-lg {
-    @apply mb-8 flex flex-col gap-2;
-  }
-
-  /* Buttons */
-  .btn {
-    @apply rounded-sm transition-colors disabled:opacity-50;
-  }
-
-  .btn-primary {
-    @apply rounded-sm transition-colors disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700;
-  }
-
-  .btn-secondary {
-    @apply rounded-sm transition-colors disabled:opacity-50 bg-muted text-muted-foreground hover:bg-muted-foreground/20;
-  }
-
-  .btn-sm {
-    @apply px-3 py-1 text-sm;
-  }
-
-  .btn-md {
-    @apply px-4 py-2;
-  }
-
-  .btn-action {
-    @apply px-3 py-1 text-sm text-white rounded disabled:opacity-50;
-  }
-
-  /* Spinner */
-  .spinner {
-    @apply inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin;
-  }
-
-  /* Cards */
-  .card {
-    @apply bg-background rounded-sm shadow-sm;
-  }
-
-  .card-row {
-    @apply bg-background rounded-sm shadow-sm p-3 flex flex-col gap-4;
-  }
-
-  /* Alerts */
-  .alert {
-    @apply mb-4 p-4 rounded-sm;
-  }
-
-  .alert-error {
-    @apply mb-4 p-4 rounded-sm bg-red-100 border border-red-400 text-red-700;
-  }
-
-  .alert-warning {
-    @apply mb-4 p-4 rounded-sm bg-yellow-100 border border-yellow-400 text-yellow-700;
-  }
-
-  .alert-request {
-    @apply bg-muted border border-border rounded-sm p-4 mt-3;
-  }
-
-  /* Badges */
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium;
-  }
-
-  .badge-success {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800;
-  }
-
-  /* Posters */
-  .poster-sm {
-    @apply w-16 h-24 flex-shrink-0;
-  }
-
-  .poster-md {
-    @apply w-24 h-36 flex-shrink-0;
-  }
-
-  .poster-img {
-    @apply w-full h-full object-cover rounded-sm;
-  }
-
-  /* Nav */
-  .nav-link {
-    @apply text-blue-600 hover:text-blue-700 font-medium;
-  }
 }

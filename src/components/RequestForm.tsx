@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 
 const STORAGE_KEY = 'moviedb-requestor-name';
 
@@ -22,64 +25,44 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
     }
   }, []);
 
-  if (!isVisible) {
-    return null;
-  }
+  if (!isVisible) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (requestedBy.trim()) {
-      localStorage.setItem(STORAGE_KEY, requestedBy.trim());
-      setSubmitting(true);
-      try {
-        await onSubmit(requestedBy.trim());
-      } finally {
-        setSubmitting(false);
-      }
+    const name = requestedBy.trim();
+    if (!name) return;
+    localStorage.setItem(STORAGE_KEY, name);
+    setSubmitting(true);
+    try {
+      await onSubmit(name);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   if (submitting) {
     return (
-      <div className="alert-request flex items-center gap-2">
-        <span className="spinner" />
-        <span className="text-sm text-muted-foreground">Submitting...</span>
+      <div className="inline-flex items-center gap-2 rounded-xl border border-border-subtle bg-surface px-3 py-2 text-sm text-muted-foreground">
+        <Spinner size="sm" />
+        Submitting…
       </div>
     );
   }
 
   return (
-    <div className="alert-request">
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="requestedBy" className="block text-sm font-medium text-muted-foreground mb-2">
-          Requested by (your name):
-        </label>
-        <input
-          id="requestedBy"
-          type="text"
-          value={requestedBy}
-          onChange={(e) => setRequestedBy(e.target.value)}
-          className="input w-full"
-          placeholder="Your name"
-          required
-        />
-
-        <div className="form-row mt-3">
-          <button
-            type="submit"
-            className="btn-primary btn-md"
-          >
-            Submit Request
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn-secondary btn-md"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <Input
+        label="Your name"
+        value={requestedBy}
+        onChange={(e) => setRequestedBy(e.target.value)}
+        placeholder="Your name"
+        required
+        className="sm:w-56"
+      />
+      <div className="flex gap-2">
+        <Button type="submit" size="md">Submit</Button>
+        <Button type="button" size="md" variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
   );
 }
