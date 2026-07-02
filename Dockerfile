@@ -1,6 +1,20 @@
 FROM node:25.9.0-alpine AS base
 
 # ---------------------------------------------------------------------------
+# Stage – development (used by docker compose; shares base with prod build)
+# ---------------------------------------------------------------------------
+FROM base AS development
+WORKDIR /app
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+COPY package.json package-lock.json ./
+RUN npm install
+ENV NODE_ENV=development
+ENV PATH=/app/node_modules/.bin:$PATH
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
+# ---------------------------------------------------------------------------
 # Stage 1 – Install dependencies
 # ---------------------------------------------------------------------------
 FROM base AS deps
