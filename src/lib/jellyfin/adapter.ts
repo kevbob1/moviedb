@@ -43,7 +43,7 @@ export class HttpJellyfinAdapter implements JellyfinAdapter {
 
     try {
       while (true) {
-        const endpoint = `/Items?IncludeItemTypes=Movie,Season&Recursive=true&Fields=ProviderIds,IndexNumber&Limit=${limit}&StartIndex=${startIndex}`;
+        const endpoint = `/Items?IncludeItemTypes=Movie,Season,Series&Recursive=true&Fields=ProviderIds,IndexNumber&Limit=${limit}&StartIndex=${startIndex}`;
         const response = await fetch(`${this.url}${endpoint}`, {
           headers: { 'Authorization': `MediaBrowser Token="${this.apiKey}"` },
         });

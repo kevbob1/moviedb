@@ -77,6 +77,18 @@ describe('HttpJellyfinAdapter', () => {
       expect(result.error).toContain('Jellyfin connection failed: Network error');
     });
 
+    it('requests Series items so TV shows are detected', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ Items: [], TotalRecordCount: 0 }),
+      } as unknown as Response);
+
+      const adapter = new HttpJellyfinAdapter();
+      await adapter.fetchCatalog();
+      const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+      expect(calledUrl).toContain('IncludeItemTypes=Movie,Season,Series');
+    });
+
     it('captures season IndexNumber per TMDB id', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
