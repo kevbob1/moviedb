@@ -6,9 +6,9 @@
 
 **Architecture:** Token-based CSS (Tailwind v4 `@theme`) + CVA component primitives + Motion variants. New `src/components/ui/` for primitives, new `src/components/motion/` for shared motion. Server components stay server; client components use Motion only where needed. Phased rollout, each phase ships and validates independently.
 
-**Tech Stack:** Next.js 16, React 19, TypeScript 6, Tailwind CSS v4, motion (Framer Motion successor), class-variance-authority, clsx, tailwind-merge, Radix UI Switch, Inter + Instrument Serif via `next/font`, Jest 30 + Testing Library, devcontainer.
+**Tech Stack:** Next.js 16, React 19, TypeScript 6, Tailwind CSS v4, motion (Framer Motion successor), class-variance-authority, clsx, tailwind-merge, Radix UI Switch, Inter + Instrument Serif via `next/font`, Jest 30 + Testing Library, Makefile + docker compose (dev container).
 
-**Validation:** Every phase ends with `devcontainer exec 'npm run check'` (lint, test, typecheck, build). Must pass before next phase.
+**Validation:** Every phase ends with `make dev-exec npm run check` (lint, test, typecheck, build). Must pass before next phase.
 
 **Spec:** `docs/superpowers/specs/2026-07-02-ui-overhaul-design.md`
 
@@ -52,7 +52,7 @@
 - All server actions
 - Prisma schema
 - Helm chart
-- Devcontainer
+- Dev container (`Makefile` + `compose.yaml`)
 
 ---
 
@@ -66,12 +66,12 @@
 - [ ] **Step 1: Add the dep**
 
 ```bash
-devcontainer exec 'npm install motion@latest'
+make dev-exec npm install motion@latest
 ```
 
 - [ ] **Step 2: Verify install**
 
-Run: `devcontainer exec 'node -e "console.log(require(\"motion/package.json\").version)"'`
+Run: `make dev-exec node -e "console.log(require(\"motion/package.json\").version)"`
 Expected: prints a version string (e.g. `12.x.x`).
 
 - [ ] **Step 3: Commit**
@@ -117,7 +117,7 @@ describe('cn', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=cn.test'`
+Run: `make dev-exec npm test -- --testPathPattern=cn.test`
 Expected: FAIL — `Cannot find module '@/lib/cn'`.
 
 - [ ] **Step 3: Implement `cn`**
@@ -135,7 +135,7 @@ export function cn(...inputs: ClassValue[]): string {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=cn.test'`
+Run: `make dev-exec npm test -- --testPathPattern=cn.test`
 Expected: PASS (4/4).
 
 - [ ] **Step 5: Commit**
@@ -225,7 +225,7 @@ In the same file, extend the `@theme` block to include motion tokens (Tailwind v
 
 - [ ] **Step 3: Verify build still passes**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS (existing components still resolve their CSS classes via the renamed token names; `--background` and `--foreground` are unchanged in name, so `bg-background text-foreground` still works).
 
 - [ ] **Step 4: Commit**
@@ -272,7 +272,7 @@ describe('Spinner', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Spinner.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Spinner.test`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement Spinner**
@@ -319,7 +319,7 @@ export function Spinner({ size, label = 'Loading', className }: SpinnerProps) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Spinner.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Spinner.test`
 Expected: PASS (3/3).
 
 - [ ] **Step 5: Commit**
@@ -401,7 +401,7 @@ describe('Button', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Button.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Button.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement Button**
@@ -465,7 +465,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Button.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Button.test`
 Expected: PASS (9/9).
 
 - [ ] **Step 5: Commit**
@@ -526,7 +526,7 @@ describe('Input', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Input.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Input.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement Input**
@@ -583,7 +583,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Input.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Input.test`
 Expected: PASS (5/5).
 
 - [ ] **Step 5: Commit**
@@ -634,7 +634,7 @@ describe('Surface', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Surface.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Surface.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement Surface**
@@ -676,7 +676,7 @@ export function Surface({ className, elevation, as, children, ...props }: Surfac
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Surface.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Surface.test`
 Expected: PASS (4/4).
 
 - [ ] **Step 5: Commit**
@@ -727,7 +727,7 @@ describe('Pill', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Pill.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Pill.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement Pill**
@@ -786,7 +786,7 @@ export function Pill({ variant, label, className, ...props }: PillProps) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Pill.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Pill.test`
 Expected: PASS (4/4).
 
 - [ ] **Step 5: Commit**
@@ -838,7 +838,7 @@ describe('Switch', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Switch.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Switch.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement Switch**
@@ -897,7 +897,7 @@ export const Switch = forwardRef<ComponentRef<typeof RadixSwitch.Root>, SwitchPr
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=Switch.test'`
+Run: `make dev-exec npm test -- --testPathPattern=Switch.test`
 Expected: PASS (3/3).
 
 - [ ] **Step 5: Commit**
@@ -952,7 +952,7 @@ describe('motion variants', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=variants.test'`
+Run: `make dev-exec npm test -- --testPathPattern=variants.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement variants**
@@ -1001,7 +1001,7 @@ export function getVariants({ reducedMotion }: GetVariantsOptions) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=variants.test'`
+Run: `make dev-exec npm test -- --testPathPattern=variants.test`
 Expected: PASS (5/5).
 
 - [ ] **Step 5: Commit**
@@ -1038,7 +1038,7 @@ describe('PageTransition', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=PageTransition.test'`
+Run: `make dev-exec npm test -- --testPathPattern=PageTransition.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement `useReducedMotion` re-export and `PageTransition`**
@@ -1078,7 +1078,7 @@ export function PageTransition({ children }: PageTransitionProps) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=PageTransition.test'`
+Run: `make dev-exec npm test -- --testPathPattern=PageTransition.test`
 Expected: PASS (1/1).
 
 - [ ] **Step 5: Commit**
@@ -1125,7 +1125,7 @@ describe('StaggerList', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=StaggerList.test'`
+Run: `make dev-exec npm test -- --testPathPattern=StaggerList.test`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement StaggerList**
@@ -1168,7 +1168,7 @@ export function StaggerList<T>({ items, renderItem, className }: StaggerListProp
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=StaggerList.test'`
+Run: `make dev-exec npm test -- --testPathPattern=StaggerList.test`
 Expected: PASS (2/2).
 
 - [ ] **Step 5: Commit**
@@ -1184,7 +1184,7 @@ git commit -m "feat(motion): add StaggerList wrapper"
 
 - [ ] **Step 1: Run full check**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS — lint, all tests, typecheck, build all succeed. No warnings.
 
 If any check fails, fix and re-run before proceeding to Phase 2.
@@ -1274,7 +1274,7 @@ export const viewport: Viewport = {
 
 - [ ] **Step 5: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -1345,7 +1345,7 @@ export function Navigation() {
 
 - [ ] **Step 2: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -1361,12 +1361,12 @@ git commit -m "feat(ui): icon-first navigation with active indicator"
 
 - [ ] **Step 1: Run full check**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 2: Visual smoke test**
 
-Run: `devcontainer exec 'npm run dev'`
+Run: `make dev-exec npm run dev`
 
 In browser:
 - Visit `/` — sticky header with amber dot + "Jellyfin" + icon nav (Search/Requests). Page fades in on load.
@@ -1685,7 +1685,7 @@ function TvResultCard({
 
 - [ ] **Step 4: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1701,12 +1701,12 @@ git commit -m "feat(ui): restructure home page to two-thirds hero with primitive
 
 - [ ] **Step 1: Run full check**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 2: Visual smoke test**
 
-Run: `devcontainer exec 'npm run dev'`
+Run: `make dev-exec npm run dev`
 
 In browser at `/`:
 - Hero copy shows "What's on tonight?" in italic serif.
@@ -1756,7 +1756,7 @@ it('renders poster, title, status pill, and action buttons', () => {
 
 - [ ] **Step 2: Run test to verify behavior under existing impl**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=RequestCard.test'`
+Run: `make dev-exec npm test -- --testPathPattern=RequestCard.test`
 Expected: Existing tests pass; new test should pass with the rebuilt component once Step 3 lands.
 
 - [ ] **Step 3: Replace the RequestCard component**
@@ -1896,7 +1896,7 @@ export default function RequestCard({
 
 - [ ] **Step 4: Run RequestCard tests**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=RequestCard.test'`
+Run: `make dev-exec npm test -- --testPathPattern=RequestCard.test`
 Expected: PASS (existing + new).
 
 - [ ] **Step 5: Commit**
@@ -1957,7 +1957,7 @@ export default function RequestList({ requests, jellyfinAvailability }: RequestL
 
 - [ ] **Step 2: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -2037,7 +2037,7 @@ Also replace the JSX usage in the same file:
 
 - [ ] **Step 4: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -2131,7 +2131,7 @@ export function RequestForm({ onSubmit, onCancel, isVisible }: Props) {
 
 - [ ] **Step 2: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -2193,7 +2193,7 @@ export function Pagination({ currentPage, totalPages, preserveParams = {} }: Pag
 
 - [ ] **Step 2: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 3: Commit**
@@ -2226,7 +2226,7 @@ git rm src/components/JellyfinBadge.tsx src/components/__tests__/JellyfinBadge.t
 
 - [ ] **Step 3: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -2241,12 +2241,12 @@ git commit -m "refactor(ui): remove JellyfinBadge (replaced by Pill)"
 
 - [ ] **Step 1: Run full check**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 2: Visual smoke test**
 
-Run: `devcontainer exec 'npm run dev'`
+Run: `make dev-exec npm run dev`
 
 In browser at `/requests`:
 - Cards fade up in sequence on initial load.
@@ -2299,7 +2299,7 @@ describe('a11y', () => {
 
 - [ ] **Step 2: Run test**
 
-Run: `devcontainer exec 'npm test -- --testPathPattern=a11y.test'`
+Run: `make dev-exec npm test -- --testPathPattern=a11y.test`
 Expected: PASS (3/3).
 
 - [ ] **Step 3: Commit**
@@ -2327,7 +2327,7 @@ Delete the entire `@layer components` block from `src/app/globals.css` (lines ~5
 
 - [ ] **Step 3: Verify build**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -2344,7 +2344,7 @@ git commit -m "refactor(ui): remove obsolete component CSS classes (replaced by 
 - [ ] **Step 1: Build and inspect**
 
 ```bash
-devcontainer exec 'npm run build'
+make dev-exec npm run build
 ```
 
 Check the output for:
@@ -2365,12 +2365,12 @@ If motion is > 50KB gzipped, investigate tree-shaking (`motion/react` import pat
 
 - [ ] **Step 1: Run full check one more time**
 
-Run: `devcontainer exec 'npm run check'`
+Run: `make dev-exec npm run check`
 Expected: PASS, 0 warnings, 0 errors.
 
 - [ ] **Step 2: Manual a11y walkthrough**
 
-Run: `devcontainer exec 'npm run dev'`
+Run: `make dev-exec npm run dev`
 
 Verify:
 - Tab through every page — focus ring visible on every interactive element.

@@ -10,27 +10,21 @@ A Next.js application with PostgreSQL.
 
 ## Prerequisites
 
-- Docker
-- Dev Containers extension for VS Code (or `devcontainer` CLI)
+- Docker (with `docker compose` v2)
 
 ## Development
 
-### Using Devcontainer
+### Using Make + Compose
 
-This project uses a devcontainer for consistent development environment.
+This project uses a top-level `Makefile` + `compose.yaml` for a consistent dev environment. The stack runs three services: `web` (Next.js), `postgres`, and `migrate` (one-shot Prisma deploy).
 
-1.  **Start the devcontainer**:
+1.  **Start the dev stack**:
     ```bash
-    # Using VS Code
-    devcontainer open .
-
-    # Or rebuild and open
-    devcontainer build --workspace-folder .
-    devcontainer open --workspace-folder .
+    make dev
     ```
 
 2.  **Connect to the app**:
-    Once the devcontainer is running, the following services are available:
+    Once the stack is running, the following services are available:
 
     | Service   | Port | URL                        |
     |-----------|------|----------------------------|
@@ -38,47 +32,50 @@ This project uses a devcontainer for consistent development environment.
     | Postgres  | 5432 | postgresql://localhost:5432|
 
 3.  **Environment variables**:
-    The devcontainer automatically sets these variables:
-    - `DATABASE_URL`: `postgresql://moviedb:new_password@db:5432/moviedb?schema=public`
+    `DATABASE_URL` in `.env` points at the compose `postgres` service:
+    `postgresql://postgres:postgres@postgres:5432/moviedb_development`
 
-### Running the App
+### Running Commands in the Container
 
-The devcontainer automatically runs `npm install` and `npm run db:generate-client` on startup.
-
-To start the development server:
+Any operation that runs Node/TS code, Prisma, or installs dependencies **must** run inside the `web` container. Use `make dev-exec` (stack must be up — `make dev` in another shell):
 
 ```bash
-npm run dev
+make dev-exec npm test                 # run Jest
+make dev-exec npm run check            # full validation
+make dev-exec npm install <package>    # add a dep
+make dev-exec npx prisma migrate dev   # Prisma ops
 ```
 
-### Running Tests
+`make dev-exec` with no args drops into an interactive shell inside the web container.
+
+### Stack Management
 
 ```bash
-npm run test
+make help         # list all targets
+make dev          # start stack (web + postgres + migrate)
+make dev-down     # stop, keep volumes
+make dev-reset    # stop, drop pg-data volume (fresh DB)
+make dev-rebuild  # rebuild dev images from scratch
+make dev-logs     # tail logs
+make dev-status   # show container state
 ```
 
 ### Database Management
 
-1. **Create a Migration (Local)**
-   When you change `prisma/schema.prisma`, generate a new migration file without applying it yet:
-   ```bash
-   npm run db:generate:migration -- --name your_migration_name
-   ```
+Use `make dev-exec` to run Prisma CLI commands inside the container:
 
-2. **Apply Migrations (Dev)**
-   Apply pending migrations to your local development database:
-   ```bash
-   npm run db:migrate:dev
-   ```
+```bash
+# Apply pending migrations (idempotent)
+make dev-exec c='npm run db:migrate'
 
-3. **Deploy Migrations (Production)**
-   Apply migrations to a production environment (uses `prisma migrate deploy` which doesn't reset data):
-   ```bash
-   npm run db:migrate
-   ```
+# Create a new migration (dev)
+make dev-exec c='npm run db:migrate:dev -- --name your_migration_name'
 
-4. **Prisma Studio**
-   Open the visual database editor to inspect or edit data:
-   ```bash
-   npm run db:studio
-   ```
+# Regenerate Prisma client
+make dev-exec c='npm run db:generate-client'
+
+# Open Prisma Studio
+make dev-exec c='npm run db:studio'
+```
+
+Or open a shell (`make dev-exec`) and run npm scripts directly.

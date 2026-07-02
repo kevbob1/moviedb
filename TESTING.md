@@ -5,9 +5,15 @@
 After the E2E tests, manual verification should be performed with the following steps:
 
 ### 1. Start Development Server
+
+Start the dev stack (Next.js + Postgres) via the Makefile. The `npm run dev` command runs inside the `web` container — do not invoke it on the host.
+
 ```bash
-npm run dev
+# Terminal 1: start stack
+make dev
 ```
+
+Wait for the log line `Ready - started server on 0.0.0.0:3000`.
 
 ### 2. Verify Page Renders
 - Navigate to http://localhost:3000/search

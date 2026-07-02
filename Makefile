@@ -21,11 +21,28 @@ dev-down:    ## Stop stack, keep volumes
 dev-reset:   ## Stop stack, drop pg-data volume (fresh DB)
 	docker compose down -v
 
-dev-exec:    ## Exec interactive shell into web container
-	docker compose exec web sh
+# Run a command inside the web container. Stack must be up (`make dev`).
+# With no args, drops into an interactive shell.
+# Examples:
+#   make dev-exec                          # shell
+#   make dev-exec npm test                 # run Jest
+#   make dev-exec npm run check            # full validation
+#   make dev-exec npm install motion        # add a dep
+#   make dev-exec npx prisma migrate dev   # Prisma ops
+dev-exec:    ## Run a command in the web container (or shell if no args). Stack must be up.
+	@args="$(filter-out $@,$(MAKECMDGOALS))"; \
+	if [ -z "$$args" ]; then \
+		docker compose exec web sh; \
+	else \
+		docker compose exec web $$args; \
+	fi
 
 dev-logs:    ## Tail logs
 	docker compose logs -f
 
 dev-status:  ## Show dev container state
 	docker compose ps
+
+# Catch-all so passthrough args to dev-exec don't error as unknown targets.
+%:
+	@:

@@ -339,7 +339,7 @@ Phased, each phase ships and verifies before next:
    - Reduced-motion audit.
    - Bundle size check.
 
-Each phase: run `npm run check` (lint, test, typecheck, build) inside devcontainer before merging.
+Each phase: run `make dev-exec npm run check` (lint, test, typecheck, build) inside the dev container before merging.
 
 ---
 
@@ -386,4 +386,4 @@ None at time of writing. All decisions made during brainstorming.
 - All server actions.
 - Database schema and migrations.
 - Helm chart (no env changes).
-- Devcontainer config.
+- Dev container config (`Makefile` + `compose.yaml`).

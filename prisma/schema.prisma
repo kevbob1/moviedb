@@ -8,23 +8,28 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
+// status: pending | downloading | fulfilled | canceled (see RequestStatus in src/lib/request-fsm.ts)
 model Request {
   id            Int      @id @default(autoincrement())
   title         String
   tmdb_id       Int?
   season_number Int?
   poster_path   String?
-  release_date  String?
+  release_date  String?  // year or yyyy-mm-dd; not a precise moment
   overview      String?
   genre_ids     Int[]    @default([])
   requested_at  DateTime @default(now())
-  requested_by  String
+  requested_by  String   // opaque identifier; no User relation
   status        String   @default("pending")
-  media_type    String   @default("movie")
+  media_type    String   @default("movie") // movie | tv
 
   @@map("requests")
 }
 
+// status: pending | processing | completed | failed
+// type:   open set registered via registerJobType(); known values:
+//   - request_notification
+//   - tv_series_request_notification
 model Job {
   id           Int       @id @default(autoincrement())
   type         String

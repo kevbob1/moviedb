@@ -76,12 +76,30 @@ envFrom:
 
 **Cron jobs and scheduled tasks must be implemented as API routes** (`/api/cron/...`) and invoked via `curl` from Kubernetes CronJobs — not via `npm run` or `node` scripts that require `tsx`. Local dev scripts using `tsx` are acceptable.
 
-## Devcontainer
+## Development Environment
 
-**Run app commands inside the devcontainer for consistent environment:**
+App code, tests, Prisma, and any operation that runs Node/TS or installs dependencies **MUST** run inside the docker compose `web` container. Never run `npm`, `npx`, `node`, `tsc`, `prisma`, `jest`, or `eslint` directly on the host — host Node drifts, host `DATABASE_URL` points at the compose `postgres` service (not a local DB), and the dev image's `node_modules` lives in an anonymous volume (not on host).
+
+The Makefile + `compose.yaml` are the entry point. Never invoke `docker compose` directly for app code — go through `make`.
+
+**Long-running tasks** — start the stack first:
+
 ```bash
-devcontainer exec 'npm run dev'
-devcontainer exec 'npm run check'
+make dev            # web + postgres + migrate
+make dev-exec       # interactive shell into web container (or run a command — see below)
+make dev-logs       # tail logs
+make dev-down       # stop, keep volumes
+make dev-reset      # stop, drop pg-data volume
+make dev-rebuild    # rebuild dev images from scratch
 ```
 
-Use `devcontainer exec` instead of running npm/npx directly on the host.
+**One-shot commands** — `make dev-exec <cmd>` runs `<cmd>` inside the web container. Stack must be up.
+
+```bash
+make dev-exec npm test                             # Jest
+make dev-exec npm run check                        # full validation (lint + test + typecheck + build)
+make dev-exec npm install <package>                # add a dep
+make dev-exec npx prisma migrate dev -- --name x   # Prisma ops
+```
+
+Run `make help` for the full target list. See `README.md` for setup.
