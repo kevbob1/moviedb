@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
-import { ShowFulfilledCheckbox } from '@/components/ShowFulfilledCheckbox';
+import { ShowFulfilledSwitch } from '@/components/ShowFulfilledSwitch';
 import { availabilityFor } from '@/lib/jellyfin';
 import { toRequestModel } from '@/lib/request-utils';
 
@@ -50,7 +50,7 @@ export default async function RequestsPage({
       </h1>
 
       <div className="mb-4">
-        <ShowFulfilledCheckbox
+        <ShowFulfilledSwitch
           defaultChecked={showFulfilled}
           query=""
         />
