@@ -89,6 +89,48 @@ describe('HttpJellyfinAdapter', () => {
       expect(calledUrl).toContain('IncludeItemTypes=Movie,Season,Series');
     });
 
+    it('maps Season items to parent Series TMDB id via SeriesId', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          Items: [
+            { Type: 'Series', Id: 'series-abc', ProviderIds: { Tmdb: '8592' } },
+            { Type: 'Season', SeriesId: 'series-abc', IndexNumber: 1 },
+            { Type: 'Season', SeriesId: 'series-abc', IndexNumber: 2 },
+          ],
+          TotalRecordCount: 3,
+        }),
+      } as unknown as Response);
+
+      const adapter = new HttpJellyfinAdapter();
+      const result = await adapter.fetchCatalog();
+      expect(result.movies.has('8592')).toBe(true);
+      expect(Array.from(result.seasons.get('8592') ?? [])).toEqual([1, 2]);
+    });
+
+    it('resolves Season→Series across paginated pages', async () => {
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            Items: [{ Type: 'Season', SeriesId: 'series-abc', IndexNumber: 1 }],
+            TotalRecordCount: 501,
+          }),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            Items: [{ Type: 'Series', Id: 'series-abc', ProviderIds: { Tmdb: '8592' } }],
+            TotalRecordCount: 501,
+          }),
+        } as unknown as Response);
+
+      const adapter = new HttpJellyfinAdapter();
+      const result = await adapter.fetchCatalog();
+      expect(result.movies.has('8592')).toBe(true);
+      expect(Array.from(result.seasons.get('8592') ?? [])).toEqual([1]);
+    });
+
     it('captures season IndexNumber per TMDB id', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,

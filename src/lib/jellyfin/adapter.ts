@@ -11,6 +11,9 @@ export interface JellyfinAdapter {
 
 interface JellyfinItem {
   Name?: string;
+  Id?: string;
+  Type?: string;
+  SeriesId?: string;
   ProviderIds?: { Tmdb?: string; Imdb?: string; [key: string]: string | undefined };
   IndexNumber?: number;
   [key: string]: unknown;
@@ -40,6 +43,7 @@ export class HttpJellyfinAdapter implements JellyfinAdapter {
 
     const limit = 500;
     let startIndex = 0;
+    const allItems: JellyfinItem[] = [];
 
     try {
       while (true) {
@@ -58,22 +62,31 @@ export class HttpJellyfinAdapter implements JellyfinAdapter {
 
         const data: JellyfinItemsResponse = await response.json();
         const items = data.Items || [];
-
-        // `movies` holds every TMDB ID present in Jellyfin (movies OR seasons),
-        // matching the existing `isOnJellyfin` semantics.
-        for (const item of items) {
-          const tmdbId = item.ProviderIds?.Tmdb;
-          if (!tmdbId) continue;
-          movies.add(tmdbId);
-          if (item.IndexNumber !== undefined) {
-            if (!seasons.has(tmdbId)) seasons.set(tmdbId, new Set());
-            seasons.get(tmdbId)!.add(item.IndexNumber);
-          }
-        }
+        allItems.push(...items);
 
         const total = data.TotalRecordCount || 0;
         startIndex += limit;
         if (startIndex >= total || items.length === 0) break;
+      }
+
+      const seriesIdToTmdb = new Map<string, string>();
+      for (const item of allItems) {
+        if (item.Type === 'Series' && item.Id && item.ProviderIds?.Tmdb) {
+          seriesIdToTmdb.set(item.Id, item.ProviderIds.Tmdb);
+        }
+      }
+
+      for (const item of allItems) {
+        let tmdbId = item.ProviderIds?.Tmdb;
+        if (!tmdbId && item.SeriesId) {
+          tmdbId = seriesIdToTmdb.get(item.SeriesId);
+        }
+        if (!tmdbId) continue;
+        movies.add(tmdbId);
+        if (item.IndexNumber !== undefined) {
+          if (!seasons.has(tmdbId)) seasons.set(tmdbId, new Set());
+          seasons.get(tmdbId)!.add(item.IndexNumber);
+        }
       }
 
       return { movies, seasons };
