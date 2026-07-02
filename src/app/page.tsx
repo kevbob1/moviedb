@@ -2,9 +2,17 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { motion } from 'motion/react';
 import { createRequest, createTvShowRequests } from '@/app/actions/request-actions';
 import { RequestForm } from '@/components/RequestForm';
-import { JellyfinBadge } from '@/components/JellyfinBadge';
+import { Pill } from '@/components/ui/Pill';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Spinner } from '@/components/ui/Spinner';
+import { Surface } from '@/components/ui/Surface';
+import { StaggerList } from '@/components/motion/StaggerList';
+import { useReducedMotion } from '@/lib/motion';
+import { fadeUp } from '@/components/motion/variants';
 import { GENRE_MAP } from '@/lib/genres';
 import { logger } from '@/lib/logger';
 
@@ -156,181 +164,259 @@ export default function ImportPage() {
     }
   };
 
+  const reduced = useReducedMotion();
+
   return (
-    <main className="page-container">
-      <h1 className="page-title">Search</h1>
+    <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
+      <motion.section
+        variants={reduced ? undefined : fadeUp}
+        initial="hidden"
+        animate="visible"
+        className="mb-8 text-center sm:mb-12"
+      >
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-accent">● Live</p>
+        <h1 className="font-display text-4xl italic leading-[1.05] text-foreground sm:text-5xl">
+          What&rsquo;s on tonight?
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+          Search your library or request a new title
+        </p>
+      </motion.section>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => { setSearchType('movie'); setMovieResults([]); setTvResults([]); }}
-          className={`px-4 py-2 rounded text-sm font-medium ${searchType === 'movie' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-        >
-          Movies
-        </button>
-        <button
-          type="button"
-          onClick={() => { setSearchType('tv'); setMovieResults([]); setTvResults([]); }}
-          className={`px-4 py-2 rounded text-sm font-medium ${searchType === 'tv' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-        >
-          TV Shows
-        </button>
-      </div>
+      <Surface elevation="raised" className="p-4 sm:p-6">
+        <SearchTypeToggle value={searchType} onChange={setSearchType} />
 
-      <form onSubmit={handleSearch} className="form-row-lg">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Search for a ${searchType === 'movie' ? 'movie' : 'TV show'}...`}
-          className="input flex-1"
-        />
-        <button type="submit" disabled={loading} className="btn-primary btn-md">
-          {loading ? 'Searching...' : 'Search'}
-        </button>
-      </form>
+        <form onSubmit={handleSearch} className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <Input
+            variant="search"
+            label={`Search ${searchType === 'movie' ? 'movies' : 'TV shows'}`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={searchType === 'movie' ? 'Try "Dune Part Two"' : 'Try "The Bear"'}
+            className="flex-1"
+          />
+          <Button type="submit" size="lg" loading={loading} className="sm:w-auto">
+            {loading ? 'Searching' : 'Search'}
+            {loading && <Spinner size="sm" />}
+          </Button>
+        </form>
 
-      {error && <div className="alert-error">{error}</div>}
-      {jellyfinError && <div className="alert-warning"><strong>Jellyfin Status:</strong> {jellyfinError}</div>}
+        {error && (
+          <div role="alert" className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+        {jellyfinError && (
+          <div role="alert" className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+            <strong>Jellyfin:</strong> {jellyfinError}
+          </div>
+        )}
 
-      <div className="space-y-3">
-        {currentResults.map((item) => {
-          if (searchType === 'movie') {
-            const movie = item as TMDBMovieResult;
-            const onJellyfin = jellyfinResults[movie.id] || false;
-            const reqKey = String(movie.id);
-            const isRequesting = requesting === reqKey;
-
-            return (
-              <div key={movie.id} className="card-row">
-                {movie.poster_path ? (
-                  <a href={`https://www.themoviedb.org/movie/${movie.id}`} target="_blank" rel="noopener noreferrer" className="poster-sm">
-                    <Image src={`https://image.tmdb.org/t/p/w185${movie.poster_path}`} alt={movie.title} width={64} height={96} className="poster-img" />
-                  </a>
-                ) : (
-                  <div className="poster-sm bg-muted rounded-sm" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="card-title">
-                        <a href={`https://www.themoviedb.org/movie/${movie.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          {movie.title}
-                        </a>
-                        <span className="ml-2 text-sm font-normal text-year">{getYear(movie.release_date)}</span>
-                      </h3>
-                      {movie.genre_ids && movie.genre_ids.length > 0 && (
-                        <p className="text-xs text-muted mb-1">{getGenreNamesDisplay(movie.genre_ids)}</p>
-                      )}
-                    </div>
-                    <JellyfinBadge available={onJellyfin} />
-                  </div>
-                  {movie.overview && <p className="text-body line-clamp-2 mb-2">{movie.overview}</p>}
-                  {!onJellyfin && !isRequesting && (
-                    <button onClick={() => setRequesting(reqKey)} className="btn-primary btn-sm">Request</button>
-                  )}
-                  {isRequesting && (
-                    <RequestForm isVisible={true} onSubmit={(requestedBy) => handleMovieRequest(movie, requestedBy)} onCancel={() => setRequesting(null)} />
-                  )}
-                </div>
-              </div>
-            );
-          }
-
-          const show = item as TMDBSeriesResult;
-          const showId = show.id;
-          const availableSeasons = jellyfinSeasons[showId] || [];
-          const allSeasons = tmdbSeasons[showId] || [];
-          const regularSeasons = allSeasons.filter(s => s.season_number > 0);
-          const missingSeasons = regularSeasons.filter(s => !availableSeasons.includes(s.season_number));
-          const hasRequestedAll = missingSeasons.length === 0 && regularSeasons.length > 0;
-
-          return (
-            <div key={show.id} className="card-row">
-              {show.poster_path ? (
-                <a href={`https://www.themoviedb.org/tv/${show.id}`} target="_blank" rel="noopener noreferrer" className="poster-sm">
-                  <Image src={`https://image.tmdb.org/t/p/w185${show.poster_path}`} alt={show.name} width={64} height={96} className="poster-img" />
-                </a>
-              ) : (
-                <div className="poster-sm bg-muted rounded-sm" />
+        {currentResults.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <StaggerList
+              items={currentResults as (TMDBMovieResult | TMDBSeriesResult)[]}
+              className="space-y-3"
+              renderItem={(item) => (
+                searchType === 'movie'
+                  ? <MovieResultCard
+                      key={(item as TMDBMovieResult).id}
+                      movie={item as TMDBMovieResult}
+                      onJellyfin={jellyfinResults[(item as TMDBMovieResult).id] || false}
+                      isRequesting={requesting === String((item as TMDBMovieResult).id)}
+                      onRequest={() => setRequesting(String((item as TMDBMovieResult).id))}
+                      onSubmit={(name) => handleMovieRequest(item as TMDBMovieResult, name)}
+                      onCancel={() => setRequesting(null)}
+                    />
+                  : <TvResultCard
+                      key={(item as TMDBSeriesResult).id}
+                      show={item as unknown as TMDBSeriesResult}
+                      availableSeasons={jellyfinSeasons[(item as TMDBSeriesResult).id] || []}
+                      allSeasons={tmdbSeasons[(item as TMDBSeriesResult).id] || []}
+                      requesting={requesting}
+                      onRequestSeason={(n) => setRequesting(`${(item as TMDBSeriesResult).id}-${n}`)}
+                      onRequestAll={() => setRequesting(`${(item as TMDBSeriesResult).id}-all`)}
+                      onSubmitSeason={(n, name) => handleSeasonRequest(item as unknown as TMDBSeriesResult, n, name)}
+                      onSubmitAll={(name) => handleRequestAllSeasons(item as unknown as TMDBSeriesResult, name)}
+                      onCancel={() => setRequesting(null)}
+                    />
               )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="card-title">
-                      <a href={`https://www.themoviedb.org/tv/${show.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        {show.name}
-                      </a>
-                      <span className="ml-2 text-sm font-normal text-year">{getYear(show.first_air_date)}</span>
-                    </h3>
-                    {show.genre_ids && show.genre_ids.length > 0 && (
-                      <p className="text-xs text-muted mb-1">{getGenreNamesDisplay(show.genre_ids)}</p>
-                    )}
-                  </div>
-                </div>
-                {show.overview && <p className="text-body line-clamp-2 mb-2">{show.overview}</p>}
-
-                {regularSeasons.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {regularSeasons.map((season) => {
-                      const isAvailable = availableSeasons.includes(season.season_number);
-                      const reqKey = `${showId}-${season.season_number}`;
-                      const isRequesting = requesting === reqKey;
-
-                      return (
-                        <div key={season.season_number} className="flex items-center gap-1">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            isAvailable ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-muted text-muted-foreground'
-                          }`}>
-                            S{season.season_number}
-                          </span>
-                          {!isAvailable && !isRequesting && (
-                            <button
-                              onClick={() => setRequesting(reqKey)}
-                              className="btn-primary btn-xs text-xs px-2 py-0.5"
-                            >
-                              Request
-                            </button>
-                          )}
-                          {isRequesting && (
-                            <RequestForm
-                              isVisible={true}
-                              onSubmit={(requestedBy) => handleSeasonRequest(show, season.season_number, requestedBy)}
-                              onCancel={() => setRequesting(null)}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {missingSeasons.length > 0 && (
-                  <div>
-                    <button
-                      onClick={() => setRequesting(`${showId}-all`)}
-                      className="btn-primary btn-sm"
-                    >
-                      Request All Missing Seasons ({missingSeasons.length})
-                    </button>
-                    {requesting === `${showId}-all` && (
-                      <RequestForm
-                        isVisible={true}
-                        onSubmit={(requestedBy) => handleRequestAllSeasons(show, requestedBy)}
-                        onCancel={() => setRequesting(null)}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {hasRequestedAll && regularSeasons.length > 0 && (
-                  <span className="text-xs text-green-600">All seasons already available or requested</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            />
+          </div>
+        )}
+      </Surface>
     </main>
+  );
+}
+
+function SearchTypeToggle({ value, onChange }: { value: SearchType; onChange: (v: SearchType) => void }) {
+  return (
+    <div role="tablist" aria-label="Search type" className="inline-flex rounded-full border border-border-subtle bg-surface p-1">
+      {(['movie', 'tv'] as const).map((opt) => {
+        const active = value === opt;
+        return (
+          <button
+            key={opt}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt)}
+            className={[
+              'h-9 rounded-full px-4 text-sm font-medium transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              active ? 'bg-accent text-accent-fg' : 'text-muted-foreground hover:text-foreground',
+            ].join(' ')}
+          >
+            {opt === 'movie' ? 'Movies' : 'TV Shows'}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MovieResultCard({
+  movie, onJellyfin, isRequesting, onRequest, onSubmit, onCancel,
+}: {
+  movie: TMDBMovieResult;
+  onJellyfin: boolean;
+  isRequesting: boolean;
+  onRequest: () => void;
+  onSubmit: (name: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const posterUrl = movie.poster_path
+    ? `https://image.tmdb.org/t/p/w185${movie.poster_path}`
+    : null;
+
+  return (
+    <Surface elevation="raised" className="flex gap-3 p-3 sm:gap-4">
+      {posterUrl ? (
+        <a href={`https://www.themoviedb.org/movie/${movie.id}`} target="_blank" rel="noopener noreferrer" className="block w-14 flex-shrink-0 sm:w-20">
+          <Image src={posterUrl} alt={movie.title} width={80} height={120} className="h-auto w-full rounded-lg object-cover" />
+        </a>
+      ) : (
+        <div className="h-[80px] w-14 flex-shrink-0 rounded-lg bg-surface sm:h-[120px] sm:w-20" />
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <a
+              href={`https://www.themoviedb.org/movie/${movie.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block truncate text-base font-semibold text-foreground hover:text-accent"
+            >
+              {movie.title}
+            </a>
+            <p className="text-xs text-muted-foreground">
+              {getYear(movie.release_date)}
+              {movie.genre_ids?.length ? ` · ${getGenreNamesDisplay(movie.genre_ids)}` : ''}
+            </p>
+          </div>
+          {onJellyfin && <Pill variant="available" label="On Jellyfin" />}
+        </div>
+        {movie.overview && (
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{movie.overview}</p>
+        )}
+        <div className="mt-2">
+          {!onJellyfin && !isRequesting && (
+            <Button size="sm" onClick={onRequest}>Request</Button>
+          )}
+          {isRequesting && (
+            <RequestForm isVisible onSubmit={onSubmit} onCancel={onCancel} />
+          )}
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+function TvResultCard({
+  show, availableSeasons, allSeasons, requesting, onRequestSeason, onRequestAll, onSubmitSeason, onSubmitAll, onCancel,
+}: {
+  show: TMDBSeriesResult;
+  availableSeasons: number[];
+  allSeasons: TMDBSeason[];
+  requesting: string | null;
+  onRequestSeason: (n: number) => void;
+  onRequestAll: () => void;
+  onSubmitSeason: (n: number, name: string) => Promise<void>;
+  onSubmitAll: (name: string) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const posterUrl = show.poster_path
+    ? `https://image.tmdb.org/t/p/w185${show.poster_path}`
+    : null;
+  const regularSeasons = allSeasons.filter((s) => s.season_number > 0);
+  const missing = regularSeasons.filter((s) => !availableSeasons.includes(s.season_number));
+  const allDone = missing.length === 0 && regularSeasons.length > 0;
+
+  return (
+    <Surface elevation="raised" className="flex gap-3 p-3 sm:gap-4">
+      {posterUrl ? (
+        <a href={`https://www.themoviedb.org/tv/${show.id}`} target="_blank" rel="noopener noreferrer" className="block w-14 flex-shrink-0 sm:w-20">
+          <Image src={posterUrl} alt={show.name} width={80} height={120} className="h-auto w-full rounded-lg object-cover" />
+        </a>
+      ) : (
+        <div className="h-[80px] w-14 flex-shrink-0 rounded-lg bg-surface sm:h-[120px] sm:w-20" />
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div>
+          <a
+            href={`https://www.themoviedb.org/tv/${show.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block truncate text-base font-semibold text-foreground hover:text-accent"
+          >
+            {show.name}
+          </a>
+          <p className="text-xs text-muted-foreground">
+            {getYear(show.first_air_date)}
+            {show.genre_ids?.length ? ` · ${getGenreNamesDisplay(show.genre_ids)}` : ''}
+          </p>
+        </div>
+
+        {regularSeasons.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {regularSeasons.map((s) => {
+              const available = availableSeasons.includes(s.season_number);
+              const key = `${show.id}-${s.season_number}`;
+              const isReq = requesting === key;
+              return (
+                <div key={s.season_number} className="flex items-center gap-1">
+                  {available ? (
+                    <Pill variant="available" label={`S${s.season_number}`} />
+                  ) : isReq ? (
+                    <RequestForm
+                      isVisible
+                      onSubmit={(name) => onSubmitSeason(s.season_number, name)}
+                      onCancel={onCancel}
+                    />
+                  ) : (
+                    <Button size="sm" variant="secondary" onClick={() => onRequestSeason(s.season_number)}>
+                      S{s.season_number}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {missing.length > 0 && (
+          <div className="mt-2">
+            {requesting === `${show.id}-all` ? (
+              <RequestForm isVisible onSubmit={onSubmitAll} onCancel={onCancel} />
+            ) : (
+              <Button size="sm" onClick={onRequestAll}>
+                Request all missing ({missing.length})
+              </Button>
+            )}
+          </div>
+        )}
+
+        {allDone && <p className="mt-2 text-xs text-emerald-400">All seasons available or requested</p>}
+      </div>
+    </Surface>
   );
 }
