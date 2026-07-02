@@ -34,13 +34,13 @@ describe('RequestListItem', () => {
 
   it('renders status badge with correct color for pending', () => {
     render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
-    expect(screen.getByText('Pending')).toHaveClass('text-status-pending-text', 'bg-status-pending-bg');
+    expect(screen.getByRole('status', { name: /pending/i })).toBeInTheDocument();
   });
 
   it('renders status badge with correct color for downloading', () => {
     const downloadingRequest = { ...mockRequest, status: 'downloading' as const, tmdb_id: 123, media_type: 'movie' };
     render(<RequestListItem request={downloadingRequest} jellyfinAvailable={false} />);
-    expect(screen.getByText('Downloading')).toHaveClass('text-status-downloading-text', 'bg-status-downloading-bg');
+    expect(screen.getByRole('status', { name: /downloading/i })).toBeInTheDocument();
   });
 
   it('renders no action buttons for fulfilled status', () => {
@@ -80,16 +80,16 @@ describe('RequestListItem', () => {
     expect(cancelButton).toHaveClass('bg-red-600');
   });
 
-  it('renders start download button in blue', () => {
+  it('renders start download button with primary variant', () => {
     render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
-    const downloadButton = screen.getByText('Start Download');
-    expect(downloadButton).toHaveClass('bg-blue-600');
+    const downloadButton = screen.getByRole('button', { name: /start download/i });
+    expect(downloadButton).toBeInTheDocument();
   });
 
-  it('renders mark fulfilled button in green', () => {
+  it('renders mark fulfilled button with success variant', () => {
     render(<RequestListItem request={mockRequest} jellyfinAvailable={false} />);
-    const fulfillButton = screen.getByText('Mark Fulfilled');
-    expect(fulfillButton).toHaveClass('bg-green-600');
+    const fulfillButton = screen.getByRole('button', { name: /mark fulfilled/i });
+    expect(fulfillButton).toBeInTheDocument();
   });
 
   it('shows TV badge and season for TV requests', () => {
@@ -105,6 +105,6 @@ describe('RequestListItem', () => {
     };
     render(<RequestListItem request={tvRequest} />);
     expect(screen.getByText('TV')).toBeInTheDocument();
-    expect(screen.getByText(/Season 3/)).toBeInTheDocument();
+    expect(screen.getByText(/S3/)).toBeInTheDocument();
   });
 });

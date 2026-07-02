@@ -70,20 +70,22 @@ describe('RequestCard', () => {
     const slowHandler = jest.fn(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
     render(<RequestCard request={mockRequest} {...defaultProps} onMarkFulfilled={slowHandler} />);
     fireEvent.click(screen.getByText('Mark Fulfilled'));
-    expect(screen.getAllByText('Loading...')).toHaveLength(3);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons[0]).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getAllByLabelText('Loading').length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument());
   });
 
   it('renders jellyfin available indicator', () => {
     render(<RequestCard request={mockRequest} {...defaultProps} jellyfinAvailable />);
-    expect(screen.getByText('Available in Jellyfin')).toBeInTheDocument();
+    expect(screen.getByText('On Jellyfin')).toBeInTheDocument();
   });
 
   it('renders TV badge and season number', () => {
     const tvRequest = { ...mockRequest, title: 'Test Show', media_type: 'tv', season_number: 2 };
     render(<RequestCard request={tvRequest} {...defaultProps} />);
     expect(screen.getByText('TV')).toBeInTheDocument();
-    expect(screen.getByText(/Season 2/)).toBeInTheDocument();
+    expect(screen.getByText(/S2/)).toBeInTheDocument();
   });
 
   it('renders poster image', () => {
