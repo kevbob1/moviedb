@@ -9,7 +9,6 @@ COPY prisma ./prisma
 COPY prisma.config.ts ./
 COPY package.json package-lock.json ./
 RUN npm install
-ENV NODE_ENV=development
 ENV PATH=/app/node_modules/.bin:$PATH
 EXPOSE 3000
 CMD ["npm", "run", "dev"]

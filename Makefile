@@ -22,7 +22,7 @@ dev-reset:   ## Stop stack, drop pg-data volume (fresh DB)
 	docker compose down -v
 
 dev-exec:    ## Exec interactive shell into web container
-	docker compose exec web bash
+	docker compose exec web sh
 
 dev-logs:    ## Tail logs
 	docker compose logs -f
