@@ -1,17 +1,17 @@
 'use client';
 
-import { motion } from 'motion/react';
+import { Children, isValidElement } from 'react';
 import type { ReactNode } from 'react';
+import { motion } from 'motion/react';
 import { useReducedMotion } from '@/lib/motion';
 import { fadeUp, stagger } from './variants';
 
-interface StaggerListProps<T> {
-  items: T[];
-  renderItem: (item: T, index: number) => ReactNode;
+interface StaggerListProps {
+  children: ReactNode;
   className?: string;
 }
 
-export function StaggerList<T>({ items, renderItem, className }: StaggerListProps<T>) {
+export function StaggerList({ children, className }: StaggerListProps) {
   const reduced = useReducedMotion();
   return (
     <motion.div
@@ -21,11 +21,15 @@ export function StaggerList<T>({ items, renderItem, className }: StaggerListProp
       animate="visible"
       className={className}
     >
-      {items.map((item, i) => (
-        <motion.div key={i} variants={reduced ? undefined : fadeUp}>
-          {renderItem(item, i)}
-        </motion.div>
-      ))}
+      {Children.map(children, (child, i) => {
+        if (!isValidElement(child)) return child;
+        const key = child.key ?? i;
+        return (
+          <motion.div key={key} variants={reduced ? undefined : fadeUp}>
+            {child}
+          </motion.div>
+        );
+      })}
     </motion.div>
   );
 }

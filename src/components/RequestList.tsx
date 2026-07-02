@@ -21,16 +21,14 @@ export default function RequestList({ requests, jellyfinAvailability }: RequestL
   }
 
   return (
-    <StaggerList
-      items={requests}
-      className="space-y-3"
-      renderItem={(request) => (
+    <StaggerList className="space-y-3">
+      {requests.map((request) => (
         <RequestListItem
           key={request.id}
           request={request}
           jellyfinAvailable={jellyfinAvailability[request.tmdb_id ?? 0] ?? false}
         />
-      )}
-    />
+      ))}
+    </StaggerList>
   );
 }

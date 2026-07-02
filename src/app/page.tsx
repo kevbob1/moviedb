@@ -214,10 +214,8 @@ export default function ImportPage() {
 
         {currentResults.length > 0 && (
           <div className="mt-6 space-y-3">
-            <StaggerList
-              items={currentResults as (TMDBMovieResult | TMDBSeriesResult)[]}
-              className="space-y-3"
-              renderItem={(item) => (
+            <StaggerList className="space-y-3">
+              {currentResults.map((item) => (
                 searchType === 'movie'
                   ? <MovieResultCard
                       key={(item as TMDBMovieResult).id}
@@ -240,8 +238,8 @@ export default function ImportPage() {
                       onSubmitAll={(name) => handleRequestAllSeasons(item as unknown as TMDBSeriesResult, name)}
                       onCancel={() => setRequesting(null)}
                     />
-              )}
-            />
+              ))}
+            </StaggerList>
           </div>
         )}
       </Surface>
