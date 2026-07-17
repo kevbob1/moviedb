@@ -3,6 +3,7 @@ import { Inter, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
 import { Navigation } from './components/Navigation';
+import { SwipeNavigation } from './components/SwipeNavigation';
 import { PageTransition } from '@/components/motion/PageTransition';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans bg-background text-foreground antialiased">
         <Header />
         <PageTransition>
-          <main>{children}</main>
+          <main>
+            <SwipeNavigation>{children}</SwipeNavigation>
+          </main>
         </PageTransition>
       </body>
     </html>
