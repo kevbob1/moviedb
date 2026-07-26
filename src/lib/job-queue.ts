@@ -4,7 +4,7 @@ import { logger } from './logger';
 const STUCK_THRESHOLD_MINUTES = 5;
 const BATCH_SIZE = 10;
 
-interface JobHandler<T> {
+export interface JobHandler<T> {
   handle: (payload: T) => Promise<void>;
 }
 

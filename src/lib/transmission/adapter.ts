@@ -3,6 +3,7 @@ export interface Torrent {
   name: string;
   percentDone: number;
   status: number;
+  isFinished?: boolean;
   error?: string;
 }
 
@@ -18,6 +19,7 @@ interface TransmissionArguments {
     name?: string;
     percentDone?: number;
     status?: number;
+    isFinished?: boolean;
     errorString?: string;
   }>;
   [key: string]: unknown;
@@ -104,7 +106,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
   async getTorrents(hashes: string[]): Promise<Torrent[]> {
     if (!this.url) return [];
 
-    const fields = ['hashString', 'name', 'percentDone', 'status', 'errorString'];
+    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString'];
     const result = await this.rpcCall('torrent-get', {
       fields,
       ids: hashes,
@@ -115,6 +117,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       name: t.name ?? '',
       percentDone: t.percentDone ?? 0,
       status: t.status ?? 0,
+      ...(t.isFinished !== undefined ? { isFinished: t.isFinished } : {}),
       ...(t.errorString ? { error: t.errorString } : {}),
     }));
   }
@@ -122,7 +125,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
   async getAll(): Promise<Torrent[]> {
     if (!this.url) return [];
 
-    const fields = ['hashString', 'name', 'percentDone', 'status', 'errorString'];
+    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString'];
     const result = await this.rpcCall('torrent-get', { fields });
 
     return (result.arguments.torrents ?? []).map(t => ({
@@ -130,6 +133,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       name: t.name ?? '',
       percentDone: t.percentDone ?? 0,
       status: t.status ?? 0,
+      ...(t.isFinished !== undefined ? { isFinished: t.isFinished } : {}),
       ...(t.errorString ? { error: t.errorString } : {}),
     }));
   }
