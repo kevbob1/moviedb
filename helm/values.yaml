@@ -20,7 +20,7 @@ jellyfin:
   url: "http://jellyfin.pd.o:8096"
 
 transmission:
-  url: "http://transmission.pd.o:9091"
+  url: "http://torrent.pd.o:9091"
 
 image:
   repository: registry.k.pd.o/moviedb
