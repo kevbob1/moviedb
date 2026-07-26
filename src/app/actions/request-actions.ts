@@ -7,6 +7,7 @@ import {
   downloadRequest as downloadRequestImpl,
   cancelRequest as cancelRequestImpl,
   createTvRequests,
+  linkTorrent as linkTorrentImpl,
 } from '@/lib/request-service';
 
 export async function createRequest(
@@ -54,5 +55,12 @@ export async function downloadRequest(requestId: number) {
 export async function cancelRequest(requestId: number) {
   const result = await cancelRequestImpl(requestId);
   revalidatePath('/requests');
+  return result;
+}
+
+export async function linkTorrent(requestId: number, torrentHash: string) {
+  const result = await linkTorrentImpl(requestId, torrentHash);
+  revalidatePath('/needs-match');
+  revalidatePath('/');
   return result;
 }

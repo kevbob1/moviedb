@@ -1,11 +1,13 @@
-import { createRequest, createTvRequests } from '../request-service';
+import { createRequest, createTvRequests, linkTorrent, transitionToStatus } from '../request-service';
 import { prisma } from '../prisma';
 
 jest.mock('../prisma', () => ({
   prisma: {
     request: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     job: {
       create: jest.fn(),
@@ -200,6 +202,164 @@ describe('request-service', () => {
 
       const results = await createTvRequests(100, 'Alice');
       expect(results).toHaveLength(2);
+    });
+  });
+
+  describe('transitionToStatus', () => {
+    it('nulls torrent_problem on transition', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'pending',
+        torrent_problem: 'some problem',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'downloading',
+        torrent_problem: null,
+      });
+
+      await transitionToStatus(1, 'downloading');
+
+      expect(prisma.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'downloading', torrent_problem: null },
+      });
+    });
+
+    it('nulls torrent_problem on fulfill transition', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'downloading',
+        torrent_problem: 'some problem',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'fulfilled',
+        torrent_problem: null,
+      });
+
+      await transitionToStatus(1, 'fulfilled');
+
+      expect(prisma.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'fulfilled', torrent_problem: null },
+      });
+    });
+
+    it('nulls torrent_problem on cancel transition', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'pending',
+        torrent_problem: 'some problem',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'canceled',
+        torrent_problem: null,
+      });
+
+      await transitionToStatus(1, 'canceled');
+
+      expect(prisma.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'canceled', torrent_problem: null },
+      });
+    });
+
+    it('throws when request is not found', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(transitionToStatus(999, 'downloading')).rejects.toThrow('Request not found');
+    });
+
+    it('throws on invalid transition', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        status: 'fulfilled',
+      });
+
+      await expect(transitionToStatus(1, 'downloading')).rejects.toThrow(
+        'Cannot transition from fulfilled to downloading'
+      );
+    });
+  });
+
+  describe('linkTorrent', () => {
+    it('links a torrent to a pending request atomically (sets hash + transitions to downloading)', async () => {
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const tx = {
+          request: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              status: 'pending',
+              torrent_problem: null,
+            }),
+            update: jest.fn().mockResolvedValue({
+              id: 1,
+              status: 'downloading',
+              torrent_hash: 'abc123',
+              torrent_problem: null,
+            }),
+          },
+        };
+        return await fn(tx);
+      });
+
+      const result = await linkTorrent(1, 'abc123');
+
+      expect(result.status).toBe('downloading');
+      expect(result.torrent_hash).toBe('abc123');
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects if request is not pending', async () => {
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const tx = {
+          request: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              status: 'downloading',
+            }),
+          },
+        };
+        return await fn(tx);
+      });
+
+      await expect(linkTorrent(1, 'abc123')).rejects.toThrow(
+        'Cannot transition from downloading to downloading'
+      );
+    });
+
+    it('rejects if request is not found', async () => {
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const tx = {
+          request: {
+            findUnique: jest.fn().mockResolvedValue(null),
+          },
+        };
+        return await fn(tx);
+      });
+
+      await expect(linkTorrent(999, 'abc123')).rejects.toThrow('Request not found');
+    });
+
+    it('rejects if request already has a torrent_hash set', async () => {
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const tx = {
+          request: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              status: 'downloading',
+              torrent_hash: 'existing-hash',
+            }),
+          },
+        };
+        return await fn(tx);
+      });
+
+      await expect(linkTorrent(1, 'abc123')).rejects.toThrow(
+        'Cannot transition from downloading to downloading'
+      );
     });
   });
 });

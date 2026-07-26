@@ -138,7 +138,32 @@ export async function transitionToStatus(requestId: number, targetStatus: Reques
 
   return prisma.request.update({
     where: { id: requestId },
-    data: { status: targetStatus },
+    data: { status: targetStatus, torrent_problem: null },
+  });
+}
+
+export async function linkTorrent(requestId: number, torrentHash: string) {
+  return prisma.$transaction(async (tx) => {
+    const request = await tx.request.findUnique({ where: { id: requestId } });
+
+    if (!request) {
+      throw new Error('Request not found');
+    }
+
+    const currentStatus = request.status as RequestStatus;
+
+    if (!canTransition(currentStatus, 'downloading')) {
+      throw new Error(`Cannot transition from ${currentStatus} to downloading`);
+    }
+
+    return tx.request.update({
+      where: { id: requestId },
+      data: {
+        status: 'downloading',
+        torrent_hash: torrentHash,
+        torrent_problem: null,
+      },
+    });
   });
 }
 

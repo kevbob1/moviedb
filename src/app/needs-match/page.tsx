@@ -1,26 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { getAll, refreshCatalog } from '@/lib/transmission';
 import { toRequestModel } from '@/lib/request-utils';
-import { Surface } from '@/components/ui/Surface';
+import { NeedsMatchView } from '@/components/NeedsMatchView';
 import { RefreshButton } from '@/components/RefreshButton';
 import Link from 'next/link';
-
-function formatProgress(pct: number): string {
-  return `${Math.round(pct * 100)}%`;
-}
-
-function statusLabel(status: number): string {
-  const labels: Record<number, string> = {
-    0: 'Stopped',
-    1: 'Check Wait',
-    2: 'Checking',
-    3: 'Download Wait',
-    4: 'Downloading',
-    5: 'Seed Wait',
-    6: 'Seeding',
-  };
-  return labels[status] ?? `Unknown (${status})`;
-}
 
 export default async function NeedsMatchPage({
   searchParams,
@@ -72,45 +55,7 @@ export default async function NeedsMatchPage({
         <RefreshButton />
       </div>
 
-      <div className="flex flex-col gap-6 sm:flex-row">
-        <div className="flex-1">
-          <h2 className="mb-3 text-lg font-semibold text-foreground">Unmatched Requests</h2>
-          {typedRequests.map((request) => (
-            <Surface key={request.id} elevation="raised" className="mb-3 p-3 sm:p-4">
-              <h3 className="text-base font-semibold text-foreground">{request.title}</h3>
-              {request.season_number && (
-                <p className="text-sm text-muted-foreground">Season {request.season_number}</p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                Requested by {request.requested_by}
-              </p>
-            </Surface>
-          ))}
-        </div>
-
-        <div className="flex-1">
-          <h2 className="mb-3 text-lg font-semibold text-foreground">
-            Transmission Torrents
-            <span className="ml-2 text-sm font-normal text-muted-foreground">({torrents.length})</span>
-          </h2>
-          {torrents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No torrents in Transmission</p>
-          ) : (
-            torrents.map((torrent) => (
-              <Surface key={torrent.hash} elevation="raised" className="mb-3 p-3 sm:p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="truncate text-base font-semibold text-foreground">{torrent.name}</h3>
-                  <span className="flex-shrink-0 text-xs text-muted-foreground">{formatProgress(torrent.percentDone)}</span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {statusLabel(torrent.status)}
-                </p>
-                <p className="mt-0.5 font-mono text-xs text-muted-foreground">{torrent.hash}</p>
-              </Surface>
-            ))
-          )}
-        </div>
-      </div>
+      <NeedsMatchView requests={typedRequests} torrents={torrents} />
     </main>
   );
 }

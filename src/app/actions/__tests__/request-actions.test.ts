@@ -1,5 +1,5 @@
 // src/app/actions/__tests__/request-actions.test.ts
-import { createRequest, fulfillRequest, cancelRequest, downloadRequest } from '../request-actions';
+import { createRequest, fulfillRequest, cancelRequest, downloadRequest, linkTorrent } from '../request-actions';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
@@ -108,7 +108,7 @@ describe('request-actions', () => {
       expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'fulfilled' },
+        data: { status: 'fulfilled', torrent_problem: null },
       });
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
@@ -143,7 +143,7 @@ describe('request-actions', () => {
 
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'downloading' },
+        data: { status: 'downloading', torrent_problem: null },
       });
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
@@ -173,7 +173,7 @@ describe('request-actions', () => {
 
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'canceled' },
+        data: { status: 'canceled', torrent_problem: null },
       });
       expect(prisma.request.delete).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
@@ -187,6 +187,46 @@ describe('request-actions', () => {
 
       await expect(cancelRequest(1)).rejects.toThrow(
         'Cannot transition from fulfilled to canceled'
+      );
+    });
+  });
+
+  describe('linkTorrent', () => {
+    it('links a torrent to a pending request and revalidates', async () => {
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const tx = {
+          request: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              status: 'pending',
+            }),
+            update: jest.fn().mockResolvedValue({ id: 1, status: 'downloading', torrent_hash: 'abc123' }),
+          },
+        };
+        return await fn(tx);
+      });
+
+      const result = await linkTorrent(1, 'abc123');
+
+      expect(result).toEqual({ id: 1, status: 'downloading', torrent_hash: 'abc123' });
+      expect(revalidatePath).toHaveBeenCalledWith('/needs-match');
+    });
+
+    it('rejects if request is not pending', async () => {
+      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+        const tx = {
+          request: {
+            findUnique: jest.fn().mockResolvedValue({
+              id: 1,
+              status: 'fulfilled',
+            }),
+          },
+        };
+        return await fn(tx);
+      });
+
+      await expect(linkTorrent(1, 'abc123')).rejects.toThrow(
+        'Cannot transition from fulfilled to downloading'
       );
     });
   });
