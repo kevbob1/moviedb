@@ -177,6 +177,23 @@ describe('request-actions', () => {
       });
       expect(prisma.request.delete).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
+      expect(revalidatePath).toHaveBeenCalledWith('/needs-match');
+    });
+
+    it('cancels a downloading request with torrent_problem and nulls it', async () => {
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
+        id: 2,
+        status: 'downloading',
+        torrent_problem: 'transmission error: tracker unreachable',
+      });
+      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 2, status: 'canceled', torrent_problem: null });
+
+      await cancelRequest(2);
+
+      expect(prisma.request.update).toHaveBeenCalledWith({
+        where: { id: 2 },
+        data: { status: 'canceled', torrent_problem: null },
+      });
     });
 
     it('throws if cannot cancel current status', async () => {

@@ -13,4 +13,5 @@ export interface Request {
   requested_at: string;
   status: RequestStatus;
   media_type?: string;
+  torrent_problem?: string;
 }

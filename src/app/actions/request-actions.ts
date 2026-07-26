@@ -55,6 +55,7 @@ export async function downloadRequest(requestId: number) {
 export async function cancelRequest(requestId: number) {
   const result = await cancelRequestImpl(requestId);
   revalidatePath('/requests');
+  revalidatePath('/needs-match');
   return result;
 }
 

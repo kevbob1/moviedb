@@ -14,6 +14,7 @@ export function toRequestModel(request: {
   status: string;
   season_number: number | null;
   media_type: string | null;
+  torrent_problem: string | null;
 }): Request {
   return {
     ...request,
@@ -25,5 +26,6 @@ export function toRequestModel(request: {
     status: request.status as RequestStatus,
     season_number: request.season_number ?? undefined,
     media_type: request.media_type ?? undefined,
+    torrent_problem: request.torrent_problem ?? undefined,
   };
 }

@@ -16,7 +16,7 @@ export default async function NeedsMatchPage({
     refreshCatalog();
   }
 
-  const [requests, torrents] = await Promise.all([
+  const [requests, torrents, needsAttention] = await Promise.all([
     prisma.request.findMany({
       where: {
         status: 'pending',
@@ -25,11 +25,20 @@ export default async function NeedsMatchPage({
       orderBy: { requested_at: 'desc' },
     }),
     getAll(),
+    prisma.request.findMany({
+      where: {
+        status: 'downloading',
+        torrent_problem: { not: null },
+      },
+      orderBy: { requested_at: 'desc' },
+    }),
   ]);
 
   const typedRequests = requests.map(toRequestModel);
+  const typedNeedsAttention = needsAttention.map(toRequestModel);
+  const total = typedRequests.length + typedNeedsAttention.length;
 
-  if (typedRequests.length === 0) {
+  if (total === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
         <h1 className="mb-6 text-2xl font-bold text-foreground">Needs Match</h1>
@@ -50,12 +59,15 @@ export default async function NeedsMatchPage({
           <h1 className="text-2xl font-bold text-foreground">Needs Match</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {typedRequests.length} request{typedRequests.length !== 1 ? 's' : ''} need{typedRequests.length === 1 ? 's' : ''} a torrent assigned
+            {typedNeedsAttention.length > 0 && (
+              <> — {typedNeedsAttention.length} need{typedNeedsAttention.length === 1 ? 's' : ''} attention</>
+            )}
           </p>
         </div>
         <RefreshButton />
       </div>
 
-      <NeedsMatchView requests={typedRequests} torrents={torrents} />
+      <NeedsMatchView requests={typedRequests} torrents={torrents} needsAttention={typedNeedsAttention} />
     </main>
   );
 }
