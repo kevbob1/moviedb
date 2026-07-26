@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { Surface } from '@/components/ui/Surface';
 import { StaggerList } from '@/components/motion/StaggerList';
+import { NeedsMatchBanner } from '@/components/NeedsMatchBanner';
 import { useReducedMotion } from '@/lib/motion';
 import { fadeUp } from '@/components/motion/variants';
 import { GENRE_MAP } from '@/lib/genres';
@@ -168,6 +169,7 @@ export default function ImportPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
+      <NeedsMatchBanner />
       <motion.section
         variants={reduced ? undefined : fadeUp}
         initial="hidden"
