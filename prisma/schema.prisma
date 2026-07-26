@@ -22,6 +22,8 @@ model Request {
   requested_by  String   // opaque identifier; no User relation
   status        String   @default("pending")
   media_type    String   @default("movie") // movie | tv
+  torrent_hash    String?
+  torrent_problem String?
 
   @@map("requests")
 }

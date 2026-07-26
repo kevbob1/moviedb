@@ -12,9 +12,15 @@ secrets:
     user: CHANGE_ME
     password: CHANGE_ME
   jellyfin_api_key: CHANGE_ME
+  transmission:
+    username: CHANGE_ME
+    password: CHANGE_ME
 
 jellyfin:
   url: "http://jellyfin.pd.o:8096"
+
+transmission:
+  url: "http://transmission.pd.o:9091"
 
 image:
   repository: registry.k.pd.o/moviedb
