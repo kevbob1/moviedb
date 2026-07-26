@@ -30,7 +30,7 @@ describe('HttpTransmissionAdapter', () => {
       expect(result).toEqual({ reachable: false, error: 'Transmission not configured' });
     });
 
-    it('returns reachable on 409 from GET (session handshake)', async () => {
+    it('returns reachable on 409 from RPC endpoint (session handshake)', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         status: 409,
         statusText: 'Conflict',
@@ -42,7 +42,19 @@ describe('HttpTransmissionAdapter', () => {
       expect(result).toEqual({ reachable: true });
     });
 
-    it('returns not reachable on non-409 non-OK', async () => {
+    it('returns reachable on 401 from RPC endpoint (auth required)', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: new Map([['WWW-Authenticate', 'Basic realm="Transmission"']]),
+      } as unknown as Response);
+
+      const adapter = new HttpTransmissionAdapter();
+      const result = await adapter.ping();
+      expect(result).toEqual({ reachable: true });
+    });
+
+    it('returns not reachable on 500 from RPC endpoint', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         status: 500,
         statusText: 'Server Error',
@@ -64,10 +76,7 @@ describe('HttpTransmissionAdapter', () => {
       expect(result.error).toContain('Transmission connection failed: Connection refused');
     });
 
-    it('uses explicit url when provided', async () => {
-      delete process.env.TRANSMISSION_URL;
-      delete process.env.TRANSMISSION_USERNAME;
-      delete process.env.TRANSMISSION_PASSWORD;
+    it('POSTs to the RPC endpoint with the base url and includes auth', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         status: 409,
         statusText: 'Conflict',
@@ -80,8 +89,14 @@ describe('HttpTransmissionAdapter', () => {
       const result = await adapter.ping();
       expect(result).toEqual({ reachable: true });
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://transmission.example.com:9091',
-        expect.objectContaining({ method: 'GET' })
+        'http://transmission.example.com:9091/transmission/rpc',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': expect.stringMatching(/^Basic /),
+          }),
+        })
       );
     });
   });

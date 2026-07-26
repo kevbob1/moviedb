@@ -144,13 +144,19 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
     }
 
     try {
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
       const auth = this.authHeader;
       if (auth) headers['Authorization'] = auth;
 
-      const response = await fetch(this.url, { method: 'GET', headers });
+      const response = await fetch(`${this.url}/transmission/rpc`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ method: 'session-get' }),
+      });
 
-      if (response.status === 409) {
+      if (response.status === 409 || response.status === 401) {
         return { reachable: true };
       }
 
