@@ -2,13 +2,14 @@ import { createRequest, createTvRequests, linkTorrent, transitionToStatus } from
 import { prisma } from '../prisma';
 
 jest.mock('../prisma', () => ({
-  prisma: {
-    request: {
-      findFirst: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
+    prisma: {
+      request: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
     job: {
       create: jest.fn(),
     },
@@ -226,7 +227,7 @@ describe('request-service', () => {
       });
     });
 
-    it('nulls torrent_problem on fulfill transition', async () => {
+    it('sets resolved_at on fulfill transition', async () => {
       (prisma.request.findUnique as jest.Mock).mockResolvedValue({
         id: 1,
         status: 'downloading',
@@ -236,33 +237,14 @@ describe('request-service', () => {
         id: 1,
         status: 'fulfilled',
         torrent_problem: null,
+        resolved_at: new Date(),
       });
 
       await transitionToStatus(1, 'fulfilled');
 
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'fulfilled', torrent_problem: null },
-      });
-    });
-
-    it('nulls torrent_problem on cancel transition', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'pending',
-        torrent_problem: 'some problem',
-      });
-      (prisma.request.update as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'canceled',
-        torrent_problem: null,
-      });
-
-      await transitionToStatus(1, 'canceled');
-
-      expect(prisma.request.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { status: 'canceled', torrent_problem: null },
+        data: { status: 'fulfilled', torrent_problem: null, resolved_at: expect.any(Date) },
       });
     });
 
@@ -281,6 +263,20 @@ describe('request-service', () => {
       await expect(transitionToStatus(1, 'downloading')).rejects.toThrow(
         'Cannot transition from fulfilled to downloading'
       );
+    });
+  });
+
+  describe('cancelRequest', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { cancelRequest } = require('../request-service');
+
+    it('deletes the request', async () => {
+      (prisma.request.delete as jest.Mock).mockResolvedValue({ id: 1 });
+
+      const result = await cancelRequest(1);
+
+      expect(prisma.request.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(result).toEqual({ id: 1 });
     });
   });
 

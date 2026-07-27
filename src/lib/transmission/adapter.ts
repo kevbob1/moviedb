@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 export interface Torrent {
   hash: string;
   name: string;
@@ -12,7 +14,6 @@ export interface TransmissionAdapter {
   getAll(): Promise<Torrent[]>;
   ping(): Promise<{ reachable: boolean; error?: string }>;
 }
-
 interface TransmissionArguments {
   torrents?: Array<{
     hashString?: string;
@@ -37,7 +38,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
   private sessionId: string | null = null;
 
   constructor(opts?: { url?: string; username?: string; password?: string }) {
-    this.url = opts?.url ?? process.env.TRANSMISSION_URL ?? '';
+    this.url = (opts?.url ?? process.env.TRANSMISSION_URL ?? '').replace(/\/+$/, '');
     this.username = opts?.username ?? process.env.TRANSMISSION_USERNAME ?? '';
     this.password = opts?.password ?? process.env.TRANSMISSION_PASSWORD ?? '';
   }
@@ -47,18 +48,29 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
     return `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`;
   }
 
-  private async getSessionId(): Promise<string> {
-    if (this.sessionId) return this.sessionId;
+  private get rpcUrl(): string {
+    return `${this.url}/transmission/rpc`;
+  }
 
-    const headers: Record<string, string> = {};
+  private async getSessionId(): Promise<string> {
+    if (this.sessionId !== null) return this.sessionId;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
     const auth = this.authHeader;
     if (auth) headers['Authorization'] = auth;
 
-    const response = await fetch(this.url, { method: 'GET', headers });
+    const response = await fetch(this.rpcUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ method: 'session-get' }),
+    });
 
     if (response.status === 409) {
       const sessionId = response.headers.get('X-Transmission-Session-Id');
       if (sessionId) {
+        logger.debug({ url: this.rpcUrl }, 'transmission session established');
         this.sessionId = sessionId;
         return sessionId;
       }
@@ -69,6 +81,10 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       return '';
     }
 
+    logger.error(
+      { url: this.rpcUrl, status: response.status, statusText: response.statusText },
+      'transmission session handshake failed'
+    );
     throw new Error(`Transmission session handshake failed: ${response.status} ${response.statusText}`);
   }
 
@@ -82,7 +98,8 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
     const auth = this.authHeader;
     if (auth) headers['Authorization'] = auth;
 
-    const response = await fetch(`${this.url}/rpc`, {
+    const start = performance.now();
+    const response = await fetch(this.rpcUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -97,10 +114,24 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
     }
 
     if (!response.ok) {
+      logger.error(
+        { url: this.rpcUrl, method, status: response.status, statusText: response.statusText },
+        'transmission rpc error'
+      );
       throw new Error(`Transmission RPC error: ${response.status} ${response.statusText}`);
     }
 
-    return response.json() as Promise<TransmissionResponse>;
+    const result = (await response.json()) as TransmissionResponse;
+    logger.debug(
+      {
+        url: this.rpcUrl,
+        method,
+        durationMs: Math.round(performance.now() - start),
+        torrents: result.arguments.torrents?.length,
+      },
+      'transmission rpc call'
+    );
+    return result;
   }
 
   async getTorrents(hashes: string[]): Promise<Torrent[]> {
@@ -150,7 +181,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       const auth = this.authHeader;
       if (auth) headers['Authorization'] = auth;
 
-      const response = await fetch(`${this.url}/transmission/rpc`, {
+      const response = await fetch(this.rpcUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({ method: 'session-get' }),

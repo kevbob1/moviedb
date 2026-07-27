@@ -108,7 +108,7 @@ describe('request-actions', () => {
       expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'fulfilled', torrent_problem: null },
+        data: { status: 'fulfilled', torrent_problem: null, resolved_at: expect.any(Date) },
       });
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
@@ -161,50 +161,16 @@ describe('request-actions', () => {
   });
 
   describe('cancelRequest', () => {
-    it('sets status to canceled instead of deleting', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'pending',
-      });
-      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 1, status: 'canceled' });
-      (prisma.request.delete as jest.Mock).mockResolvedValue({});
+    it('deletes the request and revalidates paths', async () => {
+      (prisma.request.delete as jest.Mock).mockResolvedValue({ id: 1 });
 
       await cancelRequest(1);
 
-      expect(prisma.request.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { status: 'canceled', torrent_problem: null },
-      });
-      expect(prisma.request.delete).not.toHaveBeenCalled();
+      expect(prisma.request.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prisma.request.findUnique).not.toHaveBeenCalled();
+      expect(prisma.request.update).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
       expect(revalidatePath).toHaveBeenCalledWith('/needs-match');
-    });
-
-    it('cancels a downloading request with torrent_problem and nulls it', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 2,
-        status: 'downloading',
-        torrent_problem: 'transmission error: tracker unreachable',
-      });
-      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 2, status: 'canceled', torrent_problem: null });
-
-      await cancelRequest(2);
-
-      expect(prisma.request.update).toHaveBeenCalledWith({
-        where: { id: 2 },
-        data: { status: 'canceled', torrent_problem: null },
-      });
-    });
-
-    it('throws if cannot cancel current status', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'fulfilled',
-      });
-
-      await expect(cancelRequest(1)).rejects.toThrow(
-        'Cannot transition from fulfilled to canceled'
-      );
     });
   });
 

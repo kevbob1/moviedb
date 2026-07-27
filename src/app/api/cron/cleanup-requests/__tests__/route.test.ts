@@ -1,17 +1,14 @@
 import { logger } from '@/lib/logger';
 
-const processPendingJobsMock = jest.fn();
-const enqueueTransmissionSyncMock = jest.fn();
+const deleteManyMock = jest.fn();
 const headersMock = jest.fn();
 
-jest.mock('@/lib/job-queue', () => ({
-  processPendingJobs: (...args: unknown[]) => processPendingJobsMock(...args),
-}));
-
-jest.mock('@/lib/jobs', () => ({}));
-
-jest.mock('@/lib/jobs/transmission-sync', () => ({
-  enqueueTransmissionSync: (...args: unknown[]) => enqueueTransmissionSyncMock(...args),
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    request: {
+      deleteMany: deleteManyMock,
+    },
+  },
 }));
 
 jest.mock('next/headers', () => ({
@@ -22,7 +19,6 @@ jest.mock('@/lib/logger', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),
-    warn: jest.fn(),
   },
 }));
 
@@ -41,19 +37,20 @@ beforeAll(() => {
   });
 });
 
-describe('process-jobs cron API', () => {
-  const mockRequest = { url: 'http://localhost/api/cron/process-jobs', method: 'GET' } as unknown as Request;
+describe('cleanup-requests cron API', () => {
+  const mockRequest = { url: 'http://localhost/api/cron/cleanup-requests', method: 'GET' } as unknown as Request;
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.CRON_SECRET;
+    delete process.env.REQUEST_RETENTION_DAYS;
     headersMock.mockResolvedValue(new Headers());
-    processPendingJobsMock.mockResolvedValue({ processed: 0, failed: 0 });
-    enqueueTransmissionSyncMock.mockResolvedValue(false);
+    deleteManyMock.mockResolvedValue({ count: 0 });
   });
 
   afterEach(() => {
     delete process.env.CRON_SECRET;
+    delete process.env.REQUEST_RETENTION_DAYS;
   });
 
   describe('authentication', () => {
@@ -91,69 +88,59 @@ describe('process-jobs cron API', () => {
   });
 
   describe('successful execution', () => {
-    it('calls processPendingJobs and returns results', async () => {
-      processPendingJobsMock.mockResolvedValue({ processed: 3, failed: 1 });
+    it('returns 200 with deleted count', async () => {
+      deleteManyMock.mockResolvedValue({ count: 3 });
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
 
       const body = await response.json();
       expect(body.status).toBe('ok');
-      expect(body).toHaveProperty('processed', 3);
-      expect(body).toHaveProperty('failed', 1);
+      expect(body).toHaveProperty('deleted', 3);
     });
 
-    it('returns 200 with zero results when no jobs to process', async () => {
-      processPendingJobsMock.mockResolvedValue({ processed: 0, failed: 0 });
+    it('deletes fulfilled requests older than 5 days by default', async () => {
+      await GET(mockRequest);
 
-      const response = await GET(mockRequest);
-      expect(response.status).toBe(200);
-
-      const body = await response.json();
-      expect(body).toHaveProperty('processed', 0);
-    });
-  });
-
-  describe('transmission_sync enqueue', () => {
-    it('enqueues a transmission_sync job before processing pending jobs', async () => {
-      enqueueTransmissionSyncMock.mockResolvedValue(true);
-
-      const response = await GET(mockRequest);
-      expect(response.status).toBe(200);
-
-      expect(enqueueTransmissionSyncMock).toHaveBeenCalled();
-      expect(enqueueTransmissionSyncMock.mock.invocationCallOrder[0]).toBeLessThan(
-        processPendingJobsMock.mock.invocationCallOrder[0]
-      );
-
-      const body = await response.json();
-      expect(body).toHaveProperty('transmissionSyncEnqueued', true);
+      expect(deleteManyMock).toHaveBeenCalledTimes(1);
+      const callArgs = deleteManyMock.mock.calls[0][0];
+      expect(callArgs.where.status).toBe('fulfilled');
+      expect(callArgs.where.resolved_at).toHaveProperty('lt');
+      expect(callArgs.where.resolved_at.lt).toBeInstanceOf(Date);
     });
 
-    it('reports transmissionSyncEnqueued false when a sync is already outstanding', async () => {
-      enqueueTransmissionSyncMock.mockResolvedValue(false);
-
+    it('returns deleted count 0 when no old fulfilled requests exist', async () => {
       const response = await GET(mockRequest);
-      expect(response.status).toBe(200);
 
       const body = await response.json();
-      expect(body).toHaveProperty('transmissionSyncEnqueued', false);
+      expect(body.status).toBe('ok');
+      expect(body).toHaveProperty('deleted', 0);
+    });
+
+    it('responds with deleted count and status ok', async () => {
+      deleteManyMock.mockResolvedValue({ count: 5 });
+
+      const response = await GET(mockRequest);
+      const body = await response.json();
+
+      expect(body.status).toBe('ok');
+      expect(body.deleted).toBe(5);
     });
   });
 
   describe('error handling', () => {
-    it('returns 500 when processPendingJobs throws', async () => {
-      processPendingJobsMock.mockRejectedValue(new Error('DB error'));
+    it('returns 500 when deleteMany throws', async () => {
+      deleteManyMock.mockRejectedValue(new Error('DB error'));
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(500);
 
       const body = await response.json();
       expect(body.status).toBe('error');
-      expect(body).toHaveProperty('message', 'Job processing failed');
+      expect(body).toHaveProperty('message', 'Cleanup failed');
       expect(logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ error: 'DB error' }),
-        'Process jobs cron failed'
+        'Cleanup requests cron failed'
       );
     });
   });

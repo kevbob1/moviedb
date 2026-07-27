@@ -1,7 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { getAll, refreshCatalog } from '@/lib/transmission';
+import { getAll, refreshCatalog, ping } from '@/lib/transmission';
+import { Torrent } from '@/lib/transmission/adapter';
+import { logger } from '@/lib/logger';
 import { toRequestModel } from '@/lib/request-utils';
 import { NeedsMatchView } from '@/components/NeedsMatchView';
+import { TransmissionStatusBanner } from '@/components/TransmissionStatusBanner';
 import { RefreshButton } from '@/components/RefreshButton';
 import Link from 'next/link';
 
@@ -16,7 +19,7 @@ export default async function NeedsMatchPage({
     refreshCatalog();
   }
 
-  const [requests, torrents, needsAttention] = await Promise.all([
+  const [requests, torrentsResult, pingResult, needsAttention, lastSyncJob] = await Promise.all([
     prisma.request.findMany({
       where: {
         status: 'pending',
@@ -24,7 +27,13 @@ export default async function NeedsMatchPage({
       },
       orderBy: { requested_at: 'desc' },
     }),
-    getAll(),
+    getAll()
+      .then((torrents): { torrents: Torrent[]; error: string | null } => ({ torrents, error: null }))
+      .catch((error: unknown): { torrents: Torrent[]; error: string | null } => ({
+        torrents: [],
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })),
+    ping(),
     prisma.request.findMany({
       where: {
         status: 'downloading',
@@ -32,7 +41,41 @@ export default async function NeedsMatchPage({
       },
       orderBy: { requested_at: 'desc' },
     }),
+    prisma.job.findFirst({
+      where: { type: 'transmission_sync' },
+      orderBy: { created_at: 'desc' },
+      select: { status: true, error: true, created_at: true, completed_at: true },
+    }),
   ]);
+
+  if (torrentsResult.error) {
+    logger.error({ error: torrentsResult.error }, 'Failed to fetch transmission torrents for needs-match');
+  }
+
+  const transmissionState =
+    pingResult.error === 'Transmission not configured'
+      ? 'not_configured'
+      : !pingResult.reachable || torrentsResult.error
+        ? 'unreachable'
+        : 'ok';
+
+  const banner = (
+    <TransmissionStatusBanner
+      state={transmissionState}
+      error={torrentsResult.error ?? pingResult.error ?? null}
+      torrentCount={torrentsResult.error ? null : torrentsResult.torrents.length}
+      lastSync={
+        lastSyncJob
+          ? {
+              status: lastSyncJob.status,
+              error: lastSyncJob.error,
+              createdAt: lastSyncJob.created_at.toISOString(),
+              completedAt: lastSyncJob.completed_at?.toISOString() ?? null,
+            }
+          : null
+      }
+    />
+  );
 
   const typedRequests = requests.map(toRequestModel);
   const typedNeedsAttention = needsAttention.map(toRequestModel);
@@ -42,6 +85,7 @@ export default async function NeedsMatchPage({
     return (
       <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
         <h1 className="mb-6 text-2xl font-bold text-foreground">Needs Match</h1>
+        {banner}
         <div className="rounded-2xl border border-dashed border-border-subtle bg-surface/50 px-6 py-12 text-center">
           <p className="text-sm text-muted-foreground">All requests have been matched</p>
           <Link href="/" className="mt-2 inline-block text-sm font-medium text-accent hover:text-accent-hover">
@@ -67,7 +111,9 @@ export default async function NeedsMatchPage({
         <RefreshButton />
       </div>
 
-      <NeedsMatchView requests={typedRequests} torrents={torrents} needsAttention={typedNeedsAttention} />
+      {banner}
+
+      <NeedsMatchView requests={typedRequests} torrents={torrentsResult.torrents} needsAttention={typedNeedsAttention} />
     </main>
   );
 }

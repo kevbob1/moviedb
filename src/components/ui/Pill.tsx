@@ -10,7 +10,6 @@ const pillVariants = cva(
         pending: 'bg-(--color-status-pending-bg) text-(--color-status-pending-text) border-(--color-status-pending-text)/20',
         downloading: 'bg-(--color-status-downloading-bg) text-(--color-status-downloading-text) border-(--color-status-downloading-text)/20',
         fulfilled: 'bg-(--color-status-fulfilled-bg) text-(--color-status-fulfilled-text) border-(--color-status-fulfilled-text)/20',
-        canceled: 'bg-(--color-status-canceled-bg) text-(--color-status-canceled-text) border-(--color-status-canceled-text)/20',
         available: 'bg-(--color-status-fulfilled-bg) text-(--color-status-fulfilled-text) border-(--color-status-fulfilled-text)/20',
       },
     },
@@ -22,7 +21,6 @@ const DOT_COLORS: Record<NonNullable<VariantProps<typeof pillVariants>['variant'
   pending: 'bg-(--color-status-pending-text)',
   downloading: 'bg-(--color-status-downloading-text)',
   fulfilled: 'bg-(--color-status-fulfilled-text)',
-  canceled: 'bg-(--color-status-canceled-text)',
   available: 'bg-(--color-status-fulfilled-text)',
 };
 

@@ -46,11 +46,21 @@ describe('RequestCard', () => {
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
-  it('renders action buttons for pending status', () => {
+  it('renders action buttons for pending status (no cancel in actions)', () => {
     render(<RequestCard request={mockRequest} {...defaultProps} />);
     expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument();
     expect(screen.getByText('Start Download')).toBeInTheDocument();
+  });
+
+  it('renders Cancel button separately for non-fulfilled status', () => {
+    render(<RequestCard request={mockRequest} {...defaultProps} />);
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('does not render Cancel button for fulfilled status', () => {
+    const fulfilledRequest = { ...mockRequest, status: 'fulfilled' as RequestStatus };
+    render(<RequestCard request={fulfilledRequest} {...defaultProps} />);
+    expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
   });
 
   it('calls handlers on button clicks', async () => {

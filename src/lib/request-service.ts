@@ -138,7 +138,7 @@ export async function transitionToStatus(requestId: number, targetStatus: Reques
 
   return prisma.request.update({
     where: { id: requestId },
-    data: { status: targetStatus, torrent_problem: null },
+    data: { status: targetStatus, torrent_problem: null, resolved_at: targetStatus === 'fulfilled' ? new Date() : undefined },
   });
 }
 
@@ -176,5 +176,5 @@ export async function downloadRequest(requestId: number) {
 }
 
 export async function cancelRequest(requestId: number) {
-  return transitionToStatus(requestId, 'canceled');
+  return prisma.request.delete({ where: { id: requestId } });
 }

@@ -16,3 +16,4 @@ data:
   SMTP_PORT: {{ .Values.notifications.smtp.port | quote }}
   NOTIFICATION_EMAIL: {{ .Values.notifications.email | quote }}
   APP_BASE_URL: {{ .Values.app.baseUrl | quote }}
+  REQUEST_RETENTION_DAYS: {{ .Values.app.requestRetentionDays | default 5 | quote }}

@@ -1,4 +1,5 @@
 import { processPendingJobs } from '@/lib/job-queue';
+import { enqueueTransmissionSync } from '@/lib/jobs/transmission-sync';
 import '@/lib/jobs';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -17,12 +18,14 @@ async function handler() {
   }
 
   try {
+    const transmissionSyncEnqueued = await enqueueTransmissionSync();
     const result = await processPendingJobs();
 
     return NextResponse.json({
       status: 'ok',
       processed: result.processed,
       failed: result.failed,
+      transmissionSyncEnqueued,
     });
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Process jobs cron failed');

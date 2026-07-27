@@ -30,6 +30,7 @@ image:
 app:
   port: 3000
   baseUrl: "https://on-jf.p.drule.org"
+  requestRetentionDays: 5
   env:
     NODE_ENV: production
   resources:

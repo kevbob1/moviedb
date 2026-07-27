@@ -109,6 +109,49 @@ describe('HttpTransmissionAdapter', () => {
       expect(result).toEqual([]);
     });
 
+    it('POSTs session handshake and RPC calls to {url}/transmission/rpc', async () => {
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          status: 409,
+          statusText: 'Conflict',
+          headers: new Map([['X-Transmission-Session-Id', 'session-123']]),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ result: 'success', arguments: { torrents: [] } }),
+        } as unknown as Response);
+
+      const adapter = new HttpTransmissionAdapter({ url: 'http://transmission.example.com:9091' });
+      await adapter.getAll();
+
+      const urls = (global.fetch as jest.Mock).mock.calls.map((c: unknown[]) => c[0]);
+      expect(urls).toEqual([
+        'http://transmission.example.com:9091/transmission/rpc',
+        'http://transmission.example.com:9091/transmission/rpc',
+      ]);
+    });
+
+    it('normalizes a trailing slash on the base URL', async () => {
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          status: 409,
+          statusText: 'Conflict',
+          headers: new Map([['X-Transmission-Session-Id', 'session-123']]),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ result: 'success', arguments: { torrents: [] } }),
+        } as unknown as Response);
+
+      const adapter = new HttpTransmissionAdapter({ url: 'http://transmission.example.com:9091/' });
+      await adapter.getAll();
+
+      const urls = (global.fetch as jest.Mock).mock.calls.map((c: unknown[]) => c[0]);
+      expect(urls[0]).toBe('http://transmission.example.com:9091/transmission/rpc');
+    });
+
     it('returns torrents from Transmission RPC', async () => {
       (global.fetch as jest.Mock)
         .mockResolvedValueOnce({

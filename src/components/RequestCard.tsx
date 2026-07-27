@@ -23,7 +23,6 @@ const PILL_VARIANT = {
   pending: 'pending',
   downloading: 'downloading',
   fulfilled: 'fulfilled',
-  canceled: 'canceled',
 } as const;
 
 const ACTION_VARIANT = {
@@ -47,7 +46,6 @@ export default function RequestCard({
   const handlerMap: Record<string, () => void | Promise<void>> = {
     fulfill: onMarkFulfilled,
     download: onDownload,
-    cancel: onCancel,
   };
 
   const handleAction = async (handler: () => void | Promise<void>) => {
@@ -121,6 +119,11 @@ export default function RequestCard({
               </Button>
             );
           })}
+          {request.status !== 'fulfilled' && (
+            <Button size="sm" variant="danger" loading={isLoading} onClick={() => handleAction(onCancel)}>
+              Cancel
+            </Button>
+          )}
         </div>
       </div>
     </Surface>

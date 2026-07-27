@@ -1,4 +1,4 @@
-export type RequestStatus = 'pending' | 'downloading' | 'fulfilled' | 'canceled';
+export type RequestStatus = 'pending' | 'downloading' | 'fulfilled';
 
 export { STATUS_CONFIG } from './request-theme';
 
@@ -9,10 +9,9 @@ export interface Transition {
 }
 
 export const REQUEST_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
-  pending: ['downloading', 'fulfilled', 'canceled'],
-  downloading: ['fulfilled', 'canceled'],
+  pending: ['downloading', 'fulfilled'],
+  downloading: ['fulfilled'],
   fulfilled: [],
-  canceled: [],
 };
 
 export const canTransition = (from: RequestStatus, to: RequestStatus): boolean => {
@@ -30,12 +29,10 @@ export const getActionsForStatus = (status: RequestStatus): Transition[] => {
     actions.push(
       { action: 'download', label: 'Start Download', nextStatus: 'downloading' },
       { action: 'fulfill', label: 'Mark Fulfilled', nextStatus: 'fulfilled' },
-      { action: 'cancel', label: 'Cancel', nextStatus: 'canceled' }
     );
   } else if (status === 'downloading') {
     actions.push(
       { action: 'fulfill', label: 'Mark Fulfilled', nextStatus: 'fulfilled' },
-      { action: 'cancel', label: 'Cancel', nextStatus: 'canceled' }
     );
   }
 

@@ -7,17 +7,18 @@ The single source of truth for domain vocabulary. Use these terms in issue title
 ## Core concepts
 
 ### Request
-A user-submitted request for a movie or TV show that is not currently on Jellyfin. Lifecycle: `pending` → `downloading` → `fulfilled` | `canceled`. State machine defined in `src/lib/request-fsm.ts`.
+A user-submitted request for a movie or TV show that is not currently on Jellyfin. Lifecycle: `pending` → `downloading` → `fulfilled`. State machine defined in `src/lib/request-fsm.ts`.
 
 **Status values** (`RequestStatus`):
 - `pending` — submitted, no work started
 - `downloading` — Jellyfin-side download kicked off
-- `fulfilled` — content available on Jellyfin
-- `canceled` — withdrawn by user or operator (terminal)
+- `fulfilled` — content available on Jellyfin (terminal)
 
-Terminal states: `fulfilled`, `canceled`. No transitions out.
+Terminal states: `fulfilled`. No transitions out. Entering the terminal state is called **resolution**; it sets `resolved_at` (NULL while the Request is active).
 
-**Fields:** `id`, `title`, `tmdb_id`, `season_number` (TV only), `poster_path`, `release_date`, `overview`, `genre_ids`, `requested_at`, `requested_by`, `status`, `media_type`.
+**Cancellation is deletion.** There is no `canceled` status. Cancelling a Request removes the row entirely — the request never happened, and no trace is kept. "Cancel" is an operation, not a state.
+
+**Fields:** `id`, `title`, `tmdb_id`, `season_number` (TV only), `poster_path`, `release_date`, `overview`, `genre_ids`, `requested_at`, `requested_by`, `status`, `media_type`, `resolved_at`.
 
 ### Job
 A unit of asynchronous work enqueued in the `jobs` table and processed by a registered handler. Distinct from a `Request`: a Request is *user intent*; a Job is *work the system owes*.
@@ -33,6 +34,7 @@ A `processing` job that hasn't updated in 5 minutes is reaped back to `pending` 
 **Type** values are open-set, registered at startup via `registerJobType(type, handler)`. Current registrations:
 - `request_notification` — email a user that their request was processed
 - `tv_series_request_notification` — TV-specific variant of the above
+- `transmission_sync` — observe linked torrents and drive `downloading → fulfilled`; enqueued (deduped) by `/api/cron/process-jobs` every run (ADR-0005)
 
 When referring to a Job's `type` in docs or logs, use the registered string verbatim.
 
@@ -88,3 +90,5 @@ These are the deepening-skill vocabulary. Use them exactly when writing architec
 - `docs/adr/0002-warm-cinema-visual-direction.md` — Warm Cinema visual direction (dark, charcoal+amber)
 - `docs/adr/0003-mobile-first-a11y.md` — Mobile-first + accessibility baseline
 - `docs/adr/0004-ui-primitive-layer.md` — UI primitive layer (CVA + Radix + motion)
+- `docs/adr/0005-transmission-read-only-observation.md` — Transmission as a read-only observed downloader
+- `docs/adr/0006-request-cancellation-is-deletion.md` — Cancellation is deletion; cron cleanup of resolved Requests

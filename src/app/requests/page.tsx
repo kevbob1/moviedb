@@ -19,8 +19,8 @@ export default async function RequestsPage({
 
   const where = {
     status: showFulfilled
-      ? { notIn: ['canceled'] }
-      : { notIn: ['fulfilled', 'canceled'] },
+      ? undefined
+      : { notIn: ['fulfilled'] },
   };
 
   const [requests, total] = await Promise.all([
