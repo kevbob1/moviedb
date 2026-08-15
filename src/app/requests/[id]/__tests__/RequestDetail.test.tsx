@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RequestDetail from '../RequestDetail';
-import { RequestStatus } from '@/lib/request-fsm';
+import { RequestStatus } from '@/lib/request-lifecycle/fsm';
 import { cancelRequest, fulfillRequest, downloadRequest } from '@/app/actions/request-actions';
 
 const mockPush = jest.fn();

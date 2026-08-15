@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
-import { getActionsForStatus } from '@/lib/request-fsm';
-import { STATUS_CONFIG } from '@/lib/request-theme';
+
+import { actionToButtonVariant, canCancel, getAvailableActions, STATUS_CONFIG, statusToPill } from '@/lib/request-lifecycle/projection';
+import { useRequestActions } from '@/lib/request-lifecycle/use-request-actions';
 import { getGenreNames } from '@/lib/genres';
 import { Pill } from '@/components/ui/Pill';
 import { Button } from '@/components/ui/Button';
@@ -12,46 +12,24 @@ import { Request } from '@/types/request';
 
 interface RequestCardProps {
   request: Request;
-  onMarkFulfilled: () => void | Promise<void>;
-  onDownload: () => void | Promise<void>;
-  onCancel: () => void | Promise<void>;
   jellyfinAvailable?: boolean;
   formattedDate?: string;
+  onAfter?: () => void;
+  onAfterCancel?: () => void;
 }
-
-const PILL_VARIANT = {
-  pending: 'pending',
-  downloading: 'downloading',
-  fulfilled: 'fulfilled',
-} as const;
-
-const ACTION_VARIANT = {
-  download: 'primary',
-  fulfill: 'success',
-  cancel: 'danger',
-} as const;
 
 export default function RequestCard({
   request,
-  onMarkFulfilled,
-  onDownload,
-  onCancel,
   jellyfinAvailable = false,
   formattedDate,
+  onAfter,
+  onAfterCancel,
 }: RequestCardProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const statusConfig = STATUS_CONFIG[request.status];
-  const actions = getActionsForStatus(request.status);
+  const actions = getAvailableActions(request.status);
+  const { fulfill, download, cancel, isPending } = useRequestActions({ request, onAfter, onAfterCancel });
 
-  const handlerMap: Record<string, () => void | Promise<void>> = {
-    fulfill: onMarkFulfilled,
-    download: onDownload,
-  };
-
-  const handleAction = async (handler: () => void | Promise<void>) => {
-    setIsLoading(true);
-    try { await handler(); } finally { setIsLoading(false); }
-  };
+  const actionHandlers = { download, fulfill } as const;
 
   const posterUrl = request.poster_path
     ? `https://image.tmdb.org/t/p/w154${request.poster_path}`
@@ -89,7 +67,7 @@ export default function RequestCard({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-1">
-            <Pill variant={PILL_VARIANT[request.status]} label={statusConfig.label} />
+            <Pill variant={statusToPill(request.status)} label={statusConfig.label} />
             {request.media_type === 'tv' && <Pill variant="downloading" label="TV" />}
             {jellyfinAvailable && <Pill variant="available" label="On Jellyfin" />}
           </div>
@@ -104,23 +82,19 @@ export default function RequestCard({
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {actions.map((action) => {
-            const handler = handlerMap[action.action];
-            if (!handler) return null;
-            return (
-              <Button
-                key={action.action}
-                size="sm"
-                variant={ACTION_VARIANT[action.action as keyof typeof ACTION_VARIANT] ?? 'secondary'}
-                loading={isLoading}
-                onClick={() => handleAction(handler)}
-              >
-                {action.label}
-              </Button>
-            );
-          })}
-          {request.status !== 'fulfilled' && (
-            <Button size="sm" variant="danger" loading={isLoading} onClick={() => handleAction(onCancel)}>
+          {actions.map((action) => (
+            <Button
+              key={action.action}
+              size="sm"
+              variant={actionToButtonVariant(action.action)}
+              loading={isPending}
+              onClick={() => actionHandlers[action.action]()}
+            >
+              {action.label}
+            </Button>
+          ))}
+          {canCancel(request.status) && (
+            <Button size="sm" variant="danger" loading={isPending} onClick={cancel}>
               Cancel
             </Button>
           )}

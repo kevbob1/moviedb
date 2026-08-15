@@ -3,7 +3,7 @@ import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
 import { ShowFulfilledSwitch } from '@/components/ShowFulfilledSwitch';
 import { availabilityFor } from '@/lib/jellyfin';
-import { toRequestModel } from '@/lib/request-utils';
+import { toRequestModel } from '@/lib/request-lifecycle';
 
 const PAGE_SIZE = 12;
 

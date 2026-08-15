@@ -1,14 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import {
-  createRequest as createRequestImpl,
-  fulfillRequest as fulfillRequestImpl,
-  downloadRequest as downloadRequestImpl,
-  cancelRequest as cancelRequestImpl,
-  createTvRequests,
-  linkTorrent as linkTorrentImpl,
-} from '@/lib/request-service';
+
+import { requestService } from '@/lib/request-lifecycle';
+import { CreateRequestInput } from '@/lib/request-lifecycle/validators';
 
 export async function createRequest(
   tmdbId: number,
@@ -21,7 +16,7 @@ export async function createRequest(
   mediaType: string = 'movie',
   seasonNumber?: number
 ) {
-  return createRequestImpl({
+  const input: CreateRequestInput = {
     tmdbId,
     title,
     posterPath,
@@ -31,36 +26,36 @@ export async function createRequest(
     genreIds,
     mediaType,
     seasonNumber,
-  });
+  };
+  return requestService.createRequest(input);
 }
 
 export async function createTvShowRequests(tmdbId: number, requestedBy: string) {
-  const result = await createTvRequests(tmdbId, requestedBy);
+  const result = await requestService.createTvRequests(tmdbId, requestedBy);
   revalidatePath('/requests');
   return result;
 }
 
 export async function fulfillRequest(requestId: number) {
-  const result = await fulfillRequestImpl(requestId);
+  const result = await requestService.fulfillRequest(requestId);
   revalidatePath('/requests');
   return result;
 }
 
 export async function downloadRequest(requestId: number) {
-  const result = await downloadRequestImpl(requestId);
+  const result = await requestService.downloadRequest(requestId);
   revalidatePath('/requests');
   return result;
 }
 
 export async function cancelRequest(requestId: number) {
-  const result = await cancelRequestImpl(requestId);
+  await requestService.cancelRequest(requestId);
   revalidatePath('/requests');
   revalidatePath('/needs-match');
-  return result;
 }
 
 export async function linkTorrent(requestId: number, torrentHash: string) {
-  const result = await linkTorrentImpl(requestId, torrentHash);
+  const result = await requestService.linkTorrent(requestId, torrentHash);
   revalidatePath('/needs-match');
   revalidatePath('/');
   return result;

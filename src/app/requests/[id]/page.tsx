@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { isOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 import RequestDetail from './RequestDetail';
-import { toRequestModel } from '@/lib/request-utils';
+import { toRequestModel } from '@/lib/request-lifecycle';
 
 export default async function RequestPage({
   params,

@@ -12,6 +12,28 @@ jest.mock('@/lib/logger', () => ({
   },
 }));
 jest.mock('@/lib/jobs', () => ({}));
+jest.mock('@/lib/tmdb', () => ({
+  getTMDBTVDetails: jest.fn(),
+}));
+
+const fullRow = (overrides: Record<string, unknown> = {}) => ({
+  id: 1,
+  title: 'Test Movie',
+  tmdb_id: 123,
+  poster_path: '/path.jpg',
+  overview: 'A movie',
+  release_date: '2024-01-01',
+  genre_ids: [28, 12],
+  requested_by: 'John Doe',
+  requested_at: new Date('2024-06-01T00:00:00Z'),
+  status: 'pending',
+  season_number: null,
+  media_type: 'movie',
+  torrent_hash: null,
+  torrent_problem: null,
+  resolved_at: null,
+  ...overrides,
+});
 
 describe('request-actions', () => {
   beforeEach(() => {
@@ -43,9 +65,9 @@ describe('request-actions', () => {
 
   describe('createRequest', () => {
     it('creates a request with pending status and extra fields', async () => {
-      const mockRequest = { id: 1, title: 'Test Movie', status: 'pending' };
+      const mockRow = fullRow();
       (prisma.request.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
+      (prisma.request.create as jest.Mock).mockResolvedValue(mockRow);
 
       const result = await createRequest(123, 'Test Movie', '/path.jpg', 'John Doe', '2024-01-01', 'A movie', [28, 12], 'movie');
 
@@ -64,44 +86,50 @@ describe('request-actions', () => {
           season_number: null,
         },
       });
-      expect(result).toEqual(mockRequest);
+      expect(result.id).toBe(1);
+      expect(result.title).toBe('Test Movie');
+      expect(result.status).toBe('pending');
     });
 
     it('returns existing request if tmdb_id already exists', async () => {
-      const existingRequest = { id: 5, title: 'Existing Movie', tmdb_id: 123, status: 'pending' };
-      (prisma.request.findFirst as jest.Mock).mockResolvedValue(existingRequest);
+      const existing = fullRow({ id: 5, title: 'Existing Movie' });
+      (prisma.request.findFirst as jest.Mock).mockResolvedValue(existing);
 
       const result = await createRequest(123, 'Existing Movie', '/path.jpg', 'John Doe');
 
-      expect(result).toEqual(existingRequest);
+      expect(result.id).toBe(5);
       expect(prisma.request.create).not.toHaveBeenCalled();
     });
 
     it('throws if title is empty', async () => {
       await expect(createRequest(123, '', '/path.jpg', 'John Doe')).rejects.toThrow(
-        'Title and requester name are required'
+        'Title is required'
+      );
+    });
+
+    it('throws if requestedBy is empty', async () => {
+      await expect(createRequest(123, 'Test', '/path.jpg', '')).rejects.toThrow(
+        'Requester name is required'
       );
     });
 
     it('creates a TV request with season_number', async () => {
-      const mockRequest = { id: 2, title: 'Test Show', status: 'pending', season_number: 3, media_type: 'tv' };
+      const mockRow = fullRow({ id: 2, title: 'Test Show', season_number: 3, media_type: 'tv' });
       (prisma.request.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.request.create as jest.Mock).mockResolvedValue(mockRequest);
+      (prisma.request.create as jest.Mock).mockResolvedValue(mockRow);
 
       const result = await createRequest(456, 'Test Show', '/path.jpg', 'Alice', undefined, undefined, undefined, 'tv', 3);
 
       expect(prisma.request.findFirst).toHaveBeenCalledWith({ where: { tmdb_id: 456, season_number: 3 } });
-      expect(result).toEqual(mockRequest);
+      expect(result.media_type).toBe('tv');
+      expect(result.season_number).toBe(3);
     });
   });
 
   describe('fulfillRequest', () => {
     it('updates status to fulfilled when valid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'pending',
-      });
-      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 1, status: 'fulfilled' });
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'pending' }));
+      (prisma.request.update as jest.Mock).mockResolvedValue(fullRow({ status: 'fulfilled' }));
 
       await fulfillRequest(1);
 
@@ -120,10 +148,7 @@ describe('request-actions', () => {
     });
 
     it('throws if transition is invalid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'fulfilled',
-      });
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'fulfilled' }));
 
       await expect(fulfillRequest(1)).rejects.toThrow(
         'Cannot transition from fulfilled to fulfilled'
@@ -133,11 +158,8 @@ describe('request-actions', () => {
 
   describe('downloadRequest', () => {
     it('updates status to downloading when valid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'pending',
-      });
-      (prisma.request.update as jest.Mock).mockResolvedValue({ id: 1, status: 'downloading' });
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'pending' }));
+      (prisma.request.update as jest.Mock).mockResolvedValue(fullRow({ status: 'downloading' }));
 
       await downloadRequest(1);
 
@@ -149,10 +171,7 @@ describe('request-actions', () => {
     });
 
     it('throws if transition is invalid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
-        status: 'fulfilled',
-      });
+      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'fulfilled' }));
 
       await expect(downloadRequest(1)).rejects.toThrow(
         'Cannot transition from fulfilled to downloading'
@@ -162,7 +181,7 @@ describe('request-actions', () => {
 
   describe('cancelRequest', () => {
     it('deletes the request and revalidates paths', async () => {
-      (prisma.request.delete as jest.Mock).mockResolvedValue({ id: 1 });
+      (prisma.request.delete as jest.Mock).mockResolvedValue(fullRow());
 
       await cancelRequest(1);
 
@@ -179,11 +198,8 @@ describe('request-actions', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
         const tx = {
           request: {
-            findUnique: jest.fn().mockResolvedValue({
-              id: 1,
-              status: 'pending',
-            }),
-            update: jest.fn().mockResolvedValue({ id: 1, status: 'downloading', torrent_hash: 'abc123' }),
+            findUnique: jest.fn().mockResolvedValue(fullRow({ status: 'pending' })),
+            update: jest.fn().mockResolvedValue(fullRow({ status: 'downloading', torrent_hash: 'abc123' })),
           },
         };
         return await fn(tx);
@@ -191,7 +207,8 @@ describe('request-actions', () => {
 
       const result = await linkTorrent(1, 'abc123');
 
-      expect(result).toEqual({ id: 1, status: 'downloading', torrent_hash: 'abc123' });
+      expect(result.status).toBe('downloading');
+      expect(result.torrent_hash).toBe('abc123');
       expect(revalidatePath).toHaveBeenCalledWith('/needs-match');
     });
 
@@ -199,10 +216,7 @@ describe('request-actions', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
         const tx = {
           request: {
-            findUnique: jest.fn().mockResolvedValue({
-              id: 1,
-              status: 'fulfilled',
-            }),
+            findUnique: jest.fn().mockResolvedValue(fullRow({ status: 'fulfilled' })),
           },
         };
         return await fn(tx);

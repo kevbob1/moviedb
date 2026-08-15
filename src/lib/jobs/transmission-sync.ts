@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { requestService } from '@/lib/request-lifecycle';
 import { registerJobType, JobHandler } from '@/lib/job-queue';
 import { TransmissionAdapter, HttpTransmissionAdapter } from '@/lib/transmission/adapter';
 
@@ -43,11 +44,11 @@ export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): 
       }
 
       const hashes = downloading
-        .map(r => r.torrent_hash)
+        .map((r) => r.torrent_hash)
         .filter((h): h is string => h !== null);
 
       const torrents = await adapter.getTorrents(hashes);
-      const torrentByHash = new Map(torrents.map(t => [t.hash, t]));
+      const torrentByHash = new Map(torrents.map((t) => [t.hash, t]));
 
       let fulfilled = 0;
       let problems = 0;
@@ -58,29 +59,20 @@ export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): 
           const torrent = torrentByHash.get(hash);
 
           if (!torrent) {
-            await tx.request.update({
-              where: { id: req.id },
-              data: { torrent_problem: 'Torrent not found in Transmission' },
-            });
+            await requestService.flagTorrentProblem(req.id, 'Torrent not found in Transmission', tx);
             problems++;
             continue;
           }
 
           if (torrent.error) {
-            await tx.request.update({
-              where: { id: req.id },
-              data: { torrent_problem: `Transmission error: ${torrent.error}` },
-            });
+            await requestService.flagTorrentProblem(req.id, `Transmission error: ${torrent.error}`, tx);
             problems++;
             continue;
           }
 
           const isComplete = torrent.isFinished === true || torrent.status === SEEDING_STATUS;
           if (isComplete) {
-            await tx.request.update({
-              where: { id: req.id },
-              data: { status: 'fulfilled', torrent_problem: null, resolved_at: new Date() },
-            });
+            await requestService.fulfillBySync(req.id, tx);
             fulfilled++;
           }
         }

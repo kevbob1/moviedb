@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RequestCard from '../RequestCard';
-import { RequestStatus } from '@/lib/request-fsm';
+import { RequestStatus } from '@/lib/request-lifecycle/fsm';
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -9,6 +9,14 @@ jest.mock('next/image', () => ({
     return <img {...props} alt={props.alt as string} />;
   },
 }));
+
+jest.mock('@/app/actions/request-actions', () => ({
+  fulfillRequest: jest.fn().mockResolvedValue(undefined),
+  downloadRequest: jest.fn().mockResolvedValue(undefined),
+  cancelRequest: jest.fn().mockResolvedValue(undefined),
+}));
+
+import { cancelRequest, downloadRequest, fulfillRequest } from '@/app/actions/request-actions';
 
 const mockRequest = {
   id: 1,
@@ -24,82 +32,80 @@ const mockRequest = {
   media_type: 'movie',
 };
 
-const mockHandlers = {
-  onMarkFulfilled: jest.fn(),
-  onDownload: jest.fn(),
-  onCancel: jest.fn(),
-};
-
-const defaultProps = {
-  ...mockHandlers,
-  formattedDate: '6/1/2023',
-};
-
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
 describe('RequestCard', () => {
   it('renders title and status', () => {
-    render(<RequestCard request={mockRequest} {...defaultProps} />);
+    render(<RequestCard request={mockRequest} />);
     expect(screen.getByText('Test Movie')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('renders action buttons for pending status (no cancel in actions)', () => {
-    render(<RequestCard request={mockRequest} {...defaultProps} />);
+    render(<RequestCard request={mockRequest} />);
     expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument();
     expect(screen.getByText('Start Download')).toBeInTheDocument();
   });
 
   it('renders Cancel button separately for non-fulfilled status', () => {
-    render(<RequestCard request={mockRequest} {...defaultProps} />);
+    render(<RequestCard request={mockRequest} />);
     expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
   it('does not render Cancel button for fulfilled status', () => {
     const fulfilledRequest = { ...mockRequest, status: 'fulfilled' as RequestStatus };
-    render(<RequestCard request={fulfilledRequest} {...defaultProps} />);
+    render(<RequestCard request={fulfilledRequest} />);
     expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
   });
 
-  it('calls handlers on button clicks', async () => {
-    render(<RequestCard request={mockRequest} {...defaultProps} />);
+  it('calls the action on Mark Fulfilled', async () => {
+    render(<RequestCard request={mockRequest} />);
     fireEvent.click(screen.getByText('Mark Fulfilled'));
-    await waitFor(() => expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument());
-    expect(mockHandlers.onMarkFulfilled).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByText('Start Download'));
-    await waitFor(() => expect(screen.getByText('Start Download')).toBeInTheDocument());
-    expect(mockHandlers.onDownload).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByText('Cancel'));
-    await waitFor(() => expect(screen.getByText('Cancel')).toBeInTheDocument());
-    expect(mockHandlers.onCancel).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(fulfillRequest).toHaveBeenCalledWith(1));
   });
 
-  it('shows loading state during async actions', async () => {
-    const slowHandler = jest.fn(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
-    render(<RequestCard request={mockRequest} {...defaultProps} onMarkFulfilled={slowHandler} />);
+  it('calls the action on Start Download', async () => {
+    render(<RequestCard request={mockRequest} />);
+    fireEvent.click(screen.getByText('Start Download'));
+    await waitFor(() => expect(downloadRequest).toHaveBeenCalledWith(1));
+  });
+
+  it('calls the action on Cancel', async () => {
+    render(<RequestCard request={mockRequest} />);
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(cancelRequest).toHaveBeenCalledWith(1));
+  });
+
+  it('invokes onAfterCancel after a successful cancel', async () => {
+    const onAfterCancel = jest.fn();
+    render(<RequestCard request={mockRequest} onAfterCancel={onAfterCancel} />);
+    fireEvent.click(screen.getByText('Cancel'));
+    await waitFor(() => expect(onAfterCancel).toHaveBeenCalledTimes(1));
+  });
+
+  it('invokes onAfter after a successful fulfill', async () => {
+    const onAfter = jest.fn();
+    render(<RequestCard request={mockRequest} onAfter={onAfter} />);
     fireEvent.click(screen.getByText('Mark Fulfilled'));
-    const buttons = screen.getAllByRole('button');
-    expect(buttons[0]).toHaveAttribute('aria-busy', 'true');
-    expect(screen.getAllByLabelText('Loading').length).toBeGreaterThan(0);
-    await waitFor(() => expect(screen.getByText('Mark Fulfilled')).toBeInTheDocument());
+    await waitFor(() => expect(onAfter).toHaveBeenCalledTimes(1));
   });
 
   it('renders jellyfin available indicator', () => {
-    render(<RequestCard request={mockRequest} {...defaultProps} jellyfinAvailable />);
+    render(<RequestCard request={mockRequest} jellyfinAvailable />);
     expect(screen.getByText('On Jellyfin')).toBeInTheDocument();
   });
 
   it('renders TV badge and season number', () => {
     const tvRequest = { ...mockRequest, title: 'Test Show', media_type: 'tv', season_number: 2 };
-    render(<RequestCard request={tvRequest} {...defaultProps} />);
+    render(<RequestCard request={tvRequest} />);
     expect(screen.getByText('TV')).toBeInTheDocument();
     expect(screen.getByText(/S2/)).toBeInTheDocument();
   });
 
   it('renders poster image', () => {
-    render(<RequestCard request={mockRequest} {...defaultProps} />);
+    render(<RequestCard request={mockRequest} />);
     const img = screen.getByRole('img');
     expect(img).toHaveAttribute('src', expect.stringContaining('test.jpg'));
     expect(img).toHaveAttribute('alt', 'Test Movie');

@@ -1,13 +1,12 @@
 import {
-  RequestStatus,
+  REQUEST_TRANSITIONS,
   canTransition,
   getAllowedTransitions,
-  getActionsForStatus,
-  STATUS_CONFIG,
-  REQUEST_TRANSITIONS
-} from '../request-fsm';
+  InvalidTransitionError,
+  resolveSideEffects,
+} from '../fsm';
 
-describe('request-fsm', () => {
+describe('request-lifecycle/fsm', () => {
   describe('REQUEST_TRANSITIONS', () => {
     it('defines pending transitions correctly', () => {
       expect(REQUEST_TRANSITIONS.pending).toEqual(['downloading', 'fulfilled']);
@@ -49,37 +48,40 @@ describe('request-fsm', () => {
     });
   });
 
-  describe('getActionsForStatus', () => {
-    it('returns download and fulfill (no cancel) for pending', () => {
-      const actions = getActionsForStatus('pending');
-      const actionLabels = actions.map(a => a.label);
-      expect(actionLabels).toContain('Start Download');
-      expect(actionLabels).toContain('Mark Fulfilled');
-      expect(actionLabels).not.toContain('Cancel');
-    });
-
-    it('returns fulfill (no cancel) for downloading', () => {
-      const actions = getActionsForStatus('downloading');
-      const actionLabels = actions.map(a => a.label);
-      expect(actionLabels).toContain('Mark Fulfilled');
-      expect(actionLabels).not.toContain('Cancel');
-      expect(actionLabels).not.toContain('Start Download');
-    });
-
-    it('returns empty array for fulfilled', () => {
-      expect(getActionsForStatus('fulfilled')).toEqual([]);
+  describe('InvalidTransitionError', () => {
+    it('is an Error subclass with the right name', () => {
+      const err = new InvalidTransitionError('nope');
+      expect(err).toBeInstanceOf(Error);
+      expect(err).toBeInstanceOf(InvalidTransitionError);
+      expect(err.name).toBe('InvalidTransitionError');
+      expect(err.message).toBe('nope');
     });
   });
 
-  describe('STATUS_CONFIG', () => {
-    it('includes config for all statuses', () => {
-      const statuses: RequestStatus[] = ['pending', 'downloading', 'fulfilled'];
-      statuses.forEach(status => {
-        expect(STATUS_CONFIG[status]).toBeDefined();
-        expect(STATUS_CONFIG[status]).toHaveProperty('label');
-        expect(STATUS_CONFIG[status]).toHaveProperty('color');
-        expect(STATUS_CONFIG[status]).toHaveProperty('bgColor');
+  describe('resolveSideEffects', () => {
+    const fixedNow = () => new Date('2026-01-01T00:00:00Z');
+
+    it('sets resolved_at on the fulfill transition', () => {
+      const fx = resolveSideEffects('fulfilled', fixedNow);
+      expect(fx).toEqual({
+        status: 'fulfilled',
+        torrent_problem: null,
+        resolved_at: new Date('2026-01-01T00:00:00Z'),
       });
+    });
+
+    it('clears torrent_problem on a non-fulfill transition', () => {
+      const fx = resolveSideEffects('downloading', fixedNow);
+      expect(fx).toEqual({
+        status: 'downloading',
+        torrent_problem: null,
+      });
+      expect(fx).not.toHaveProperty('resolved_at');
+    });
+
+    it('uses the injected clock', () => {
+      const later: Date = resolveSideEffects('fulfilled', () => new Date('2030-05-05T05:05:05Z')).resolved_at!;
+      expect(later.toISOString()).toBe('2030-05-05T05:05:05.000Z');
     });
   });
 });

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { getAll, refreshCatalog, ping } from '@/lib/transmission';
 import { Torrent } from '@/lib/transmission/adapter';
 import { logger } from '@/lib/logger';
-import { toRequestModel } from '@/lib/request-utils';
+import { toRequestModel } from '@/lib/request-lifecycle';
 import { NeedsMatchView } from '@/components/NeedsMatchView';
 import { TransmissionStatusBanner } from '@/components/TransmissionStatusBanner';
 import { RefreshButton } from '@/components/RefreshButton';
