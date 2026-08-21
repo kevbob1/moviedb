@@ -63,6 +63,9 @@ export interface Request {
   torrent_hash?: string | null;
   torrent_problem?: string;
   resolved_at?: string | null;
+  suggestion_hash?: string | null;
+  suggestion_score?: number | null;
+  suggestion_computed_at?: string | null;
 }
 
 export const toRequestModel = (row: {
@@ -81,6 +84,9 @@ export const toRequestModel = (row: {
   torrent_hash?: string | null;
   torrent_problem: string | null;
   resolved_at?: Date | null;
+  suggestion_hash?: string | null;
+  suggestion_score?: number | null;
+  suggestion_computed_at?: Date | null;
 }): Request => {
   return {
     ...row,
@@ -95,5 +101,10 @@ export const toRequestModel = (row: {
     torrent_hash: row.torrent_hash ?? null,
     torrent_problem: row.torrent_problem ?? undefined,
     resolved_at: row.resolved_at ? row.resolved_at.toISOString() : null,
+    suggestion_hash: row.suggestion_hash ?? undefined,
+    suggestion_score: row.suggestion_score ?? undefined,
+    suggestion_computed_at: row.suggestion_computed_at
+      ? row.suggestion_computed_at.toISOString()
+      : undefined,
   };
 };

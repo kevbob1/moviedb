@@ -23,8 +23,11 @@ model Request {
   resolved_at   DateTime?
   status        String    @default("pending")
   media_type    String   @default("movie") // movie | tv
-  torrent_hash    String?
-  torrent_problem String?
+  torrent_hash            String?
+  torrent_problem         String?
+  suggestion_hash         String?
+  suggestion_score        Float?
+  suggestion_computed_at  DateTime?
 
   @@map("requests")
 }
