@@ -20,6 +20,11 @@ Terminal states: `fulfilled`. No transitions out. Entering the terminal state is
 
 **Fields:** `id`, `title`, `tmdb_id`, `season_number` (TV only), `poster_path`, `release_date`, `overview`, `genre_ids`, `requested_at`, `requested_by`, `status`, `media_type`, `resolved_at`.
 
+### MatchSuggestion
+A proposed pairing of a `pending` Request with a Transmission torrent, produced by the matcher and surfaced to the operator for confirmation. It is suggestion-only: it never changes a Request's status on its own. The operator accepts it by invoking the existing `linkTorrent` verb.
+
+A `MatchSuggestion` carries the torrent hash, a title-similarity score, an eligibility flag, and reasons when the candidate is rejected. Only the single best suggestion per Request is kept; there is no suggestion history.
+
 ### Job
 A unit of asynchronous work enqueued in the `jobs` table and processed by a registered handler. Distinct from a `Request`: a Request is *user intent*; a Job is *work the system owes*.
 
@@ -92,3 +97,5 @@ These are the deepening-skill vocabulary. Use them exactly when writing architec
 - `docs/adr/0004-ui-primitive-layer.md` — UI primitive layer (CVA + Radix + motion)
 - `docs/adr/0005-transmission-read-only-observation.md` — Transmission as a read-only observed downloader
 - `docs/adr/0006-request-cancellation-is-deletion.md` — Cancellation is deletion; cron cleanup of resolved Requests
+- `docs/adr/0007-request-lifecycle-module.md` — One seam for the Request lifecycle
+- `docs/adr/0008-auto-match-suggestions.md` — Suggestion-only auto-match for torrent↔request pairing
