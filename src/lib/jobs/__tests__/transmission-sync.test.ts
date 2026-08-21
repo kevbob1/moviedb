@@ -52,7 +52,14 @@ describe('transmission_sync handler', () => {
 
       expect(mockTx.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'fulfilled', torrent_problem: null, resolved_at: expect.any(Date) },
+        data: {
+          status: 'fulfilled',
+          torrent_problem: null,
+          resolved_at: expect.any(Date),
+          suggestion_hash: null,
+          suggestion_score: null,
+          suggestion_computed_at: null,
+        },
       });
     });
 
@@ -89,7 +96,14 @@ describe('transmission_sync handler', () => {
 
       expect(mockTx.request.update).toHaveBeenCalledWith({
         where: { id: 22 },
-        data: { status: 'fulfilled', torrent_problem: null, resolved_at: expect.any(Date) },
+        data: {
+          status: 'fulfilled',
+          torrent_problem: null,
+          resolved_at: expect.any(Date),
+          suggestion_hash: null,
+          suggestion_score: null,
+          suggestion_computed_at: null,
+        },
       });
     });
   });

@@ -24,6 +24,9 @@ type Row = {
   torrent_hash: string | null;
   torrent_problem: string | null;
   resolved_at: Date | null;
+  suggestion_hash: string | null;
+  suggestion_score: number | null;
+  suggestion_computed_at: Date | null;
 };
 
 const makeFakePrisma = () => {
@@ -58,6 +61,9 @@ const makeFakePrisma = () => {
       torrent_hash: null,
       torrent_problem: null,
       resolved_at: null,
+      suggestion_hash: null,
+      suggestion_score: null,
+      suggestion_computed_at: null,
       ...data,
     } as Row;
     rows.push(row);
@@ -240,7 +246,7 @@ describe('request-lifecycle/service', () => {
   });
 
   describe('transitionToStatus', () => {
-    it('writes the status change and clears torrent_problem', async () => {
+    it('writes the status change and clears torrent_problem and suggestion fields', async () => {
       const fake = makeFakePrisma();
       const { fn: enqueueJob } = recordingEnqueueJob();
       const service = createRequestService({
@@ -257,14 +263,20 @@ describe('request-lifecycle/service', () => {
         mediaType: 'movie',
       });
       fake.rows[0].torrent_problem = 'some problem';
+      fake.rows[0].suggestion_hash = 'old-hash';
+      fake.rows[0].suggestion_score = 0.95;
+      fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
       await service.transitionToStatus(1, 'downloading');
 
       expect(fake.rows[0].status).toBe('downloading');
       expect(fake.rows[0].torrent_problem).toBeNull();
+      expect(fake.rows[0].suggestion_hash).toBeNull();
+      expect(fake.rows[0].suggestion_score).toBeNull();
+      expect(fake.rows[0].suggestion_computed_at).toBeNull();
     });
 
-    it('sets resolved_at on fulfill', async () => {
+    it('sets resolved_at on fulfill and clears suggestion fields', async () => {
       const fake = makeFakePrisma();
       const { fn: enqueueJob } = recordingEnqueueJob();
       const service = createRequestService({
@@ -281,11 +293,17 @@ describe('request-lifecycle/service', () => {
         mediaType: 'movie',
       });
       await service.downloadRequest(1);
+      fake.rows[0].suggestion_hash = 'old-hash';
+      fake.rows[0].suggestion_score = 0.95;
+      fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
       const result = await service.fulfillRequest(1);
 
       expect(result.status).toBe('fulfilled');
       expect(fake.rows[0].resolved_at?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
+      expect(fake.rows[0].suggestion_hash).toBeNull();
+      expect(fake.rows[0].suggestion_score).toBeNull();
+      expect(fake.rows[0].suggestion_computed_at).toBeNull();
     });
 
     it('throws for an unknown request', async () => {
@@ -323,7 +341,7 @@ describe('request-lifecycle/service', () => {
   });
 
   describe('linkTorrent', () => {
-    it('transitions pending → downloading with hash set', async () => {
+    it('transitions pending → downloading with hash set and clears suggestion fields', async () => {
       const fake = makeFakePrisma();
       const { fn: enqueueJob } = recordingEnqueueJob();
       const service = createRequestService({
@@ -339,11 +357,17 @@ describe('request-lifecycle/service', () => {
         requestedBy: 'Alice',
         mediaType: 'movie',
       });
+      fake.rows[0].suggestion_hash = 'old-hash';
+      fake.rows[0].suggestion_score = 0.95;
+      fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
       const result = await service.linkTorrent(1, 'abc123');
 
       expect(result.status).toBe('downloading');
       expect(fake.rows[0].torrent_hash).toBe('abc123');
+      expect(fake.rows[0].suggestion_hash).toBeNull();
+      expect(fake.rows[0].suggestion_score).toBeNull();
+      expect(fake.rows[0].suggestion_computed_at).toBeNull();
     });
 
     it('rejects if request is not pending', async () => {
@@ -393,7 +417,7 @@ describe('request-lifecycle/service', () => {
   });
 
   describe('fulfillBySync', () => {
-    it('writes status=fulfilled, torrent_problem=null, resolved_at=now', async () => {
+    it('writes status=fulfilled, torrent_problem=null, resolved_at=now, and clears suggestion fields', async () => {
       const fake = makeFakePrisma();
       const { fn: enqueueJob } = recordingEnqueueJob();
       const service = createRequestService({
@@ -411,6 +435,9 @@ describe('request-lifecycle/service', () => {
       });
       await service.downloadRequest(1);
       fake.rows[0].torrent_problem = 'prior problem';
+      fake.rows[0].suggestion_hash = 'old-hash';
+      fake.rows[0].suggestion_score = 0.95;
+      fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
       const tx = fake.txShape();
       await service.fulfillBySync(1, tx as unknown as Prisma.TransactionClient);
@@ -418,6 +445,9 @@ describe('request-lifecycle/service', () => {
       expect(fake.rows[0].status).toBe('fulfilled');
       expect(fake.rows[0].torrent_problem).toBeNull();
       expect(fake.rows[0].resolved_at?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
+      expect(fake.rows[0].suggestion_hash).toBeNull();
+      expect(fake.rows[0].suggestion_score).toBeNull();
+      expect(fake.rows[0].suggestion_computed_at).toBeNull();
     });
   });
 

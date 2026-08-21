@@ -67,14 +67,20 @@ describe('request-lifecycle/fsm', () => {
         status: 'fulfilled',
         torrent_problem: null,
         resolved_at: new Date('2026-01-01T00:00:00Z'),
+        suggestion_hash: null,
+        suggestion_score: null,
+        suggestion_computed_at: null,
       });
     });
 
-    it('clears torrent_problem on a non-fulfill transition', () => {
+    it('clears torrent_problem and suggestion fields on a non-fulfill transition', () => {
       const fx = resolveSideEffects('downloading', fixedNow);
       expect(fx).toEqual({
         status: 'downloading',
         torrent_problem: null,
+        suggestion_hash: null,
+        suggestion_score: null,
+        suggestion_computed_at: null,
       });
       expect(fx).not.toHaveProperty('resolved_at');
     });

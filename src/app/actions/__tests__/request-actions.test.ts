@@ -136,7 +136,14 @@ describe('request-actions', () => {
       expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'fulfilled', torrent_problem: null, resolved_at: expect.any(Date) },
+        data: {
+          status: 'fulfilled',
+          torrent_problem: null,
+          resolved_at: expect.any(Date),
+          suggestion_hash: null,
+          suggestion_score: null,
+          suggestion_computed_at: null,
+        },
       });
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
@@ -165,7 +172,13 @@ describe('request-actions', () => {
 
       expect(prisma.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { status: 'downloading', torrent_problem: null },
+        data: {
+          status: 'downloading',
+          torrent_problem: null,
+          suggestion_hash: null,
+          suggestion_score: null,
+          suggestion_computed_at: null,
+        },
       });
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });

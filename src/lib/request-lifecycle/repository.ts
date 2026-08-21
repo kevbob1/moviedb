@@ -203,6 +203,9 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
         status: 'fulfilled',
         torrent_problem: null,
         resolved_at: now(),
+        suggestion_hash: null,
+        suggestion_score: null,
+        suggestion_computed_at: null,
       },
     });
   }
