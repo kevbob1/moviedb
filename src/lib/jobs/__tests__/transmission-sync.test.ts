@@ -32,6 +32,7 @@ beforeEach(() => {
   (prisma.$transaction as jest.Mock).mockImplementation(
     async (fn: (tx: typeof mockTx) => Promise<void>) => fn(mockTx),
   );
+  (prisma.request.findMany as jest.Mock).mockResolvedValue([]);
 });
 
 describe('transmission_sync handler', () => {
@@ -43,9 +44,11 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock).mockResolvedValue([
-        { id: 1, torrent_hash: 'hash1' },
-      ]);
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          { id: 1, torrent_hash: 'hash1' },
+        ])
+        .mockResolvedValueOnce([]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -70,9 +73,11 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock).mockResolvedValue([
-        { id: 2, torrent_hash: 'hash2' },
-      ]);
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          { id: 2, torrent_hash: 'hash2' },
+        ])
+        .mockResolvedValueOnce([]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -87,9 +92,11 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock).mockResolvedValue([
-        { id: 22, torrent_hash: 'hash2b' },
-      ]);
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          { id: 22, torrent_hash: 'hash2b' },
+        ])
+        .mockResolvedValueOnce([]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -116,9 +123,11 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock).mockResolvedValue([
-        { id: 3, torrent_hash: 'hash3' },
-      ]);
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          { id: 3, torrent_hash: 'hash3' },
+        ])
+        .mockResolvedValueOnce([]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -138,9 +147,11 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock).mockResolvedValue([
-        { id: 4, torrent_hash: 'missing-hash' },
-      ]);
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([
+          { id: 4, torrent_hash: 'missing-hash' },
+        ])
+        .mockResolvedValueOnce([]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -153,19 +164,121 @@ describe('transmission_sync handler', () => {
   });
 
   describe('no-op when idle', () => {
-    it('does nothing when no downloading requests with torrent_hash exist', async () => {
+    it('does nothing when no downloading or pending requests exist', async () => {
       const adapter = new InMemoryTransmissionAdapter({
         torrents: [
           { hash: 'hash5', name: 'Movie E', percentDone: 1, status: 6, isFinished: true },
         ],
       });
 
-      (prisma.request.findMany as jest.Mock).mockResolvedValue([]);
-
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('suggestion computation', () => {
+    it('writes suggestion columns for a pending request with a matching torrent', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS', percentDone: 1, status: 6 },
+        ],
+      });
+
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 10,
+            title: 'Dune',
+            media_type: 'movie',
+            release_date: '2021-10-22',
+            season_number: null,
+          },
+        ]);
+
+      const handler = createTransmissionSyncHandler({ adapter });
+      await handler.handle({});
+
+      expect(mockTx.request.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: {
+          suggestion_hash: 'h1',
+          suggestion_score: expect.any(Number),
+          suggestion_computed_at: expect.any(Date),
+        },
+      });
+    });
+
+    it('clears suggestion columns when no eligible match exists', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'h1', name: 'Some.Unrelated.Show.S02.COMPLETE.1080p.WEB-DL.x264-GROUP', percentDone: 1, status: 6 },
+        ],
+      });
+
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 11,
+            title: 'Dune',
+            media_type: 'movie',
+            release_date: '2021-10-22',
+            season_number: null,
+          },
+        ]);
+
+      const handler = createTransmissionSyncHandler({ adapter });
+      await handler.handle({});
+
+      expect(mockTx.request.update).toHaveBeenCalledWith({
+        where: { id: 11 },
+        data: {
+          suggestion_hash: null,
+          suggestion_score: null,
+          suggestion_computed_at: expect.any(Date),
+        },
+      });
+    });
+
+    it('uses contained filenames when the torrent name is not descriptive', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          {
+            hash: 'h1',
+            name: 'folder',
+            percentDone: 1,
+            status: 6,
+            files: ['Dune.2021.1080p.BluRay.x264-SWEETNESS.mkv'],
+          },
+        ],
+      });
+
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 12,
+            title: 'Dune',
+            media_type: 'movie',
+            release_date: '2021-10-22',
+            season_number: null,
+          },
+        ]);
+
+      const handler = createTransmissionSyncHandler({ adapter });
+      await handler.handle({});
+
+      expect(mockTx.request.update).toHaveBeenCalledWith({
+        where: { id: 12 },
+        data: {
+          suggestion_hash: 'h1',
+          suggestion_score: expect.any(Number),
+          suggestion_computed_at: expect.any(Date),
+        },
+      });
     });
   });
 });

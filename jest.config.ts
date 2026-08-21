@@ -12,6 +12,7 @@ const config: Config = {
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@viren070/parse-torrent-title$": "<rootDir>/node_modules/@viren070/parse-torrent-title/dist/index.js",
   },
   modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   roots: ["<rootDir>/src"],
@@ -20,13 +21,16 @@ const config: Config = {
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   watchPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", {
+    "^.+\\.(ts|tsx|js)$": ["ts-jest", {
       tsconfig: "./tsconfig.test.json",
       diagnostics: {
         ignoreDeprecations: "6.0",
       },
     }],
   },
+  transformIgnorePatterns: [
+    "/node_modules/(?!@viren070/parse-torrent-title)/",
+  ],
 };
 
 export default config;

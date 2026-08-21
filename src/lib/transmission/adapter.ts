@@ -7,6 +7,7 @@ export interface Torrent {
   status: number;
   isFinished?: boolean;
   error?: string;
+  files?: string[];
 }
 
 export interface TransmissionAdapter {
@@ -22,6 +23,7 @@ interface TransmissionArguments {
     status?: number;
     isFinished?: boolean;
     errorString?: string;
+    files?: Array<{ name?: string }>;
   }>;
   [key: string]: unknown;
 }
@@ -137,7 +139,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
   async getTorrents(hashes: string[]): Promise<Torrent[]> {
     if (!this.url) return [];
 
-    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString'];
+    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString', 'files'];
     const result = await this.rpcCall('torrent-get', {
       fields,
       ids: hashes,
@@ -150,13 +152,18 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       status: t.status ?? 0,
       ...(t.isFinished !== undefined ? { isFinished: t.isFinished } : {}),
       ...(t.errorString ? { error: t.errorString } : {}),
+      ...(t.files !== undefined ? {
+        files: (t.files ?? [])
+          .map((f: { name?: string }) => f.name)
+          .filter((n): n is string => !!n),
+      } : {}),
     }));
   }
 
   async getAll(): Promise<Torrent[]> {
     if (!this.url) return [];
 
-    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString'];
+    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString', 'files'];
     const result = await this.rpcCall('torrent-get', { fields });
 
     return (result.arguments.torrents ?? []).map(t => ({
@@ -166,6 +173,11 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       status: t.status ?? 0,
       ...(t.isFinished !== undefined ? { isFinished: t.isFinished } : {}),
       ...(t.errorString ? { error: t.errorString } : {}),
+      ...(t.files !== undefined ? {
+        files: (t.files ?? [])
+          .map((f: { name?: string }) => f.name)
+          .filter((n): n is string => !!n),
+      } : {}),
     }));
   }
 
