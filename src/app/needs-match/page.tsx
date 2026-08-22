@@ -7,6 +7,8 @@ import { NeedsMatchView } from '@/components/NeedsMatchView';
 import { TransmissionStatusBanner } from '@/components/TransmissionStatusBanner';
 import { RefreshButton } from '@/components/RefreshButton';
 import Link from 'next/link';
+import { runTransmissionSync } from '@/lib/jobs/transmission-sync';
+import { HttpTransmissionAdapter } from '@/lib/transmission/adapter';
 
 export default async function NeedsMatchPage({
   searchParams,
@@ -17,6 +19,7 @@ export default async function NeedsMatchPage({
 
   if (params.refresh === '1') {
     refreshCatalog();
+    await runTransmissionSync(new HttpTransmissionAdapter(), { ignoreSuggestionAgeGate: true });
   }
 
   const [requests, torrentsResult, pingResult, needsAttention, lastSyncJob] = await Promise.all([

@@ -29,6 +29,10 @@ interface SyncHandlerOptions {
   adapter: TransmissionAdapter;
 }
 
+interface TransmissionSyncOptions {
+  ignoreSuggestionAgeGate?: boolean;
+}
+
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -39,9 +43,10 @@ function median(values: number[]): number {
   return sorted[mid];
 }
 
-export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): JobHandler<unknown> {
-  return {
-    handle: async () => {
+export async function runTransmissionSync(
+  adapter: TransmissionAdapter,
+  { ignoreSuggestionAgeGate = false }: TransmissionSyncOptions = {},
+): Promise<void> {
       const downloading = await prisma.request.findMany({
         where: {
           status: 'downloading',
@@ -96,14 +101,16 @@ export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): 
 
       const now = new Date();
       const pendingRequests = await prisma.request.findMany({
-        where: {
-          status: 'pending',
-          torrent_hash: null,
-          OR: [
-            { suggestion_computed_at: { lt: new Date(now.getTime() - 60_000) } },
-            { suggestion_computed_at: { equals: null } },
-          ],
-        },
+        where: ignoreSuggestionAgeGate
+          ? { status: 'pending', torrent_hash: null }
+          : {
+              status: 'pending',
+              torrent_hash: null,
+              OR: [
+                { suggestion_computed_at: { lt: new Date(now.getTime() - 60_000) } },
+                { suggestion_computed_at: { equals: null } },
+              ],
+            },
         select: {
           id: true,
           title: true,
@@ -176,7 +183,11 @@ export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): 
         { scanned: pendingRequests.length, suggestions: withSuggestion, medianScore, parserFailures },
         'transmission_sync suggestions computed'
       );
-    },
+}
+
+export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): JobHandler<unknown> {
+  return {
+    handle: () => runTransmissionSync(adapter),
   };
 }
 

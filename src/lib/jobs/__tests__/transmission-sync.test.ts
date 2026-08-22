@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
-import { createTransmissionSyncHandler, enqueueTransmissionSync } from '../transmission-sync';
+import { createTransmissionSyncHandler, enqueueTransmissionSync, runTransmissionSync } from '../transmission-sync';
 
 const mockTx = { request: { update: jest.fn().mockResolvedValue({}) } };
 
@@ -279,6 +279,46 @@ describe('transmission_sync handler', () => {
           suggestion_computed_at: expect.any(Date),
         },
       });
+    });
+
+    it('manual refresh matches requests without waiting for the suggestion age gate', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS', percentDone: 1, status: 6 },
+        ],
+      });
+
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 13, title: 'Dune', media_type: 'movie', release_date: '2021-10-22', season_number: null }]);
+
+      await runTransmissionSync(adapter, { ignoreSuggestionAgeGate: true });
+
+      expect(prisma.request.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        where: { status: 'pending', torrent_hash: null },
+      }));
+      expect(mockTx.request.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 13 } }));
+    });
+
+    it('scheduled sync retains the 60-second suggestion age gate', async () => {
+      const adapter = new InMemoryTransmissionAdapter();
+
+      (prisma.request.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await runTransmissionSync(adapter);
+
+      expect(prisma.request.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        where: {
+          status: 'pending',
+          torrent_hash: null,
+          OR: [
+            expect.objectContaining({ suggestion_computed_at: expect.objectContaining({ lt: expect.any(Date) }) }),
+            { suggestion_computed_at: { equals: null } },
+          ],
+        },
+      }));
     });
   });
 });
