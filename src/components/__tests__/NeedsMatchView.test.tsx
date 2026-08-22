@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 describe('NeedsMatchView inline suggestions', () => {
-  it('renders the suggestion banner only for requests with a suggestion', () => {
+  it('renders a suggestion badge only for requests with a suggestion', () => {
     render(
       <NeedsMatchView
         requests={[
@@ -48,10 +48,17 @@ describe('NeedsMatchView inline suggestions', () => {
       />
     );
 
+    expect(screen.getByRole('heading', { name: 'Suggestions' })).toBeInTheDocument();
     expect(screen.getAllByText('Suggested match')).toHaveLength(1);
-    expect(screen.getByText('Score: 0.83')).toBeInTheDocument();
+    expect(screen.getByTitle('Dune.2021.1080p.BluRay.x264')).toBeInTheDocument();
+    expect(screen.getAllByText('Score: 0.83')).toHaveLength(2);
     expect(screen.getByText('Arrival')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /Accept suggested match/ })).toHaveLength(1);
+    expect(
+      screen.getByRole('button', {
+        name: 'Accept suggested match for Dune: Dune.2021.1080p.BluRay.x264',
+      })
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
   it('accepts the suggested torrent for the matching request', async () => {
