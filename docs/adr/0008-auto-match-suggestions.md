@@ -93,6 +93,11 @@ Matching piggybacks the existing `transmission_sync` cron job (`src/lib/jobs/tra
 
 No new job type or cron schedule is introduced unless ticket #60 discovers a strong reason for one.
 
+The existing `?refresh=1` action on the Needs Match view also triggers an
+immediate sync-and-match pass, running the same steps synchronously so the
+view is not left stale after a manual refresh. Manual refresh bypasses the
+scheduled suggestion age gate; scheduled runs retain that gate.
+
 ### Surfaces
 
 Two surfaces show the same suggestion data:
