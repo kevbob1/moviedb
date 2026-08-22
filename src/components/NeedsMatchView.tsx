@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { linkTorrent, cancelRequest } from '@/app/actions/request-actions';
 import { Button } from '@/components/ui/Button';
 import { Surface } from '@/components/ui/Surface';
-import { NeedsMatchSuggestions } from '@/components/NeedsMatchSuggestions';
+import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
 import { Torrent } from '@/lib/transmission/adapter';
 import { Request } from '@/types/request';
 
@@ -95,8 +95,6 @@ export function NeedsMatchView({ requests, torrents, needsAttention }: NeedsMatc
         </div>
       )}
 
-      <NeedsMatchSuggestions requests={requests} torrents={torrents} />
-
       <div className="flex flex-col gap-6 sm:flex-row">
         <div className="flex-1">
           <h2 className="mb-3 text-lg font-semibold text-foreground">
@@ -130,6 +128,12 @@ export function NeedsMatchView({ requests, torrents, needsAttention }: NeedsMatc
                     Link
                   </Button>
                 </div>
+                {request.suggestion_hash !== null && request.suggestion_hash !== undefined && (
+                  <NeedsMatchSuggestion
+                    request={{ ...request, suggestion_hash: request.suggestion_hash }}
+                    torrents={torrents}
+                  />
+                )}
               </Surface>
             ))
           )}

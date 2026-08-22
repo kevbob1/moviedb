@@ -13,11 +13,60 @@ interface NeedsMatchSuggestionsProps {
   torrents: Torrent[];
 }
 
+type SuggestedRequest = Request & { suggestion_hash: string };
+
+function scoreBand(score: number): string {
+  if (score >= 0.8) return 'border-emerald-500 bg-emerald-500/10';
+  if (score >= 0.5) return 'border-amber-500 bg-amber-500/10';
+  return 'border-rose-500 bg-rose-500/10';
+}
+
+export function NeedsMatchSuggestion({ request, torrents }: { request: SuggestedRequest; torrents: Torrent[] }) {
+  const router = useRouter();
+  const [accepting, setAccepting] = useState(false);
+  const torrentName = torrents.find((torrent) => torrent.hash === request.suggestion_hash)?.name ?? request.suggestion_hash;
+  const score = request.suggestion_score ?? 0;
+
+  const handleAccept = async () => {
+    setAccepting(true);
+    try {
+      await linkTorrent(request.id, request.suggestion_hash);
+      router.refresh();
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  return (
+    <div
+      className={`mt-3 flex flex-col gap-3 rounded-xl border-l-4 p-3 sm:flex-row sm:items-center sm:justify-between ${scoreBand(score)}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Suggested match</p>
+        <p className="truncate text-sm text-foreground" title={torrentName}>{torrentName}</p>
+        <p className="text-xs text-muted-foreground">Score: {score.toFixed(2)}</p>
+      </div>
+      <Button
+        size="sm"
+        variant="primary"
+        loading={accepting}
+        disabled={accepting}
+        aria-label={`Accept suggested match for ${request.title}: ${torrentName}`}
+        onClick={handleAccept}
+      >
+        Accept
+      </Button>
+    </div>
+  );
+}
+
 export function NeedsMatchSuggestions({ requests, torrents }: NeedsMatchSuggestionsProps) {
   const router = useRouter();
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
 
-  const suggestions = requests.filter((request): request is Request & { suggestion_hash: string } =>
+  const suggestions = requests.filter((request): request is SuggestedRequest =>
     Boolean(request.suggestion_hash)
   );
 
