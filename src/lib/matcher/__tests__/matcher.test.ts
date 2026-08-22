@@ -1,4 +1,6 @@
 import { matchSuggestions, MatchRequest, MatchTorrent } from '../index';
+import { matcherCorpus } from './fixtures/matcher-corpus';
+import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
 function request(overrides: Partial<MatchRequest> & Pick<MatchRequest, 'id' | 'title' | 'media_type'>): MatchRequest {
   return {
@@ -16,6 +18,21 @@ function torrent(overrides: Partial<MatchTorrent> & Pick<MatchTorrent, 'hash' | 
 }
 
 describe('matchSuggestions', () => {
+  describe('checked-in matcher corpus', () => {
+    for (const fixture of matcherCorpus) {
+      it(`${fixture.name}: parses documented metadata and returns documented outcome`, () => {
+        const parsed = parseTorrentTitle(fixture.parseSource ?? fixture.torrent.name);
+        expect(parsed.title).toBe(fixture.expectedParsed.title);
+        if (fixture.expectedParsed.year !== undefined) expect(parsed.year).toBe(fixture.expectedParsed.year);
+        if (fixture.expectedParsed.seasons !== undefined) expect(parsed.seasons).toEqual(fixture.expectedParsed.seasons);
+        if (fixture.expectedParsed.complete !== undefined) expect(parsed.complete ?? false).toBe(fixture.expectedParsed.complete);
+
+        const result = matchSuggestions([fixture.request], [fixture.torrent]);
+        expect(result.get(fixture.request.id)?.hash ?? null).toBe(fixture.expectedHash);
+      });
+    }
+  });
+
   it('returns a confident movie match', () => {
     const requests = [
       request({ id: 'r1', title: 'Dune', media_type: 'movie', release_date: '2021-10-22' }),
