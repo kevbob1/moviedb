@@ -82,7 +82,10 @@ export default async function NeedsMatchPage({
 
   const typedRequests = requests.map(toRequestModel);
   const typedNeedsAttention = needsAttention.map(toRequestModel);
-  const total = typedRequests.length + typedNeedsAttention.length;
+  const mergedRequests = [...typedRequests, ...typedNeedsAttention.filter((attention) =>
+    !typedRequests.some((request) => request.id === attention.id)
+  )];
+  const total = mergedRequests.length;
 
   if (total === 0) {
     return (
@@ -105,7 +108,7 @@ export default async function NeedsMatchPage({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Needs Match</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {typedRequests.length} request{typedRequests.length !== 1 ? 's' : ''} need{typedRequests.length === 1 ? 's' : ''} a torrent assigned
+            {mergedRequests.length} request{mergedRequests.length !== 1 ? 's' : ''} need{mergedRequests.length === 1 ? 's' : ''} a torrent assigned
             {typedNeedsAttention.length > 0 && (
               <> — {typedNeedsAttention.length} need{typedNeedsAttention.length === 1 ? 's' : ''} attention</>
             )}
@@ -116,7 +119,7 @@ export default async function NeedsMatchPage({
 
       {banner}
 
-      <NeedsMatchView requests={typedRequests} torrents={torrentsResult.torrents} needsAttention={typedNeedsAttention} />
+      <NeedsMatchView requests={mergedRequests} torrents={torrentsResult.torrents} />
     </main>
   );
 }

@@ -24,14 +24,18 @@ function scoreBand(score: number): string {
 export function NeedsMatchSuggestion({ request, torrents }: { request: SuggestedRequest; torrents: Torrent[] }) {
   const router = useRouter();
   const [accepting, setAccepting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const torrentName = torrents.find((torrent) => torrent.hash === request.suggestion_hash)?.name ?? request.suggestion_hash;
   const score = request.suggestion_score ?? 0;
 
   const handleAccept = async () => {
+    setError(null);
     setAccepting(true);
     try {
       await linkTorrent(request.id, request.suggestion_hash);
       router.refresh();
+    } catch {
+      setError('Unable to accept suggestion. Please try again.');
     } finally {
       setAccepting(false);
     }
@@ -48,16 +52,36 @@ export function NeedsMatchSuggestion({ request, torrents }: { request: Suggested
         <p className="truncate text-sm text-foreground" title={torrentName}>{torrentName}</p>
         <p className="text-xs text-muted-foreground">Score: {score.toFixed(2)}</p>
       </div>
-      <Button
-        size="sm"
-        variant="primary"
-        loading={accepting}
-        disabled={accepting}
-        aria-label={`Accept suggested match for ${request.title}: ${torrentName}`}
-        onClick={handleAccept}
-      >
-        Accept
-      </Button>
+      {accepting ? (
+        <Button
+          size="sm"
+          variant="primary"
+          loading
+          disabled
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1}
+          aria-label={`Accept suggested match for ${request.title}: ${torrentName}`}
+        >
+          Accept
+        </Button>
+      ) : error ? (
+        <div className="flex flex-col items-end gap-2">
+          <p role="alert" className="text-xs text-rose-700">{error}</p>
+          <Button size="sm" variant="primary" aria-label={`Accept suggested match for ${request.title}: ${torrentName}`} onClick={handleAccept}>
+            Accept
+          </Button>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="primary"
+          aria-label={`Accept suggested match for ${request.title}: ${torrentName}`}
+          onClick={handleAccept}
+        >
+          Accept
+        </Button>
+      )}
     </div>
   );
 }
@@ -65,6 +89,7 @@ export function NeedsMatchSuggestion({ request, torrents }: { request: Suggested
 export function NeedsMatchSuggestions({ requests, torrents }: NeedsMatchSuggestionsProps) {
   const router = useRouter();
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [errors, setErrors] = useState<Record<number, string>>({});
 
   const suggestions = requests.filter((request): request is SuggestedRequest =>
     Boolean(request.suggestion_hash)
@@ -77,10 +102,17 @@ export function NeedsMatchSuggestions({ requests, torrents }: NeedsMatchSuggesti
   const torrentNames = new Map<string, string>(torrents.map((torrent) => [torrent.hash, torrent.name]));
 
   const handleAccept = async (request: Request & { suggestion_hash: string }) => {
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
     setAcceptingId(request.id);
     try {
       await linkTorrent(request.id, request.suggestion_hash);
       router.refresh();
+    } catch {
+      setErrors((current) => ({ ...current, [request.id]: 'Unable to accept suggestion. Please try again.' }));
     } finally {
       setAcceptingId(null);
     }
@@ -107,16 +139,18 @@ export function NeedsMatchSuggestions({ requests, torrents }: NeedsMatchSuggesti
                 <p className="truncate text-sm text-muted-foreground">{torrentName}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Score: {score.toFixed(2)}</p>
               </div>
-              <Button
-                size="sm"
-                variant="primary"
-                loading={acceptingId === request.id}
-                disabled={acceptingId === request.id}
-                aria-label={label}
-                onClick={() => handleAccept(request)}
-              >
-                Accept
-              </Button>
+              {acceptingId === request.id ? (
+                <Button size="sm" variant="primary" loading disabled className="hidden" aria-hidden="true" tabIndex={-1} aria-label={label}>
+                  Accept
+                </Button>
+              ) : errors[request.id] ? (
+                <div className="flex flex-col items-end gap-2">
+                  <p role="alert" className="text-xs text-rose-700">{errors[request.id]}</p>
+                  <Button size="sm" variant="primary" aria-label={label} onClick={() => handleAccept(request)}>Accept</Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="primary" aria-label={label} onClick={() => handleAccept(request)}>Accept</Button>
+              )}
             </div>
           </Surface>
         );

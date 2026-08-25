@@ -9,6 +9,7 @@ import { Pill } from '@/components/ui/Pill';
 import { Button } from '@/components/ui/Button';
 import { Surface } from '@/components/ui/Surface';
 import { Request } from '@/types/request';
+import { ReleaseDate } from './ReleaseDate';
 
 interface RequestCardProps {
   request: Request;
@@ -58,9 +59,7 @@ export default function RequestCard({
               {request.season_number && (
                 <span className="ml-1 text-sm font-normal text-muted-foreground">— S{request.season_number}</span>
               )}
-              {request.release_date && request.media_type !== 'tv' && (
-                <span className="ml-1 text-sm font-normal text-muted-foreground">({request.release_date.split('-')[0]})</span>
-              )}
+              {request.release_date && <ReleaseDate date={request.release_date} mediaType={request.media_type} />}
             </h3>
             {request.genre_ids && request.genre_ids.length > 0 && (
               <p className="text-xs text-muted-foreground">{getGenreNames(request.genre_ids).join(', ')}</p>

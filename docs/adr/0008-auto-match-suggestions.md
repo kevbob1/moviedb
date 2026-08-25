@@ -44,7 +44,7 @@ The matcher evaluates every torrent as a candidate for a given Request. A candid
 3. **Year disambiguation.** When both the Request's `release_date` year and the torrent's parsed year are present, they must match. A missing year on either side falls through to title-only scoring.
 4. **TV season signal.** When `Request.season_number` is set, the torrent must be a season pack (`parsed.complete === true`) and `parsed.seasons` must include the requested season. Single-episode torrents are not eligible for a season Request.
 
-Title similarity is token-set Jaccard on normalised titles: lowercase, strip non-alphanumeric, drop release-metadata noise tokens (resolution, codec, source, edition, HDR, audio), drop the year token, and drop the trailing release group. The score is `|A ∩ B| / |A ∪ B|` in the range `[0, 1]`.
+Title similarity is token-set Jaccard on normalised titles: lowercase, strip non-alphanumeric, drop release-metadata noise tokens (resolution, codec, source, edition, HDR, audio), drop the year token, and drop the trailing release group. The score is `|A ∩ B| / |A ∪ B|` in the range `[0, 1]`. Generated suggestions require a minimum score of `0.50` (inclusive); lower scores, including `0.00`, are suppressed to avoid presenting clearly unrelated automatic suggestions. This threshold applies only to generated suggestions and does not restrict manually selected torrents in Needs Match.
 
 Top-1 selection per Request:
 
@@ -119,7 +119,7 @@ Both surfaces show the score visibly. The exact shape of "visible" (numeric, col
 - **Auto-link without operator confirmation.** Rejected by ADR-0005: silent wrong-matches would corrupt the FSM. Re-linking without a human is a separate, fresh effort if it is ever wanted.
 - **Top-K multi-candidate UX.** Rejected: the map scoped this to single best match to keep the UI and persistence simple. A list of candidates can be added later without changing the persistence model.
 - **TMDB-driven matching.** Rejected: matching uses parsed torrent metadata only. TMDB ID resolution would make the matcher dependent on TMDB availability and complicate offline operation.
-- **Threshold suppression (hide low scores).** Rejected: the operator should always see the top-1 with its score. A low score is itself a signal to inspect carefully.
+ - **Threshold suppression (hide low scores).** Adopted at `0.50` inclusive: low-confidence generated suggestions are more likely to mislead than help, while manual linking remains unrestricted.
 - **A separate `match_suggestions` job type.** Rejected for v1: the existing `transmission_sync` job already loads the torrent list and runs on a bounded cadence. Extending it keeps the schedule in one place. If cadence or load becomes a problem, splitting is a future option.
 - **A `match_candidate` history table.** Rejected: the feature only needs the latest suggestion. History adds storage and UI complexity for a v1 suggestion-only feature.
 - **Re-linking a different torrent to a `downloading` Request.** Rejected: already out of scope per ADR-0005's recovery-gap note.

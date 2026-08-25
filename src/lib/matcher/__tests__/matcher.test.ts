@@ -108,6 +108,44 @@ describe('matchSuggestions', () => {
     expect(result.get('r1')).toBeNull();
   });
 
+  it('excludes a zero-score candidate from generated suggestions', () => {
+    const result = matchSuggestions(
+      [request({ id: 'r1', title: 'Dune', media_type: 'movie' })],
+      [torrent({ hash: 'h1', name: 'Unrelated.2021.1080p.BluRay' })]
+    );
+
+    expect(result.get('r1')).toBeNull();
+  });
+
+  it('includes a candidate scoring exactly the minimum threshold', () => {
+    const result = matchSuggestions(
+      [request({ id: 'r1', title: 'Dune Movie', media_type: 'movie' })],
+      [torrent({ hash: 'h1', name: 'Dune.2021.1080p.BluRay' })]
+    );
+
+    expect(result.get('r1')?.score).toBe(0.5);
+  });
+
+  it('rejects torrent names consisting only of hexadecimal characters', () => {
+    const requests = [
+      request({ id: 'r1', title: 'Dune', media_type: 'movie', release_date: '2021-10-22' }),
+    ];
+    const torrents = [torrent({ hash: 'h1', name: ' deadbeef0123 ' })];
+
+    const result = matchSuggestions(requests, torrents);
+
+    expect(result.get('r1')).toBeNull();
+  });
+
+  it('does not reject names that contain hexadecimal characters as part of a larger name', () => {
+    const requests = [
+      request({ id: 'r1', title: 'Dune', media_type: 'movie', release_date: '2021-10-22' }),
+    ];
+    const torrents = [torrent({ hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264' })];
+
+    expect(matchSuggestions(requests, torrents).get('r1')?.hash).toBe('h1');
+  });
+
   it('tie-breaks by resolution and quality', () => {
     const requests = [
       request({ id: 'r1', title: 'Dune', media_type: 'movie', release_date: '2021-10-22' }),

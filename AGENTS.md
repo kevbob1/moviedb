@@ -20,10 +20,14 @@ Running validation checks offlines prevents:
 
 ### Commands to run
 
+Validation is authoritative only when run inside the compose `web` container. Start the stack with `make dev` when it is not already running, then run:
+
 **Pre-commit validation (run always before committing):**
 ```bash
-npm run check
+make dev-exec npm run check
 ```
+
+Do not run `npm test`, `npm run build`, or any other Node/TypeScript validation command directly on the host. Host-side results are not valid validation for this repository and must not be reported as the validation result.
 
 This runs all checks in order:
 1. `db:generate-client` - Regenerate Prisma client
@@ -32,7 +36,7 @@ This runs all checks in order:
 4. `typecheck` - TypeScript compilation check
 5. `build` - Full Next.js production build
 
-**If any command fails, fix the issues before committing.**
+**If any command fails inside the container, fix the issues before committing.** Report the exact `make dev-exec ...` command used and its result.
 
 ## Agent skills
 

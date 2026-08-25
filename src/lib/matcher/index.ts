@@ -24,6 +24,7 @@ export interface MatchTorrent {
 interface ParsedCandidate {
   hash: string;
   torrentIndex: number;
+  sourceName: string;
   parsed: ReturnType<typeof parseTorrentTitle>;
 }
 
@@ -89,6 +90,8 @@ const NOISE_TOKENS = new Set([
   'dv',
 ]);
 
+const MINIMUM_SUGGESTION_SCORE = 0.5;
+
 function dropReleaseGroup(title: string): string {
   const lastDash = title.lastIndexOf('-');
   if (lastDash === -1) return title;
@@ -151,6 +154,20 @@ function getRequestYear(releaseDate?: string | Date | null): number | undefined 
 
 function evaluateCandidate(request: MatchRequest, candidate: ParsedCandidate): RankedCandidate {
   const parsed = candidate.parsed;
+
+  if (/^[0-9a-f]+$/i.test(candidate.sourceName.trim())) {
+    return {
+      hash: candidate.hash,
+      torrentIndex: candidate.torrentIndex,
+      parsed,
+      suggestion: {
+        hash: candidate.hash,
+        score: -Infinity,
+        eligible: false,
+        reasons: ['torrent name is hexadecimal only'],
+      },
+    };
+  }
 
   if (!parsed.title) {
     return {
@@ -293,6 +310,7 @@ export function matchSuggestions(
           candidates.push({
             hash: torrent.hash,
             torrentIndex: i,
+            sourceName: source,
             parsed,
           });
         }
@@ -314,7 +332,7 @@ export function matchSuggestions(
       // Select the top eligible candidate across torrents.
       let top: RankedCandidate | undefined;
       for (const ranked of bestByHash.values()) {
-        if (!ranked.suggestion.eligible) continue;
+        if (!ranked.suggestion.eligible || ranked.suggestion.score < MINIMUM_SUGGESTION_SCORE) continue;
         if (!top || isBetterRanked(ranked, top)) {
           top = ranked;
         }

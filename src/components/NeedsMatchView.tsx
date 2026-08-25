@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { linkTorrent, cancelRequest } from '@/app/actions/request-actions';
 import { Button } from '@/components/ui/Button';
 import { Surface } from '@/components/ui/Surface';
-import { NeedsMatchSuggestion, NeedsMatchSuggestions } from '@/components/NeedsMatchSuggestions';
+import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
+import { ReleaseDate } from '@/components/ReleaseDate';
 import { Torrent } from '@/lib/transmission/adapter';
 import { Request } from '@/types/request';
 
 interface NeedsMatchViewProps {
   requests: Request[];
   torrents: Torrent[];
-  needsAttention?: Request[];
 }
 
 function formatProgress(pct: number): string {
@@ -32,7 +32,7 @@ function statusLabel(status: number): string {
   return labels[status] ?? `Unknown (${status})`;
 }
 
-export function NeedsMatchView({ requests, torrents, needsAttention }: NeedsMatchViewProps) {
+export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
   const router = useRouter();
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<number | null>(null);
@@ -62,45 +62,10 @@ export function NeedsMatchView({ requests, torrents, needsAttention }: NeedsMatc
 
   return (
     <div className="flex flex-col gap-8">
-      {needsAttention && needsAttention.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold text-rose-400">Needs Attention</h2>
-          {needsAttention.map((request) => (
-            <Surface key={request.id} elevation="raised" className="mb-3 border border-rose-500/20 p-3 sm:p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-base font-semibold text-foreground">{request.title}</h3>
-                  {request.season_number && (
-                    <p className="text-sm text-muted-foreground">Season {request.season_number}</p>
-                  )}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Requested by {request.requested_by}
-                  </p>
-                  <p className="mt-1 text-xs text-rose-300">
-                    {request.torrent_problem}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  loading={cancellingId === request.id}
-                  disabled={cancellingId === request.id}
-                  onClick={() => handleCancel(request.id)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </Surface>
-          ))}
-        </div>
-      )}
-
-      <NeedsMatchSuggestions requests={requests} torrents={torrents} />
-
       <div className="flex flex-col gap-6 sm:flex-row">
         <div className="flex-1">
           <h2 className="mb-3 text-lg font-semibold text-foreground">
-            Unmatched Requests
+            Requests Needing Match
             {requests.length > 0 && (
               <span className="ml-2 text-sm font-normal text-muted-foreground">({requests.length})</span>
             )}
@@ -109,32 +74,58 @@ export function NeedsMatchView({ requests, torrents, needsAttention }: NeedsMatc
             <p className="text-sm text-muted-foreground">All requests have been matched</p>
           ) : (
             requests.map((request) => (
-              <Surface key={request.id} elevation="raised" className="mb-3 p-3 sm:p-4">
+              <Surface
+                key={request.id}
+                elevation="raised"
+                className={`mb-3 p-3 sm:p-4 ${request.torrent_problem ? 'border border-rose-500/20' : ''}`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-base font-semibold text-foreground">{request.title}</h3>
-                    {request.season_number && (
-                      <p className="text-sm text-muted-foreground">Season {request.season_number}</p>
-                    )}
+                    <h3 className="truncate text-base font-semibold text-foreground">
+                      {request.title}
+                      {request.season_number && (
+                        <span className="ml-2 font-normal text-muted-foreground">Season {request.season_number}</span>
+                      )}
+                      {request.release_date && <ReleaseDate date={request.release_date} mediaType={request.media_type} />}
+                    </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Requested by {request.requested_by}
                     </p>
+                    {request.torrent_problem && (
+                      <p className="mt-1 text-xs text-rose-300">{request.torrent_problem}</p>
+                    )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={!selectedHash || linkingId === request.id}
-                    loading={linkingId === request.id}
-                    onClick={() => handleLink(request.id)}
-                  >
-                    Link
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {request.torrent_problem ? (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        loading={cancellingId === request.id}
+                        disabled={cancellingId === request.id}
+                        onClick={() => handleCancel(request.id)}
+                      >
+                        Cancel
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        disabled={!selectedHash || linkingId === request.id}
+                        loading={linkingId === request.id}
+                        onClick={() => handleLink(request.id)}
+                      >
+                        Link
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                {request.suggestion_hash !== null && request.suggestion_hash !== undefined && (
+                {request.suggestion_hash ? (
                   <NeedsMatchSuggestion
                     request={{ ...request, suggestion_hash: request.suggestion_hash }}
                     torrents={torrents}
                   />
+                ) : (
+                  <p className="mt-3 text-sm text-muted-foreground">No match found</p>
                 )}
               </Surface>
             ))

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NeedsMatchSuggestions } from '@/components/NeedsMatchSuggestions';
+import { NeedsMatchSuggestion, NeedsMatchSuggestions } from '@/components/NeedsMatchSuggestions';
 import { Request } from '@/types/request';
 import { Torrent } from '@/lib/transmission/adapter';
 
@@ -115,5 +115,53 @@ describe('NeedsMatchSuggestions', () => {
 
     await waitFor(() => expect(linkTorrent).toHaveBeenCalledWith(1, 'abc123'));
     expect(refresh).toHaveBeenCalled();
+  });
+
+  it('hides Accept while accepting and restores it with an inline error after failure', async () => {
+    jest.mocked(linkTorrent).mockRejectedValueOnce(new Error('failed'));
+    render(
+      <NeedsMatchSuggestions
+        requests={[createRequest({ suggestion_hash: 'abc123', suggestion_score: 0.83 })]}
+        torrents={[createTorrent()]}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: /0.83 confidence/ });
+    const click = userEvent.click(button);
+    await waitFor(() => expect(linkTorrent).toHaveBeenCalledWith(1, 'abc123'));
+    await click;
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to accept suggestion. Please try again.');
+    expect(screen.getByRole('button', { name: /0.83 confidence/ })).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('refreshes after accepting the single-request suggestion card', async () => {
+    render(
+      <NeedsMatchSuggestion
+        request={createRequest({ suggestion_hash: 'abc123', suggestion_score: 0.83 }) as Request & { suggestion_hash: string }}
+        torrents={[createTorrent()]}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Accept suggested match/ }));
+
+    await waitFor(() => expect(linkTorrent).toHaveBeenCalledWith(1, 'abc123'));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('shows a retryable error after the single-request suggestion fails', async () => {
+    jest.mocked(linkTorrent).mockRejectedValueOnce(new Error('failed'));
+    render(
+      <NeedsMatchSuggestion
+        request={createRequest({ suggestion_hash: 'abc123', suggestion_score: 0.83 }) as Request & { suggestion_hash: string }}
+        torrents={[createTorrent()]}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Accept suggested match/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to accept suggestion. Please try again.');
+    expect(screen.getByRole('button', { name: /Accept suggested match/ })).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
