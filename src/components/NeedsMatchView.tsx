@@ -93,7 +93,7 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
                       Requested by {request.requested_by}
                     </p>
                     <a
-                      href={torrentSearchIntent(request.title)}
+                      href={torrentSearchIntent(request.title, request.release_date)}
                       className="mt-2 inline-block text-xs font-medium text-accent hover:text-accent-hover"
                       aria-label="Search in TorrentSearch (Chrome/Android best effort)"
                       title="Best effort: opens TorrentSearch in Chrome on Android"
