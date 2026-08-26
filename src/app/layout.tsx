@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Navigation } from './components/Navigation';
 import { SwipeNavigation } from './components/SwipeNavigation';
 import { PageTransition } from '@/components/motion/PageTransition';
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const instrumentSerif = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-display', display: 'swap' });
@@ -12,6 +13,7 @@ const instrumentSerif = Instrument_Serif({ subsets: ['latin'], weight: '400', st
 export const metadata: Metadata = {
   title: 'Is It On Jellyfin?',
   description: 'Check if movies are on Jellyfin and request new ones',
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
@@ -22,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${instrumentSerif.variable}`}>
       <body className="font-sans bg-background text-foreground antialiased">
+        <ServiceWorkerRegistration />
         <Header />
         <PageTransition>
           <main>
