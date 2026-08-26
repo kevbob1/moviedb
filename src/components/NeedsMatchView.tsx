@@ -9,7 +9,6 @@ import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
 import { ReleaseDate } from '@/components/ReleaseDate';
 import { Torrent } from '@/lib/transmission/adapter';
 import { Request } from '@/types/request';
-import { torrentSearchIntent } from '@/lib/torrentsearch';
 
 interface NeedsMatchViewProps {
   requests: Request[];
@@ -92,14 +91,6 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
                     <p className="mt-1 text-xs text-muted-foreground">
                       Requested by {request.requested_by}
                     </p>
-                    <a
-                      href={torrentSearchIntent(request.title, request.release_date)}
-                      className="mt-2 inline-block text-xs font-medium text-accent hover:text-accent-hover"
-                      aria-label="Search in TorrentSearch (Chrome/Android best effort)"
-                      title="Best effort: opens TorrentSearch in Chrome on Android"
-                    >
-                      Search in TorrentSearch <span className="font-normal text-muted-foreground">(Chrome/Android best effort)</span>
-                    </a>
                     {request.torrent_problem && (
                       <p className="mt-1 text-xs text-rose-300">{request.torrent_problem}</p>
                     )}
