@@ -24,4 +24,6 @@ spec:
       stabilizationWindowSeconds: {{ .Values.hpa.scaleDown.stabilizationWindowSeconds }}
     scaleUp:
       stabilizationWindowSeconds: {{ .Values.hpa.scaleUp.stabilizationWindowSeconds }}
+      policies:
+        {{- toYaml .Values.hpa.scaleUp.policies | nindent 8 }}
 {{- end }}
