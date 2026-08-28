@@ -63,7 +63,7 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6 sm:flex-row">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1 basis-0">
           <h2 className="mb-3 text-lg font-semibold text-foreground">
             Requests Needing Match
             {requests.length > 0 && (
@@ -95,7 +95,7 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
                       <p className="mt-1 text-xs text-rose-300">{request.torrent_problem}</p>
                     )}
                   </div>
-                  <div className="flex flex-wrap justify-end gap-2">
+                  <div className="flex min-h-8 flex-shrink-0 flex-nowrap justify-end gap-2">
                     {request.torrent_problem ? (
                       <Button
                         size="sm"
@@ -132,7 +132,7 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1 basis-0">
           <h2 className="mb-3 text-lg font-semibold text-foreground">
             Transmission Torrents
             <span className="ml-2 text-sm font-normal text-muted-foreground">({torrents.length})</span>

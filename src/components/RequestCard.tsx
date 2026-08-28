@@ -43,12 +43,19 @@ export default function RequestCard({
           href={`https://www.themoviedb.org/${request.media_type === 'tv' ? 'tv' : 'movie'}/${request.tmdb_id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="block w-14 flex-shrink-0 sm:w-20"
+          className="relative block aspect-[2/3] w-14 flex-shrink-0 sm:w-20"
         >
-          <Image src={posterUrl} alt={request.title} width={80} height={120} className="h-auto w-full rounded-lg object-cover" />
+          <Image
+            src={posterUrl}
+            alt={request.title}
+            width={80}
+            height={120}
+            sizes="(max-width: 639px) 56px, 80px"
+            className="h-full w-full rounded-lg object-cover"
+          />
         </a>
       ) : (
-        <div className="h-[80px] w-14 flex-shrink-0 rounded-lg bg-surface sm:h-[120px] sm:w-20" />
+        <div className="aspect-[2/3] w-14 flex-shrink-0 rounded-lg bg-surface sm:w-20" />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -65,22 +72,22 @@ export default function RequestCard({
               <p className="text-xs text-muted-foreground">{getGenreNames(request.genre_ids).join(', ')}</p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-shrink-0 flex-nowrap items-center gap-1 overflow-x-auto">
             <Pill variant={statusToPill(request.status)} label={statusConfig.label} />
             {request.media_type === 'tv' && <Pill variant="downloading" label="TV" />}
             {jellyfinAvailable && <Pill variant="available" label="On Jellyfin" />}
           </div>
         </div>
 
-        {request.overview && (
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{request.overview}</p>
-        )}
+        <div className="mt-1 min-h-10">
+          {request.overview && <p className="line-clamp-2 text-sm text-muted-foreground">{request.overview}</p>}
+        </div>
 
         <p className="mt-1 text-xs text-muted-foreground">
           Requested by {request.requested_by} · {formattedDate ?? new Date(request.requested_at).toLocaleDateString()}
         </p>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex min-h-8 flex-wrap gap-2">
           {actions.map((action) => (
             <Button
               key={action.action}

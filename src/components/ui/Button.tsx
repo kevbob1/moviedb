@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn';
 import { Spinner } from './Spinner';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] motion-safe:transition-transform touch-manipulation',
+  'relative inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] motion-safe:transition-transform touch-manipulation',
   {
     variants: {
       variant: {
@@ -45,7 +45,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     >
-      {loading && <Spinner size="sm" className="text-current" />}
+      {loading && (
+        <Spinner
+          size="sm"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-current"
+          aria-hidden="true"
+        />
+      )}
       {children}
     </button>
   );
