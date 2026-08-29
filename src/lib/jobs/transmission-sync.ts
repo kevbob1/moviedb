@@ -23,7 +23,10 @@ export async function enqueueTransmissionSync(): Promise<boolean> {
   return true;
 }
 
-interface SyncHandlerOptions {
+export interface TransmissionSyncDependencies {
+  prisma: typeof prisma;
+  requestService: typeof requestService;
+  logger: Pick<typeof logger, 'debug' | 'info' | 'error'>;
   adapter: TransmissionAdapter;
 }
 
@@ -31,10 +34,15 @@ interface TransmissionSyncOptions {
   ignoreSuggestionAgeGate?: boolean;
 }
 
-export async function runTransmissionSync(
-  adapter: TransmissionAdapter,
-  { ignoreSuggestionAgeGate = false }: TransmissionSyncOptions = {},
-): Promise<void> {
+export function createTransmissionSync({
+  prisma,
+  requestService,
+  logger,
+  adapter,
+}: TransmissionSyncDependencies) {
+  async function run(
+    { ignoreSuggestionAgeGate = false }: TransmissionSyncOptions = {},
+  ): Promise<void> {
       const completionResult = await observeRequestCompletions({ adapter, prisma, requestService });
       if (completionResult.scanned > 0) {
         logger.info(completionResult, 'transmission_sync completed');
@@ -64,14 +72,38 @@ export async function runTransmissionSync(
         },
         'transmission_sync suggestions computed'
       );
+  }
+
+  return { run };
 }
 
-export function createTransmissionSyncHandler({ adapter }: SyncHandlerOptions): JobHandler<unknown> {
+/**
+ * Compatibility entry point for callers that used the pre-construction API.
+ * New orchestration code should use createTransmissionSync instead.
+ */
+export function runTransmissionSync(
+  adapter: TransmissionAdapter,
+  options: TransmissionSyncOptions = {},
+): Promise<void> {
+  return createTransmissionSync({ prisma, requestService, logger, adapter }).run(options);
+}
+
+export function createTransmissionSyncHandler(
+  dependencies: TransmissionSyncDependencies | { adapter: TransmissionAdapter },
+): JobHandler<unknown> {
+  const transmissionSync = createTransmissionSync(
+    'prisma' in dependencies
+      ? dependencies
+      : { prisma, requestService, logger, adapter: dependencies.adapter },
+  );
   return {
-    handle: () => runTransmissionSync(adapter),
+    handle: () => transmissionSync.run(),
   };
 }
 
 registerJobType('transmission_sync', createTransmissionSyncHandler({
+  prisma,
+  requestService,
+  logger,
   adapter: new HttpTransmissionAdapter(),
 }));
