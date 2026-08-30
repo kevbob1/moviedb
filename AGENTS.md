@@ -74,6 +74,28 @@ envFrom:
 
 **Inline `env` is only for values requiring secret interpolation at template time (e.g., DATABASE_URL).**
 
+## Deployment
+
+The repository-root `./deploy.sh` builds and pushes the production image, then upgrades the Helm release. Before deploying, run the authoritative validation command:
+
+```bash
+make dev-exec npm run check
+```
+
+Run deployment with a timeout of at least 10 minutes because Docker image export and registry push can exceed the default command timeout:
+
+```bash
+./deploy.sh
+```
+
+A successful deployment must include all of the following in the output:
+
+- Image build and push completed for the reported image tag.
+- Helm reports the `moviedb` release as `deployed`.
+- The output reports the deployed image tag and Helm revision.
+
+If execution is canceled during Docker image export, rerun `./deploy.sh` with the longer timeout before reporting deployment failure. Report build, push, and Helm results separately when any stage fails.
+
 ## CLI & Dependency Conventions
 
 **Never run `npx` or `tsx` in helm-deployed/production environments.** All dependencies must be installed at build time. CLI entrypoints must be defined as `npm run <name>` scripts in `package.json`. No ad-hoc package downloads at runtime.
