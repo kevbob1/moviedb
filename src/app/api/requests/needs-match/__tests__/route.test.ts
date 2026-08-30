@@ -1,12 +1,10 @@
 import { logger } from '@/lib/logger';
 
-const countMock = jest.fn();
+const queueStatsMock = jest.fn();
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    request: {
-      count: countMock,
-    },
+jest.mock('@/lib/request-lifecycle', () => ({
+  requestService: {
+    queueStats: queueStatsMock,
   },
 }));
 
@@ -40,28 +38,18 @@ describe('needs-match API', () => {
   });
 
   it('returns both needsMatchCount and needsAttentionCount', async () => {
-    countMock
-      .mockResolvedValueOnce(3)
-      .mockResolvedValueOnce(2);
+    queueStatsMock.mockResolvedValueOnce({ needsMatch: 3, needsAttention: 2 });
 
     const response = await GET(mockRequest);
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body).toEqual({ needsMatchCount: 3, needsAttentionCount: 2 });
-    expect(countMock).toHaveBeenCalledTimes(2);
-    expect(countMock).toHaveBeenNthCalledWith(1, {
-      where: { status: 'pending', torrent_hash: null },
-    });
-    expect(countMock).toHaveBeenNthCalledWith(2, {
-      where: { status: 'downloading', torrent_problem: { not: null } },
-    });
+    expect(queueStatsMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns zero counts when none match', async () => {
-    countMock
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0);
+    queueStatsMock.mockResolvedValueOnce({ needsMatch: 0, needsAttention: 0 });
 
     const response = await GET(mockRequest);
     const body = await response.json();
@@ -71,7 +59,7 @@ describe('needs-match API', () => {
   });
 
   it('returns 500 on error', async () => {
-    countMock.mockRejectedValue(new Error('DB error'));
+    queueStatsMock.mockRejectedValue(new Error('DB error'));
 
     const response = await GET(mockRequest);
     const body = await response.json();

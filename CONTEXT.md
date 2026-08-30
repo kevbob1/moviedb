@@ -99,3 +99,5 @@ These are the deepening-skill vocabulary. Use them exactly when writing architec
 - `docs/adr/0006-request-cancellation-is-deletion.md` — Cancellation is deletion; cron cleanup of resolved Requests
 - `docs/adr/0007-request-lifecycle-module.md` — One seam for the Request lifecycle
 - `docs/adr/0008-auto-match-suggestions.md` — Suggestion-only auto-match for torrent↔request pairing
+
+**Request lifecycle read surface:** the Request lifecycle module owns *all* Request state access behind the `RequestService` interface — not just writes. Reads that were historically imported direct Prisma predicates in API routes now live on the service: `queueStats()` (needs-match / needs-attention counts), `activeRequestsForSummary()` (pending+downloading for the daily summary), `retireResolved(olderThanDays)` (retention cleanup). This keeps the match/retention policy local to the module.

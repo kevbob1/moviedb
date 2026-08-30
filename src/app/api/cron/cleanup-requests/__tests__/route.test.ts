@@ -1,13 +1,11 @@
 import { logger } from '@/lib/logger';
 
-const deleteManyMock = jest.fn();
+const retireResolvedMock = jest.fn();
 const headersMock = jest.fn();
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    request: {
-      deleteMany: deleteManyMock,
-    },
+jest.mock('@/lib/request-lifecycle', () => ({
+  requestService: {
+    retireResolved: retireResolvedMock,
   },
 }));
 
@@ -45,7 +43,7 @@ describe('cleanup-requests cron API', () => {
     delete process.env.CRON_SECRET;
     delete process.env.REQUEST_RETENTION_DAYS;
     headersMock.mockResolvedValue(new Headers());
-    deleteManyMock.mockResolvedValue({ count: 0 });
+    retireResolvedMock.mockResolvedValue(0);
   });
 
   afterEach(() => {
@@ -88,8 +86,15 @@ describe('cleanup-requests cron API', () => {
   });
 
   describe('successful execution', () => {
+    it('passes the retention window to the request lifecycle module', async () => {
+      await GET(mockRequest);
+
+      expect(retireResolvedMock).toHaveBeenCalledTimes(1);
+      expect(retireResolvedMock).toHaveBeenCalledWith(5);
+    });
+
     it('returns 200 with deleted count', async () => {
-      deleteManyMock.mockResolvedValue({ count: 3 });
+      retireResolvedMock.mockResolvedValue(3);
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
@@ -99,38 +104,20 @@ describe('cleanup-requests cron API', () => {
       expect(body).toHaveProperty('deleted', 3);
     });
 
-    it('deletes fulfilled requests older than 5 days by default', async () => {
-      await GET(mockRequest);
-
-      expect(deleteManyMock).toHaveBeenCalledTimes(1);
-      const callArgs = deleteManyMock.mock.calls[0][0];
-      expect(callArgs.where.status).toBe('fulfilled');
-      expect(callArgs.where.resolved_at).toHaveProperty('lt');
-      expect(callArgs.where.resolved_at.lt).toBeInstanceOf(Date);
-    });
-
     it('returns deleted count 0 when no old fulfilled requests exist', async () => {
+      retireResolvedMock.mockResolvedValue(0);
+
       const response = await GET(mockRequest);
 
       const body = await response.json();
       expect(body.status).toBe('ok');
       expect(body).toHaveProperty('deleted', 0);
     });
-
-    it('responds with deleted count and status ok', async () => {
-      deleteManyMock.mockResolvedValue({ count: 5 });
-
-      const response = await GET(mockRequest);
-      const body = await response.json();
-
-      expect(body.status).toBe('ok');
-      expect(body.deleted).toBe(5);
-    });
   });
 
   describe('error handling', () => {
-    it('returns 500 when deleteMany throws', async () => {
-      deleteManyMock.mockRejectedValue(new Error('DB error'));
+    it('returns 500 when retireResolved throws', async () => {
+      retireResolvedMock.mockRejectedValue(new Error('DB error'));
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(500);

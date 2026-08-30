@@ -1,14 +1,12 @@
 import { logger } from '@/lib/logger';
 
-const findManyMock = jest.fn();
+const activeRequestsForSummaryMock = jest.fn();
 const sendDailySummaryMock = jest.fn();
 const headersMock = jest.fn();
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    request: {
-      findMany: findManyMock,
-    },
+jest.mock('@/lib/request-lifecycle', () => ({
+  requestService: {
+    activeRequestsForSummary: activeRequestsForSummaryMock,
   },
 }));
 
@@ -44,13 +42,23 @@ beforeAll(() => {
 
 describe('daily-summary cron API', () => {
   const mockRequest = { url: 'http://localhost/api/cron/daily-summary', method: 'GET' } as unknown as Request;
+  const domainRequest = {
+    id: 1,
+    title: 'Inception',
+    requested_by: 'Alice',
+    requested_at: '2026-06-06T10:00:00.000Z',
+    status: 'pending',
+    release_date: '2010-07-16' as string | undefined,
+    media_type: 'movie' as string | undefined,
+    season_number: null as number | null | undefined,
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.CRON_SECRET;
     headersMock.mockResolvedValue(new Headers());
     sendDailySummaryMock.mockResolvedValue(undefined);
-    findManyMock.mockResolvedValue([]);
+    activeRequestsForSummaryMock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -93,7 +101,7 @@ describe('daily-summary cron API', () => {
 
   describe('successful execution', () => {
     it('returns 200 with count of requests', async () => {
-      findManyMock.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      activeRequestsForSummaryMock.mockResolvedValue([domainRequest, { ...domainRequest, id: 2 }]);
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
@@ -104,7 +112,7 @@ describe('daily-summary cron API', () => {
     });
 
     it('returns 200 with status skipped when no active requests', async () => {
-      findManyMock.mockResolvedValue([]);
+      activeRequestsForSummaryMock.mockResolvedValue([]);
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
@@ -115,28 +123,35 @@ describe('daily-summary cron API', () => {
       expect(sendDailySummaryMock).not.toHaveBeenCalled();
     });
 
-    it('queries for pending and downloading requests', async () => {
+    it('delegates the active-requests query to the request lifecycle module', async () => {
       await GET(mockRequest);
 
-      expect(findManyMock).toHaveBeenCalledWith({
-        where: { status: { in: ['pending', 'downloading'] } },
-        orderBy: { requested_at: 'desc' },
-      });
+      expect(activeRequestsForSummaryMock).toHaveBeenCalledTimes(1);
     });
 
-    it('passes requests to sendDailySummary', async () => {
-      const requests = [{ id: 1 }, { id: 2 }];
-      findManyMock.mockResolvedValue(requests);
+    it('passes requests to sendDailySummary as notification DTOs', async () => {
+      activeRequestsForSummaryMock.mockResolvedValue([domainRequest]);
 
       await GET(mockRequest);
 
-      expect(sendDailySummaryMock).toHaveBeenCalledWith(requests);
+      expect(sendDailySummaryMock).toHaveBeenCalledWith([
+        {
+          id: 1,
+          title: 'Inception',
+          requested_by: 'Alice',
+          status: 'pending',
+          requested_at: new Date('2026-06-06T10:00:00.000Z'),
+          release_date: '2010-07-16',
+          media_type: 'movie',
+          season_number: null,
+        },
+      ]);
     });
   });
 
   describe('error handling', () => {
-    it('returns 500 when findMany throws', async () => {
-      findManyMock.mockRejectedValue(new Error('DB error'));
+    it('returns 500 when activeRequestsForSummary throws', async () => {
+      activeRequestsForSummaryMock.mockRejectedValue(new Error('DB error'));
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(500);
@@ -151,7 +166,7 @@ describe('daily-summary cron API', () => {
     });
 
     it('returns 500 when sendDailySummary throws', async () => {
-      findManyMock.mockResolvedValue([{ id: 1 }]);
+      activeRequestsForSummaryMock.mockResolvedValue([domainRequest]);
       sendDailySummaryMock.mockRejectedValue(new Error('SMTP error'));
 
       const response = await GET(mockRequest);

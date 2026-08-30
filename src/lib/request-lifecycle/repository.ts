@@ -32,6 +32,9 @@ export interface RequestService {
   cancelRequest(reqId: number): Promise<void>;
   fulfillBySync(reqId: number, tx: Prisma.TransactionClient): Promise<void>;
   flagTorrentProblem(reqId: number, problem: string, tx: Prisma.TransactionClient): Promise<void>;
+  queueStats(): Promise<{ needsMatch: number; needsAttention: number }>;
+  activeRequestsForSummary(): Promise<Request[]>;
+  retireResolved(olderThanDays: number): Promise<number>;
 }
 
 export function createRequestService({ prisma, enqueueJob, now = () => new Date() }: RequestServiceDeps): RequestService {
@@ -217,6 +220,45 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     });
   }
 
+  async function queueStats(): Promise<{ needsMatch: number; needsAttention: number }> {
+    const [needsMatch, needsAttention] = await Promise.all([
+      prisma.request.count({
+        where: {
+          status: 'pending',
+          torrent_hash: null,
+        },
+      }),
+      prisma.request.count({
+        where: {
+          status: 'downloading',
+          torrent_problem: { not: null },
+        },
+      }),
+    ]);
+    return { needsMatch, needsAttention };
+  }
+
+  async function activeRequestsForSummary(): Promise<Request[]> {
+    const rows = await prisma.request.findMany({
+      where: {
+        status: { in: ['pending', 'downloading'] },
+      },
+      orderBy: { requested_at: 'desc' },
+    });
+    return rows.map(toRequestModel);
+  }
+
+  async function retireResolved(olderThanDays: number): Promise<number> {
+    const cutoff = new Date(now().getTime() - olderThanDays * 24 * 60 * 60 * 1000);
+    const result = await prisma.request.deleteMany({
+      where: {
+        status: 'fulfilled',
+        resolved_at: { lt: cutoff },
+      },
+    });
+    return result.count;
+  }
+
   return {
     createRequest,
     createTvRequests,
@@ -227,5 +269,8 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     cancelRequest,
     fulfillBySync,
     flagTorrentProblem,
+    queueStats,
+    activeRequestsForSummary,
+    retireResolved,
   };
 }

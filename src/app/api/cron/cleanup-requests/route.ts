@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { requestService } from '@/lib/request-lifecycle';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { withLogging } from '@/lib/with-logging';
@@ -18,19 +18,11 @@ async function handler() {
   }
 
   try {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - REQUEST_RETENTION_DAYS);
+    const deleted = await requestService.retireResolved(REQUEST_RETENTION_DAYS);
 
-    const deleted = await prisma.request.deleteMany({
-      where: {
-        status: 'fulfilled',
-        resolved_at: { lt: cutoff },
-      },
-    });
+    logger.info({ deletedCount: deleted }, 'Cleanup requests cron completed');
 
-    logger.info({ deletedCount: deleted.count, cutoff }, 'Cleanup requests cron completed');
-
-    return NextResponse.json({ status: 'ok', deleted: deleted.count });
+    return NextResponse.json({ status: 'ok', deleted });
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Cleanup requests cron failed');
     return NextResponse.json({ status: 'error', message: 'Cleanup failed' }, { status: 500 });

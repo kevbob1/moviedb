@@ -478,4 +478,64 @@ describe('request-lifecycle/service', () => {
       expect(fake.rows[0].resolved_at).toBeNull();
     });
   });
+
+  describe('queueStats', () => {
+    it('counts needs-match and needs-attention requests with the right predicates', async () => {
+      const countMock = jest.fn().mockResolvedValue(3);
+      const service = createRequestService({
+        prisma: { request: { count: countMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      const stats = await service.queueStats();
+
+      expect(stats).toEqual({ needsMatch: 3, needsAttention: 3 });
+      expect(countMock).toHaveBeenNthCalledWith(1, {
+        where: { status: 'pending', torrent_hash: null },
+      });
+      expect(countMock).toHaveBeenNthCalledWith(2, {
+        where: { status: 'downloading', torrent_problem: { not: null } },
+      });
+    });
+  });
+
+  describe('activeRequestsForSummary', () => {
+    it('fetches pending and downloading requests ordered by requested_at desc', async () => {
+      const findManyMock = jest.fn().mockResolvedValue([]);
+      const service = createRequestService({
+        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      await service.activeRequestsForSummary();
+
+      expect(findManyMock).toHaveBeenCalledWith({
+        where: { status: { in: ['pending', 'downloading'] } },
+        orderBy: { requested_at: 'desc' },
+      });
+    });
+  });
+
+  describe('retireResolved', () => {
+    it('deletes fulfilled requests resolved before the retention cutoff', async () => {
+      const deleteManyMock = jest.fn().mockResolvedValue({ count: 4 });
+      const service = createRequestService({
+        prisma: { request: { deleteMany: deleteManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      const deleted = await service.retireResolved(7);
+
+      expect(deleted).toBe(4);
+      expect(deleteManyMock).toHaveBeenCalledTimes(1);
+      const callArgs = deleteManyMock.mock.calls[0][0];
+      expect(callArgs.where.status).toBe('fulfilled');
+      expect(callArgs.where.resolved_at).toHaveProperty('lt');
+      expect(callArgs.where.resolved_at.lt).toBeInstanceOf(Date);
+      expect(callArgs.where.resolved_at.lt.toISOString()).toBe('2026-06-08T12:00:00.000Z');
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { requestService } from '@/lib/request-lifecycle';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
 
@@ -7,21 +7,8 @@ export const dynamic = 'force-dynamic';
 
 async function handler() {
   try {
-    const [needsMatchCount, needsAttentionCount] = await Promise.all([
-      prisma.request.count({
-        where: {
-          status: 'pending',
-          torrent_hash: null,
-        },
-      }),
-      prisma.request.count({
-        where: {
-          status: 'downloading',
-          torrent_problem: { not: null },
-        },
-      }),
-    ]);
-    return NextResponse.json({ needsMatchCount, needsAttentionCount });
+    const { needsMatch, needsAttention } = await requestService.queueStats();
+    return NextResponse.json({ needsMatchCount: needsMatch, needsAttentionCount: needsAttention });
   } catch (error) {
     logger.error({ error: error instanceof Error ? error.message : 'Unknown error' }, 'Failed to count needs-match requests');
     return NextResponse.json(
