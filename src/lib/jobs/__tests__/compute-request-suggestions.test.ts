@@ -17,7 +17,7 @@ it('forwards the age-gate option and uses the injected clock', async () => {
   (prisma.request.findMany as jest.Mock).mockResolvedValue([]);
 
   const result = await computeRequestSuggestions({
-    adapter: { getAll: jest.fn(), getTorrents: jest.fn(), ping: jest.fn() },
+    catalog: { getAll: jest.fn(), refresh: jest.fn() },
     prisma,
     now: () => now,
   }, { ignoreSuggestionAgeGate: true });
@@ -26,4 +26,15 @@ it('forwards the age-gate option and uses the injected clock', async () => {
     where: { status: 'pending', torrent_hash: null },
   }));
   expect(result).toEqual({ scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] });
+});
+
+it('loads the full torrent list through the catalog seam', async () => {
+  const catalog = { getAll: jest.fn().mockResolvedValue([]), refresh: jest.fn() };
+  (prisma.request.findMany as jest.Mock).mockResolvedValue([
+    { id: 7, title: 'A Movie', media_type: 'movie', release_date: '2026', season_number: null },
+  ]);
+
+  await computeRequestSuggestions({ catalog, prisma, now: () => new Date('2026-01-02T00:00:00.000Z') });
+
+  expect(catalog.getAll).toHaveBeenCalledTimes(1);
 });

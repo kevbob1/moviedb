@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@/generated/prisma/client';
-import type { TransmissionAdapter } from '@/lib/transmission/adapter';
+import type { TransmissionCatalog } from '@/lib/transmission/catalog';
 import { matchSuggestions } from '@/lib/matcher';
 import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
@@ -12,7 +12,7 @@ export interface ComputeRequestSuggestionsResult {
 }
 
 interface ComputeRequestSuggestionsDeps {
-  adapter: TransmissionAdapter;
+  catalog: TransmissionCatalog;
   prisma: PrismaClient;
   now: () => Date;
 }
@@ -29,7 +29,7 @@ function median(values: number[]): number {
 }
 
 export async function computeRequestSuggestions({
-  adapter,
+  catalog,
   prisma,
   now: getNow,
 }: ComputeRequestSuggestionsDeps,
@@ -54,7 +54,7 @@ export async function computeRequestSuggestions({
     return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] };
   }
 
-  const allTorrents = await adapter.getAll();
+  const allTorrents = await catalog.getAll();
   let parserFailures = 0;
   for (const torrent of allTorrents) {
     for (const source of [torrent.name, ...(torrent.files ?? [])]) {

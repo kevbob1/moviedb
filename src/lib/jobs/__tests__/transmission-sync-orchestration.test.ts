@@ -20,7 +20,7 @@ it('runs completion before suggestions and forwards the manual-refresh option', 
   await runTransmissionSync(adapter, { ignoreSuggestionAgeGate: true });
 
   expect(order).toEqual(['completion', 'suggestions']);
-  expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ prisma }), { ignoreSuggestionAgeGate: true });
+  expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ prisma, catalog: expect.any(Object) }), { ignoreSuggestionAgeGate: true });
 });
 
 it('skips suggestions when completion fails', async () => {

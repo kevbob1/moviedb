@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger';
 import { requestService } from '@/lib/request-lifecycle';
 import { registerJobType, JobHandler } from '@/lib/job-queue';
 import { TransmissionAdapter, HttpTransmissionAdapter } from '@/lib/transmission/adapter';
+import { createTransmissionCatalog, TransmissionCatalog } from '@/lib/transmission/catalog';
 import { observeRequestCompletions } from './observe-request-completions';
 import { computeRequestSuggestions } from './compute-request-suggestions';
 const JOB_TYPE = 'transmission_sync';
@@ -28,6 +29,7 @@ export interface TransmissionSyncDependencies {
   requestService: typeof requestService;
   logger: Pick<typeof logger, 'debug' | 'info' | 'error'>;
   adapter: TransmissionAdapter;
+  catalog?: TransmissionCatalog;
 }
 
 interface TransmissionSyncOptions {
@@ -39,7 +41,10 @@ export function createTransmissionSync({
   requestService,
   logger,
   adapter,
+  catalog,
 }: TransmissionSyncDependencies) {
+  const transmissionCatalog = catalog ?? createTransmissionCatalog(adapter);
+
   async function run(
     { ignoreSuggestionAgeGate = false }: TransmissionSyncOptions = {},
   ): Promise<void> {
@@ -52,7 +57,7 @@ export function createTransmissionSync({
 
       const now = new Date();
       const suggestionResult = await computeRequestSuggestions({
-        adapter,
+        catalog: transmissionCatalog,
         prisma,
         now: () => now,
       }, { ignoreSuggestionAgeGate });
@@ -85,7 +90,13 @@ export function runTransmissionSync(
   adapter: TransmissionAdapter,
   options: TransmissionSyncOptions = {},
 ): Promise<void> {
-  return createTransmissionSync({ prisma, requestService, logger, adapter }).run(options);
+  return createTransmissionSync({
+    prisma,
+    requestService,
+    logger,
+    adapter,
+    catalog: createTransmissionCatalog(adapter),
+  }).run(options);
 }
 
 export function createTransmissionSyncHandler(
@@ -94,16 +105,25 @@ export function createTransmissionSyncHandler(
   const transmissionSync = createTransmissionSync(
     'prisma' in dependencies
       ? dependencies
-      : { prisma, requestService, logger, adapter: dependencies.adapter },
+      : {
+          prisma,
+          requestService,
+          logger,
+          adapter: dependencies.adapter,
+          catalog: createTransmissionCatalog(dependencies.adapter),
+        },
   );
   return {
     handle: () => transmissionSync.run(),
   };
 }
 
+const productionAdapter = new HttpTransmissionAdapter();
+
 registerJobType('transmission_sync', createTransmissionSyncHandler({
   prisma,
   requestService,
   logger,
-  adapter: new HttpTransmissionAdapter(),
+  adapter: productionAdapter,
+  catalog: createTransmissionCatalog(productionAdapter),
 }));
