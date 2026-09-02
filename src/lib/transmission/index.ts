@@ -10,4 +10,4 @@ const defaultCatalog = createTransmissionCatalog(defaultAdapter);
 export const getAll = () => defaultCatalog.getAll();
 export const refreshCatalog = () => defaultCatalog.refresh();
 export const ping = () => defaultAdapter.ping();
-export const getTorrents = (hashes: string[]) => defaultAdapter.getTorrents(hashes);
+export const getTorrents = (hashes?: string[]) => defaultAdapter.getTorrents(hashes);

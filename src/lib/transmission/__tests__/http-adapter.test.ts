@@ -101,11 +101,11 @@ describe('HttpTransmissionAdapter', () => {
     });
   });
 
-  describe('getAll', () => {
+  describe('getTorrents (all)', () => {
     it('returns empty array when TRANSMISSION_URL is missing', async () => {
       delete process.env.TRANSMISSION_URL;
       const adapter = new HttpTransmissionAdapter();
-      const result = await adapter.getAll();
+      const result = await adapter.getTorrents();
       expect(result).toEqual([]);
     });
 
@@ -123,7 +123,7 @@ describe('HttpTransmissionAdapter', () => {
         } as unknown as Response);
 
       const adapter = new HttpTransmissionAdapter({ url: 'http://transmission.example.com:9091' });
-      await adapter.getAll();
+      await adapter.getTorrents();
 
       const urls = (global.fetch as jest.Mock).mock.calls.map((c: unknown[]) => c[0]);
       expect(urls).toEqual([
@@ -146,7 +146,7 @@ describe('HttpTransmissionAdapter', () => {
         } as unknown as Response);
 
       const adapter = new HttpTransmissionAdapter({ url: 'http://transmission.example.com:9091/' });
-      await adapter.getAll();
+      await adapter.getTorrents();
 
       const urls = (global.fetch as jest.Mock).mock.calls.map((c: unknown[]) => c[0]);
       expect(urls[0]).toBe('http://transmission.example.com:9091/transmission/rpc');
@@ -174,10 +174,27 @@ describe('HttpTransmissionAdapter', () => {
         } as unknown as Response);
 
       const adapter = new HttpTransmissionAdapter();
-      const result = await adapter.getAll();
+      const result = await adapter.getTorrents();
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({ hash: 'abc123', name: 'Test Movie', percentDone: 1, status: 6 });
       expect(result[1]).toEqual({ hash: 'def456', name: 'Test TV Show', percentDone: 0.5, status: 4 });
+    });
+
+    it('omits ids for an all-torrents request and maps optional fields', async () => {
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({ status: 409, statusText: 'Conflict', headers: new Map([['X-Transmission-Session-Id', 'session-123']]) } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ result: 'success', arguments: { torrents: [{ hashString: 'abc123', name: 'Test', percentDone: 1, status: 6, isFinished: true, errorString: 'disk full', files: [{ name: 'movie.mkv' }, {}] }] } }),
+        } as unknown as Response);
+
+      const result = await new HttpTransmissionAdapter().getTorrents();
+      expect(JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body)).toEqual({
+        method: 'torrent-get',
+        arguments: { fields: ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString', 'files'] },
+      });
+      expect(result).toEqual([{ hash: 'abc123', name: 'Test', percentDone: 1, status: 6, isFinished: true, error: 'disk full', files: ['movie.mkv'] }]);
     });
 
     it('handles empty torrent list', async () => {
@@ -197,7 +214,7 @@ describe('HttpTransmissionAdapter', () => {
         } as unknown as Response);
 
       const adapter = new HttpTransmissionAdapter();
-      const result = await adapter.getAll();
+      const result = await adapter.getTorrents();
       expect(result).toEqual([]);
     });
 
@@ -232,12 +249,27 @@ describe('HttpTransmissionAdapter', () => {
         } as unknown as Response);
 
       const adapter = new HttpTransmissionAdapter();
-      const result = await adapter.getAll();
+      const result = await adapter.getTorrents();
       expect(result).toHaveLength(1);
     });
   });
 
-  describe('getTorrents', () => {
+  describe('getTorrents (selected)', () => {
+    it('includes selected ids in the RPC request', async () => {
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({ status: 409, statusText: 'Conflict', headers: new Map([['X-Transmission-Session-Id', 'session-123']]) } as unknown as Response)
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ result: 'success', arguments: { torrents: [] } }) } as unknown as Response);
+
+      await new HttpTransmissionAdapter().getTorrents(['abc123']);
+      expect(JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body).arguments.ids).toEqual(['abc123']);
+    });
+
+    it('returns empty without making an RPC request for an empty selection', async () => {
+      const result = await new HttpTransmissionAdapter().getTorrents([]);
+      expect(result).toEqual([]);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
     it('returns filtered torrents by hashes', async () => {
       (global.fetch as jest.Mock)
         .mockResolvedValueOnce({

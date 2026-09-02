@@ -11,8 +11,7 @@ export interface Torrent {
 }
 
 export interface TransmissionAdapter {
-  getTorrents(hashes: string[]): Promise<Torrent[]>;
-  getAll(): Promise<Torrent[]>;
+  getTorrents(hashes?: string[]): Promise<Torrent[]>;
   ping(): Promise<{ reachable: boolean; error?: string }>;
 }
 interface TransmissionArguments {
@@ -136,16 +135,8 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
     return result;
   }
 
-  async getTorrents(hashes: string[]): Promise<Torrent[]> {
-    if (!this.url) return [];
-
-    const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString', 'files'];
-    const result = await this.rpcCall('torrent-get', {
-      fields,
-      ids: hashes,
-    });
-
-    return (result.arguments.torrents ?? []).map(t => ({
+  private mapTorrent(t: NonNullable<TransmissionArguments['torrents']>[number]): Torrent {
+    return {
       hash: t.hashString ?? '',
       name: t.name ?? '',
       percentDone: t.percentDone ?? 0,
@@ -154,31 +145,20 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       ...(t.errorString ? { error: t.errorString } : {}),
       ...(t.files !== undefined ? {
         files: (t.files ?? [])
-          .map((f: { name?: string }) => f.name)
+          .map(f => f.name)
           .filter((n): n is string => !!n),
       } : {}),
-    }));
+    };
   }
 
-  async getAll(): Promise<Torrent[]> {
+  async getTorrents(hashes?: string[]): Promise<Torrent[]> {
     if (!this.url) return [];
+    if (hashes !== undefined && hashes.length === 0) return [];
 
     const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString', 'files'];
-    const result = await this.rpcCall('torrent-get', { fields });
+    const result = await this.rpcCall('torrent-get', hashes === undefined ? { fields } : { fields, ids: hashes });
 
-    return (result.arguments.torrents ?? []).map(t => ({
-      hash: t.hashString ?? '',
-      name: t.name ?? '',
-      percentDone: t.percentDone ?? 0,
-      status: t.status ?? 0,
-      ...(t.isFinished !== undefined ? { isFinished: t.isFinished } : {}),
-      ...(t.errorString ? { error: t.errorString } : {}),
-      ...(t.files !== undefined ? {
-        files: (t.files ?? [])
-          .map((f: { name?: string }) => f.name)
-          .filter((n): n is string => !!n),
-      } : {}),
-    }));
+    return (result.arguments.torrents ?? []).map(t => this.mapTorrent(t));
   }
 
   async ping(): Promise<{ reachable: boolean; error?: string }> {
@@ -228,13 +208,11 @@ export class InMemoryTransmissionAdapter implements TransmissionAdapter {
     this.pingResult = init.ping ?? { reachable: true };
   }
 
-  async getTorrents(hashes: string[]): Promise<Torrent[]> {
+  async getTorrents(hashes?: string[]): Promise<Torrent[]> {
+    if (hashes === undefined) return this.torrents.map(t => ({ ...t }));
+    if (hashes.length === 0) return [];
     const hashSet = new Set(hashes);
     return this.torrents.filter(t => hashSet.has(t.hash)).map(t => ({ ...t }));
-  }
-
-  async getAll(): Promise<Torrent[]> {
-    return this.torrents.map(t => ({ ...t }));
   }
 
   async ping(): Promise<{ reachable: boolean; error?: string }> {

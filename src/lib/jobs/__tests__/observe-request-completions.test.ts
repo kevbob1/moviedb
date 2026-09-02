@@ -17,7 +17,6 @@ it('returns completion metrics and uses the injected request lifecycle', async (
   const requestService = { fulfillBySync: jest.fn(), flagTorrentProblem: jest.fn() };
   const adapter = {
     getTorrents: jest.fn().mockResolvedValue([{ hash: 'hash', name: 'Movie', status: 6, percentDone: 1 }]),
-    getAll: jest.fn(),
     ping: jest.fn(),
   };
 

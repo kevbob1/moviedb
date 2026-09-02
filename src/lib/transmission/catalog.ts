@@ -20,7 +20,7 @@ export function createTransmissionCatalog(
     async getAll() {
       const now = Date.now();
       if (cached && now - cachedAt < ttlMs) return cached;
-      cached = await adapter.getAll();
+      cached = await adapter.getTorrents();
       cachedAt = now;
       return cached;
     },

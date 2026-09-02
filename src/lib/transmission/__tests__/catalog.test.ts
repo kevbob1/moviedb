@@ -29,7 +29,7 @@ describe('TransmissionCatalog', () => {
   describe('caching', () => {
     it('caches within TTL and does not call adapter twice', async () => {
       const adapter = new InMemoryTransmissionAdapter({ torrents: makeTorrents() });
-      const getAllSpy = jest.spyOn(adapter, 'getAll');
+      const getAllSpy = jest.spyOn(adapter, 'getTorrents');
       const catalog = createTransmissionCatalog(adapter, { ttlMs: 60_000 });
 
       await catalog.getAll();
@@ -40,7 +40,7 @@ describe('TransmissionCatalog', () => {
 
     it('calls adapter again after TTL expires', async () => {
       const adapter = new InMemoryTransmissionAdapter({ torrents: makeTorrents() });
-      const getAllSpy = jest.spyOn(adapter, 'getAll');
+      const getAllSpy = jest.spyOn(adapter, 'getTorrents');
       const catalog = createTransmissionCatalog(adapter, { ttlMs: 10 });
 
       await catalog.getAll();
@@ -52,9 +52,9 @@ describe('TransmissionCatalog', () => {
   });
 
   describe('refresh', () => {
-    it('busts the cache so next getAll calls the adapter again', async () => {
+    it('busts the cache so next read calls the adapter again', async () => {
       const adapter = new InMemoryTransmissionAdapter({ torrents: makeTorrents() });
-      const getAllSpy = jest.spyOn(adapter, 'getAll');
+      const getAllSpy = jest.spyOn(adapter, 'getTorrents');
       const catalog = createTransmissionCatalog(adapter, { ttlMs: 60_000 });
 
       await catalog.getAll();

@@ -16,7 +16,7 @@ it('runs completion before suggestions and forwards the manual-refresh option', 
   (observeRequestCompletions as jest.Mock).mockImplementation(async () => { order.push('completion'); return { scanned: 1, torrents: 1, fulfilled: 1, problems: 0 }; });
   (computeRequestSuggestions as jest.Mock).mockImplementation(async () => { order.push('suggestions'); return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] }; });
 
-  const adapter = { getTorrents: jest.fn(), getAll: jest.fn(), ping: jest.fn() };
+  const adapter = { getTorrents: jest.fn(), ping: jest.fn() };
   await runTransmissionSync(adapter, { ignoreSuggestionAgeGate: true });
 
   expect(order).toEqual(['completion', 'suggestions']);
@@ -26,7 +26,7 @@ it('runs completion before suggestions and forwards the manual-refresh option', 
 it('skips suggestions when completion fails', async () => {
   (observeRequestCompletions as jest.Mock).mockRejectedValue(new Error('completion failed'));
 
-  const adapter = { getTorrents: jest.fn(), getAll: jest.fn(), ping: jest.fn() };
+  const adapter = { getTorrents: jest.fn(), ping: jest.fn() };
   await expect(runTransmissionSync(adapter)).rejects.toThrow('completion failed');
   expect(computeRequestSuggestions).not.toHaveBeenCalled();
 });
@@ -41,7 +41,7 @@ it('logs the metrics returned by both phases', async () => {
     persistenceErrors: [],
   });
 
-  await runTransmissionSync({ getTorrents: jest.fn(), getAll: jest.fn(), ping: jest.fn() });
+  await runTransmissionSync({ getTorrents: jest.fn(), ping: jest.fn() });
 
   expect(logger.info).toHaveBeenNthCalledWith(1,
     { scanned: 2, torrents: 2, fulfilled: 1, problems: 1 },
