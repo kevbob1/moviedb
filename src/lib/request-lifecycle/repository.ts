@@ -33,6 +33,8 @@ export interface RequestService {
   fulfillBySync(reqId: number, tx: Prisma.TransactionClient): Promise<void>;
   flagTorrentProblem(reqId: number, problem: string, tx: Prisma.TransactionClient): Promise<void>;
   queueStats(): Promise<{ needsMatch: number; needsAttention: number }>;
+  pendingRequestsForNeedsMatch(): Promise<Request[]>;
+  downloadingRequestsWithTorrentProblems(): Promise<Request[]>;
   activeRequestsForSummary(): Promise<Request[]>;
   retireResolved(olderThanDays: number): Promise<number>;
 }
@@ -238,6 +240,22 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     return { needsMatch, needsAttention };
   }
 
+  async function pendingRequestsForNeedsMatch(): Promise<Request[]> {
+    const rows = await prisma.request.findMany({
+      where: { status: 'pending', torrent_hash: null },
+      orderBy: { requested_at: 'desc' },
+    });
+    return rows.map(toRequestModel);
+  }
+
+  async function downloadingRequestsWithTorrentProblems(): Promise<Request[]> {
+    const rows = await prisma.request.findMany({
+      where: { status: 'downloading', torrent_problem: { not: null } },
+      orderBy: { requested_at: 'desc' },
+    });
+    return rows.map(toRequestModel);
+  }
+
   async function activeRequestsForSummary(): Promise<Request[]> {
     const rows = await prisma.request.findMany({
       where: {
@@ -270,6 +288,8 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     fulfillBySync,
     flagTorrentProblem,
     queueStats,
+    pendingRequestsForNeedsMatch,
+    downloadingRequestsWithTorrentProblems,
     activeRequestsForSummary,
     retireResolved,
   };

@@ -84,19 +84,23 @@ The suggestion fields are cleared on every transition out of `pending` (`pending
 
 ### Where it runs
 
-Matching piggybacks the existing `transmission_sync` cron job (`src/lib/jobs/transmission-sync.ts`). On each run the job:
+Matching piggybacks the existing `transmission_sync` Job (`src/lib/jobs/transmission-sync.ts`). Scheduled and manual triggers share this single Job type. On each run the Job:
 
 1. Fetches the full Transmission torrent list (the operator-pick surface already needs it).
 2. Loads all `pending` Requests with `torrent_hash IS NULL`.
 3. Calls the matcher.
 4. Writes the top-1 suggestion (or a null wipe if the previous suggestion no longer holds) to the three columns.
 
-No new job type or cron schedule is introduced unless ticket #60 discovers a strong reason for one.
+No new Job type is introduced. The cron executes every minute. Manual enqueue
+bypasses the suggestion age gate; scheduled execution retains it. A pending or
+processing `transmission_sync` Job is coalesced: a pending scheduled Job is
+upgraded to manual when requested manually, while a processing Job is left
+unchanged.
 
-The existing `?refresh=1` action on the Needs Match view also triggers an
-immediate sync-and-match pass, running the same steps synchronously so the
-view is not left stale after a manual refresh. Manual refresh bypasses the
-scheduled suggestion age gate; scheduled runs retain that gate.
+Manual sync is asynchronous via the server action. Needs Match observes Job
+status through bounded client refresh and keeps current data visible while the
+sync runs. Terminal Job status is `completed` or `failed`; partial per-Request
+progress is preserved when a run encounters persistence errors.
 
 ### Surfaces
 

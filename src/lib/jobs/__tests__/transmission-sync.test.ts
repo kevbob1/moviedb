@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
-import { createTransmissionSyncHandler, enqueueTransmissionSync, runTransmissionSync } from '../transmission-sync';
+import { createTransmissionSyncHandler, enqueueTransmissionSync } from '../transmission-sync';
 
 const mockTx = { request: { update: jest.fn().mockResolvedValue({}) } };
 
@@ -12,6 +12,7 @@ jest.mock('@/lib/prisma', () => ({
     job: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -292,7 +293,7 @@ describe('transmission_sync handler', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: 13, title: 'Dune', media_type: 'movie', release_date: '2021-10-22', season_number: null }]);
 
-      await runTransmissionSync(adapter, { ignoreSuggestionAgeGate: true });
+      await createTransmissionSyncHandler({ adapter }).handle({ trigger: 'manual' });
 
       expect(prisma.request.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
         where: { status: 'pending', torrent_hash: null },
@@ -307,7 +308,7 @@ describe('transmission_sync handler', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      await runTransmissionSync(adapter);
+      await createTransmissionSyncHandler({ adapter }).handle({ trigger: 'scheduled' });
 
       expect(prisma.request.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
         where: {
@@ -324,28 +325,89 @@ describe('transmission_sync handler', () => {
 });
 
 describe('enqueueTransmissionSync', () => {
+  const createdAt = new Date('2026-09-05T11:00:00.000Z');
+
   it('creates a transmission_sync job when none is outstanding', async () => {
     (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 1 });
+    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 1, created_at: createdAt });
 
     const enqueued = await enqueueTransmissionSync();
 
-    expect(enqueued).toBe(true);
+    expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: createdAt.toISOString() });
     expect(prisma.job.findFirst).toHaveBeenCalledWith({
       where: { type: 'transmission_sync', status: { in: ['pending', 'processing'] } },
-      select: { id: true },
+       select: { id: true, status: true, payload: true, created_at: true },
     });
     expect(prisma.job.create).toHaveBeenCalledWith({
-      data: { type: 'transmission_sync', payload: {} },
+      data: { type: 'transmission_sync', payload: { trigger: 'scheduled' } },
+      select: { created_at: true },
     });
   });
 
   it('skips when a sync job is already pending or processing', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue({ id: 9 });
+    (prisma.job.findFirst as jest.Mock).mockResolvedValue({ id: 9, status: 'processing', created_at: createdAt });
 
     const enqueued = await enqueueTransmissionSync();
 
-    expect(enqueued).toBe(false);
+    expect(enqueued).toEqual({ queued: false, status: 'processing', createdAt: createdAt.toISOString() });
     expect(prisma.job.create).not.toHaveBeenCalled();
+  });
+
+  it('upgrades an outstanding pending scheduled job to manual', async () => {
+    (prisma.job.findFirst as jest.Mock).mockResolvedValue({
+      id: 12,
+      status: 'pending',
+      created_at: createdAt,
+      payload: { trigger: 'scheduled' },
+    });
+    (prisma.job.update as jest.Mock).mockResolvedValue({ id: 12 });
+
+    const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
+
+    expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
+    expect(prisma.job.update).toHaveBeenCalledWith({
+      where: { id: 12 },
+      data: { payload: { trigger: 'manual' } },
+    });
+    expect(prisma.job.create).not.toHaveBeenCalled();
+  });
+
+  it('does not upgrade an outstanding processing job', async () => {
+    (prisma.job.findFirst as jest.Mock).mockResolvedValue({
+      id: 13,
+      status: 'processing',
+      created_at: createdAt,
+      payload: { trigger: 'scheduled' },
+    });
+
+    const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
+
+    expect(enqueued).toEqual({ queued: false, status: 'processing', createdAt: createdAt.toISOString() });
+    expect(prisma.job.update).not.toHaveBeenCalled();
+    expect(prisma.job.create).not.toHaveBeenCalled();
+  });
+
+  it('stores a scheduled trigger in the job payload by default', async () => {
+    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 10, created_at: createdAt });
+
+    await enqueueTransmissionSync({ trigger: 'scheduled' });
+
+    expect(prisma.job.create).toHaveBeenCalledWith({
+      data: { type: 'transmission_sync', payload: { trigger: 'scheduled' } },
+      select: { created_at: true },
+    });
+  });
+
+  it('stores a manual trigger in the job payload', async () => {
+    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 11, created_at: createdAt });
+
+    await enqueueTransmissionSync({ trigger: 'manual' });
+
+    expect(prisma.job.create).toHaveBeenCalledWith({
+      data: { type: 'transmission_sync', payload: { trigger: 'manual' } },
+      select: { created_at: true },
+    });
   });
 });

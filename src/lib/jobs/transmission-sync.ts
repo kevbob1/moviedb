@@ -8,20 +8,50 @@ import { observeRequestCompletions } from './observe-request-completions';
 import { computeRequestSuggestions } from './compute-request-suggestions';
 const JOB_TYPE = 'transmission_sync';
 
-export async function enqueueTransmissionSync(): Promise<boolean> {
+export type TransmissionSyncTrigger = 'scheduled' | 'manual';
+
+export interface TransmissionSyncPayload {
+  trigger: TransmissionSyncTrigger;
+}
+
+export type TransmissionSyncJobStatus = 'pending' | 'processing';
+
+export interface EnqueueTransmissionSyncResult {
+  queued: boolean;
+  status: TransmissionSyncJobStatus;
+  createdAt: string;
+}
+
+export async function enqueueTransmissionSync(
+  payload: TransmissionSyncPayload = { trigger: 'scheduled' },
+): Promise<EnqueueTransmissionSyncResult> {
   const outstanding = await prisma.job.findFirst({
     where: { type: JOB_TYPE, status: { in: ['pending', 'processing'] } },
-    select: { id: true },
+    select: { id: true, status: true, payload: true, created_at: true },
   });
 
   if (outstanding) {
+    if (payload.trigger === 'manual' && outstanding.status === 'pending'
+      && !(isTransmissionSyncPayload(outstanding.payload) && outstanding.payload.trigger === 'manual')) {
+      await prisma.job.update({
+        where: { id: outstanding.id },
+        data: { payload: { trigger: 'manual' } },
+      });
+    }
     logger.debug({ jobId: outstanding.id }, 'transmission_sync already outstanding, skipping enqueue');
-    return false;
+    return {
+      queued: false,
+      status: outstanding.status as TransmissionSyncJobStatus,
+      createdAt: outstanding.created_at.toISOString(),
+    };
   }
 
-  await prisma.job.create({ data: { type: JOB_TYPE, payload: {} } });
+  const job = await prisma.job.create({
+    data: { type: JOB_TYPE, payload: { trigger: payload.trigger } },
+    select: { created_at: true },
+  });
   logger.info('transmission_sync job enqueued');
-  return true;
+  return { queued: true, status: 'pending', createdAt: job.created_at.toISOString() };
 }
 
 export interface TransmissionSyncDependencies {
@@ -82,40 +112,33 @@ export function createTransmissionSync({
   return { run };
 }
 
-/**
- * Compatibility entry point for callers that used the pre-construction API.
- * New orchestration code should use createTransmissionSync instead.
- */
-export function runTransmissionSync(
-  adapter: TransmissionAdapter,
-  options: TransmissionSyncOptions = {},
-): Promise<void> {
-  return createTransmissionSync({
-    prisma,
-    requestService,
-    logger,
-    adapter,
-    catalog: createTransmissionCatalog(adapter),
-  }).run(options);
-}
-
 export function createTransmissionSyncHandler(
   dependencies: TransmissionSyncDependencies | { adapter: TransmissionAdapter },
-): JobHandler<unknown> {
-  const transmissionSync = createTransmissionSync(
-    'prisma' in dependencies
-      ? dependencies
-      : {
-          prisma,
-          requestService,
-          logger,
-          adapter: dependencies.adapter,
-          catalog: createTransmissionCatalog(dependencies.adapter),
-        },
-  );
+): JobHandler<TransmissionSyncPayload | unknown> {
+  const resolvedDependencies: TransmissionSyncDependencies = 'prisma' in dependencies
+    ? { ...dependencies, catalog: dependencies.catalog ?? createTransmissionCatalog(dependencies.adapter) }
+    : {
+        prisma,
+        requestService,
+        logger,
+        adapter: dependencies.adapter,
+        catalog: createTransmissionCatalog(dependencies.adapter),
+      };
+  const transmissionSync = createTransmissionSync(resolvedDependencies);
   return {
-    handle: () => transmissionSync.run(),
+    handle: async (payload) => {
+      const trigger = isTransmissionSyncPayload(payload) ? payload.trigger : 'scheduled';
+      resolvedDependencies.catalog?.refresh();
+      await transmissionSync.run({ ignoreSuggestionAgeGate: trigger === 'manual' });
+    },
   };
+}
+
+function isTransmissionSyncPayload(payload: unknown): payload is TransmissionSyncPayload {
+  return typeof payload === 'object'
+    && payload !== null
+    && 'trigger' in payload
+    && (payload.trigger === 'scheduled' || payload.trigger === 'manual');
 }
 
 const productionAdapter = new HttpTransmissionAdapter();

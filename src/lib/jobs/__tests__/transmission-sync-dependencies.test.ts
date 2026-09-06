@@ -8,7 +8,6 @@ import { computeRequestSuggestions } from '../compute-request-suggestions';
 import { TransmissionAdapter } from '@/lib/transmission/adapter';
 import { prisma } from '@/lib/prisma';
 import { requestService } from '@/lib/request-lifecycle';
-import { TransmissionCatalog } from '@/lib/transmission/catalog';
 
 jest.mock('../observe-request-completions', () => ({
   observeRequestCompletions: jest.fn(),
@@ -30,7 +29,7 @@ function dependencies(): TransmissionSyncDependencies {
       error: jest.fn(),
     },
     adapter: {} as unknown as TransmissionAdapter,
-    catalog: {} as unknown as TransmissionCatalog,
+    catalog: { refresh: jest.fn(), getAll: jest.fn() },
   };
 }
 
@@ -82,5 +81,17 @@ describe('transmission sync construction', () => {
 
     expect(observeMock).toHaveBeenCalled();
     expect(suggestionsMock).toHaveBeenCalled();
+  });
+
+  it('invalidates the injected catalog and bypasses the age gate for manual jobs', async () => {
+    const injected = dependencies();
+
+    await createTransmissionSyncHandler(injected).handle({ trigger: 'manual' });
+
+    expect(injected.catalog?.refresh).toHaveBeenCalled();
+    expect(suggestionsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { ignoreSuggestionAgeGate: true },
+    );
   });
 });

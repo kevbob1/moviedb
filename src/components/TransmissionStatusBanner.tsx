@@ -1,4 +1,5 @@
 import { Surface } from '@/components/ui/Surface';
+import { mapTransmissionSyncStatus } from '@/lib/jobs/transmission-sync-status';
 
 export interface TransmissionSyncInfo {
   status: string;
@@ -51,7 +52,7 @@ export function TransmissionStatusBanner({ state, error, torrentCount, lastSync 
         <p className="text-xs text-muted-foreground">
           {lastSync ? (
             <>
-              Last sync {timeAgo(lastSync.completedAt ?? lastSync.createdAt)} · {lastSync.status}
+              Last sync {timeAgo(lastSync.completedAt ?? lastSync.createdAt)} · {mapTransmissionSyncStatus(lastSync.status)}
               {lastSync.error && <span className="text-rose-300"> — {lastSync.error.split('\n')[0]}</span>}
             </>
           ) : (

@@ -500,6 +500,40 @@ describe('request-lifecycle/service', () => {
     });
   });
 
+  describe('needs-match reads', () => {
+    it('reads pending requests without a torrent in requested order', async () => {
+      const findManyMock = jest.fn().mockResolvedValue([]);
+      const service = createRequestService({
+        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      await service.pendingRequestsForNeedsMatch();
+
+      expect(findManyMock).toHaveBeenCalledWith({
+        where: { status: 'pending', torrent_hash: null },
+        orderBy: { requested_at: 'desc' },
+      });
+    });
+
+    it('reads downloading requests with torrent problems in requested order', async () => {
+      const findManyMock = jest.fn().mockResolvedValue([]);
+      const service = createRequestService({
+        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      await service.downloadingRequestsWithTorrentProblems();
+
+      expect(findManyMock).toHaveBeenCalledWith({
+        where: { status: 'downloading', torrent_problem: { not: null } },
+        orderBy: { requested_at: 'desc' },
+      });
+    });
+  });
+
   describe('activeRequestsForSummary', () => {
     it('fetches pending and downloading requests ordered by requested_at desc', async () => {
       const findManyMock = jest.fn().mockResolvedValue([]);

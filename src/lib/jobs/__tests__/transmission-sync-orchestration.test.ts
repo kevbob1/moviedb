@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { runTransmissionSync } from '../transmission-sync';
+import { createTransmissionSyncHandler } from '../transmission-sync';
 import { computeRequestSuggestions } from '../compute-request-suggestions';
 import { observeRequestCompletions } from '../observe-request-completions';
 
@@ -17,7 +17,7 @@ it('runs completion before suggestions and forwards the manual-refresh option', 
   (computeRequestSuggestions as jest.Mock).mockImplementation(async () => { order.push('suggestions'); return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] }; });
 
   const adapter = { getTorrents: jest.fn(), ping: jest.fn() };
-  await runTransmissionSync(adapter, { ignoreSuggestionAgeGate: true });
+  await createTransmissionSyncHandler({ adapter }).handle({ trigger: 'manual' });
 
   expect(order).toEqual(['completion', 'suggestions']);
   expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ prisma, catalog: expect.any(Object) }), { ignoreSuggestionAgeGate: true });
@@ -27,7 +27,7 @@ it('skips suggestions when completion fails', async () => {
   (observeRequestCompletions as jest.Mock).mockRejectedValue(new Error('completion failed'));
 
   const adapter = { getTorrents: jest.fn(), ping: jest.fn() };
-  await expect(runTransmissionSync(adapter)).rejects.toThrow('completion failed');
+  await expect(createTransmissionSyncHandler({ adapter }).handle({ trigger: 'scheduled' })).rejects.toThrow('completion failed');
   expect(computeRequestSuggestions).not.toHaveBeenCalled();
 });
 
@@ -41,7 +41,9 @@ it('logs the metrics returned by both phases', async () => {
     persistenceErrors: [],
   });
 
-  await runTransmissionSync({ getTorrents: jest.fn(), ping: jest.fn() });
+  await createTransmissionSyncHandler({
+    adapter: { getTorrents: jest.fn(), ping: jest.fn() },
+  }).handle({ trigger: 'scheduled' });
 
   expect(logger.info).toHaveBeenNthCalledWith(1,
     { scanned: 2, torrents: 2, fulfilled: 1, problems: 1 },
