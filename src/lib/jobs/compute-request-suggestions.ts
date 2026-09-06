@@ -1,8 +1,6 @@
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { TransmissionCatalog } from '@/lib/transmission/catalog';
 import type { RequestService } from '@/lib/request-lifecycle';
-import { matchSuggestions } from '@/lib/matcher';
-import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
 export interface ComputeRequestSuggestionsResult {
   scanned: number;
@@ -47,23 +45,14 @@ export async function computeRequestSuggestions({
     return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] };
   }
 
-  const allTorrents = await catalog.getAll();
-  let parserFailures = 0;
-  for (const torrent of allTorrents) {
-    for (const source of [torrent.name, ...(torrent.files ?? [])]) {
-      if (source && !parseTorrentTitle(source).title) parserFailures++;
-    }
-  }
-
-  const suggestions = matchSuggestions(
+  const { suggestions, parserFailures } = await catalog.suggestionsFor(
     pendingRequests.map((request) => ({
       id: request.id,
       title: request.title,
-      media_type: request.media_type ?? '',
-      release_date: request.release_date,
-      season_number: request.season_number,
+      mediaType: request.media_type ?? '',
+      releaseDate: request.release_date,
+      seasonNumber: request.season_number,
     })),
-    allTorrents,
   );
   let withSuggestion = 0;
   const scores: number[] = [];

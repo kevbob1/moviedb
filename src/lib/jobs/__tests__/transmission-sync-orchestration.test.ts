@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { createTransmissionSyncHandler } from '../transmission-sync';
+import { createTransmissionSyncHandler, TransmissionSyncDependencies } from '../transmission-sync';
 import { computeRequestSuggestions } from '../compute-request-suggestions';
 import { observeRequestCompletions } from '../observe-request-completions';
 
@@ -17,10 +17,18 @@ it('runs completion before suggestions and forwards the manual-refresh option', 
   (computeRequestSuggestions as jest.Mock).mockImplementation(async () => { order.push('suggestions'); return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] }; });
 
   const adapter = { getTorrents: jest.fn(), ping: jest.fn() };
-  await createTransmissionSyncHandler({ adapter }).handle({ trigger: 'manual' });
+  const catalog = { getAll: jest.fn(), refresh: jest.fn(), suggestionsFor: jest.fn() };
+  const dependencies: TransmissionSyncDependencies = {
+    prisma,
+    requestService: {} as TransmissionSyncDependencies['requestService'],
+    logger,
+    adapter,
+    catalog,
+  };
+  await createTransmissionSyncHandler(dependencies).handle({ trigger: 'manual' });
 
   expect(order).toEqual(['completion', 'suggestions']);
-  expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ prisma, catalog: expect.any(Object) }), { ignoreSuggestionAgeGate: true });
+  expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ prisma, catalog }), { ignoreSuggestionAgeGate: true });
 });
 
 it('skips suggestions when completion fails', async () => {

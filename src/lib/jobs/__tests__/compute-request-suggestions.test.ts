@@ -17,7 +17,7 @@ it('delegates request selection to the lifecycle service', async () => {
   const pendingRequestsForNeedsMatch = jest.fn().mockResolvedValue([]);
 
   const result = await computeRequestSuggestions({
-    catalog: { getAll: jest.fn(), refresh: jest.fn() },
+    catalog: { suggestionsFor: jest.fn(), getAll: jest.fn(), refresh: jest.fn() },
     prisma,
     requestService: {
       pendingRequestsForNeedsMatch,
@@ -37,8 +37,12 @@ it('delegates request selection to the lifecycle service', async () => {
   expect(result).toEqual({ scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] });
 });
 
-it('loads the full torrent list through the catalog seam', async () => {
-  const catalog = { getAll: jest.fn().mockResolvedValue([]), refresh: jest.fn() };
+it('loads suggestions and parser failures through the catalog seam', async () => {
+  const catalog = {
+    suggestionsFor: jest.fn().mockResolvedValue({ suggestions: new Map(), parserFailures: 0 }),
+    getAll: jest.fn(),
+    refresh: jest.fn(),
+  };
   const pendingRequestsForNeedsMatch = jest.fn().mockResolvedValue([
     { id: 7, title: 'A Movie', media_type: 'movie', release_date: '2026', season_number: null },
   ]);
@@ -50,5 +54,7 @@ it('loads the full torrent list through the catalog seam', async () => {
     now: () => new Date('2026-01-02T00:00:00.000Z'),
   });
 
-  expect(catalog.getAll).toHaveBeenCalledTimes(1);
+  expect(catalog.suggestionsFor).toHaveBeenCalledWith([
+    { id: 7, title: 'A Movie', mediaType: 'movie', releaseDate: '2026', seasonNumber: null },
+  ]);
 });

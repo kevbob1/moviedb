@@ -64,4 +64,35 @@ describe('TransmissionCatalog', () => {
       expect(getAllSpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('suggestionsFor', () => {
+    it('matches requests and reports parser failures without exposing torrents', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'aaa', name: 'A Movie 2026 1080p', percentDone: 1, status: 6 },
+          { hash: 'bad', name: '1080p', percentDone: 1, status: 6 },
+        ],
+      });
+      const catalog = createTransmissionCatalog(adapter);
+
+      const result = await catalog.suggestionsFor([
+        { id: 7, title: 'A Movie', mediaType: 'movie', releaseDate: '2026', seasonNumber: null },
+      ]);
+
+      expect(result.suggestions.get(7)).toMatchObject({ hash: 'aaa' });
+      expect(result.parserFailures).toBe(1);
+    });
+
+    it('uses the cached catalog for repeated suggestion reads', async () => {
+      const adapter = new InMemoryTransmissionAdapter({ torrents: makeTorrents() });
+      const getAllSpy = jest.spyOn(adapter, 'getTorrents');
+      const catalog = createTransmissionCatalog(adapter, { ttlMs: 60_000 });
+      const request = { id: 7, title: 'Movie A', mediaType: 'movie' };
+
+      await catalog.suggestionsFor([request]);
+      await catalog.suggestionsFor([request]);
+
+      expect(getAllSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

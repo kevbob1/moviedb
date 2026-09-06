@@ -29,7 +29,7 @@ function dependencies(): TransmissionSyncDependencies {
       error: jest.fn(),
     },
     adapter: {} as unknown as TransmissionAdapter,
-    catalog: { refresh: jest.fn(), getAll: jest.fn() },
+    catalog: { refresh: jest.fn(), suggestionsFor: jest.fn(), getAll: jest.fn() },
   };
 }
 
