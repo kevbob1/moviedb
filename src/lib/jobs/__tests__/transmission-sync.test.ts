@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { requestService } from '@/lib/request-lifecycle';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
 import { createTransmissionSyncHandler, enqueueTransmissionSync } from '../transmission-sync';
 
@@ -28,6 +29,7 @@ jest.mock('@/lib/logger', () => ({
 }));
 
 beforeEach(() => {
+  jest.restoreAllMocks();
   jest.clearAllMocks();
   mockTx.request.update.mockClear();
   (prisma.$transaction as jest.Mock).mockImplementation(
@@ -180,24 +182,24 @@ describe('transmission_sync handler', () => {
   });
 
   describe('suggestion computation', () => {
-    it('writes suggestion columns for a pending request with a matching torrent', async () => {
+  it('writes suggestion columns for a pending request with a matching torrent', async () => {
       const adapter = new InMemoryTransmissionAdapter({
         torrents: [
           { hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS', percentDone: 1, status: 6 },
         ],
       });
 
-      (prisma.request.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          {
-            id: 10,
-            title: 'Dune',
-            media_type: 'movie',
-            release_date: '2021-10-22',
-            season_number: null,
-          },
-        ]);
+      jest.spyOn(requestService, 'pendingRequestsForNeedsMatch').mockResolvedValue([{
+        id: 10,
+        title: 'Dune',
+        media_type: 'movie',
+        release_date: '2021-10-22',
+        season_number: null,
+        requested_at: '2026-01-01T00:00:00.000Z',
+        requested_by: 'tester',
+        status: 'pending',
+        torrent_hash: null,
+      }]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -219,17 +221,17 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          {
-            id: 11,
-            title: 'Dune',
-            media_type: 'movie',
-            release_date: '2021-10-22',
-            season_number: null,
-          },
-        ]);
+      jest.spyOn(requestService, 'pendingRequestsForNeedsMatch').mockResolvedValue([{
+        id: 11,
+        title: 'Dune',
+        media_type: 'movie',
+        release_date: '2021-10-22',
+        season_number: null,
+        requested_at: '2026-01-01T00:00:00.000Z',
+        requested_by: 'tester',
+        status: 'pending',
+        torrent_hash: null,
+      }]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -257,17 +259,17 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          {
-            id: 12,
-            title: 'Dune',
-            media_type: 'movie',
-            release_date: '2021-10-22',
-            season_number: null,
-          },
-        ]);
+      jest.spyOn(requestService, 'pendingRequestsForNeedsMatch').mockResolvedValue([{
+        id: 12,
+        title: 'Dune',
+        media_type: 'movie',
+        release_date: '2021-10-22',
+        season_number: null,
+        requested_at: '2026-01-01T00:00:00.000Z',
+        requested_by: 'tester',
+        status: 'pending',
+        torrent_hash: null,
+      }]);
 
       const handler = createTransmissionSyncHandler({ adapter });
       await handler.handle({});
@@ -289,37 +291,33 @@ describe('transmission_sync handler', () => {
         ],
       });
 
-      (prisma.request.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ id: 13, title: 'Dune', media_type: 'movie', release_date: '2021-10-22', season_number: null }]);
+      const pendingRequestsForNeedsMatch = jest.spyOn(requestService, 'pendingRequestsForNeedsMatch')
+        .mockResolvedValue([{
+          id: 13,
+          title: 'Dune',
+          media_type: 'movie',
+          release_date: '2021-10-22',
+          season_number: null,
+          requested_at: '2026-01-01T00:00:00.000Z',
+          requested_by: 'tester',
+          status: 'pending',
+          torrent_hash: null,
+        }]);
 
       await createTransmissionSyncHandler({ adapter }).handle({ trigger: 'manual' });
 
-      expect(prisma.request.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-        where: { status: 'pending', torrent_hash: null },
-      }));
+      expect(pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: false });
       expect(mockTx.request.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 13 } }));
     });
 
     it('scheduled sync retains the 60-second suggestion age gate', async () => {
       const adapter = new InMemoryTransmissionAdapter();
-
-      (prisma.request.findMany as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      const pendingRequestsForNeedsMatch = jest.spyOn(requestService, 'pendingRequestsForNeedsMatch')
+        .mockResolvedValue([]);
 
       await createTransmissionSyncHandler({ adapter }).handle({ trigger: 'scheduled' });
 
-      expect(prisma.request.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-        where: {
-          status: 'pending',
-          torrent_hash: null,
-          OR: [
-            expect.objectContaining({ suggestion_computed_at: expect.objectContaining({ lt: expect.any(Date) }) }),
-            { suggestion_computed_at: { equals: null } },
-          ],
-        },
-      }));
+      expect(pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
     });
   });
 });

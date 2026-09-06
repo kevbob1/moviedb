@@ -39,7 +39,7 @@ export interface RequestService {
     tx: Prisma.TransactionClient,
   ): Promise<void>;
   queueStats(): Promise<{ needsMatch: number; needsAttention: number }>;
-  pendingRequestsForNeedsMatch(): Promise<Request[]>;
+  pendingRequestsForNeedsMatch(options?: { applySuggestionAgeGate?: boolean }): Promise<Request[]>;
   downloadingRequestsWithTorrentProblems(): Promise<Request[]>;
   activeRequestsForSummary(): Promise<Request[]>;
   retireResolved(olderThanDays: number): Promise<number>;
@@ -268,9 +268,20 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     return { needsMatch, needsAttention };
   }
 
-  async function pendingRequestsForNeedsMatch(): Promise<Request[]> {
+  async function pendingRequestsForNeedsMatch(
+    { applySuggestionAgeGate = false }: { applySuggestionAgeGate?: boolean } = {},
+  ): Promise<Request[]> {
     const rows = await prisma.request.findMany({
-      where: { status: 'pending', torrent_hash: null },
+      where: applySuggestionAgeGate
+        ? {
+            status: 'pending',
+            torrent_hash: null,
+            OR: [
+              { suggestion_computed_at: { lt: new Date(now().getTime() - 60_000) } },
+              { suggestion_computed_at: { equals: null } },
+            ],
+          }
+        : { status: 'pending', torrent_hash: null },
       orderBy: { requested_at: 'desc' },
     });
     return rows.map(toRequestModel);

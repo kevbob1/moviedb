@@ -15,7 +15,7 @@ export interface ComputeRequestSuggestionsResult {
 interface ComputeRequestSuggestionsDeps {
   catalog: TransmissionCatalog;
   prisma: PrismaClient;
-  requestService: Pick<RequestService, 'persistSuggestion'>;
+  requestService: Pick<RequestService, 'pendingRequestsForNeedsMatch' | 'persistSuggestion'>;
   now: () => Date;
 }
 
@@ -39,18 +39,8 @@ export async function computeRequestSuggestions({
   { ignoreSuggestionAgeGate = false }: ComputeRequestSuggestionsOptions = {},
 ): Promise<ComputeRequestSuggestionsResult> {
   const now = getNow();
-  const pendingRequests = await prisma.request.findMany({
-    where: ignoreSuggestionAgeGate
-      ? { status: 'pending', torrent_hash: null }
-      : {
-          status: 'pending',
-          torrent_hash: null,
-          OR: [
-            { suggestion_computed_at: { lt: new Date(now.getTime() - 60_000) } },
-            { suggestion_computed_at: { equals: null } },
-          ],
-        },
-    select: { id: true, title: true, media_type: true, release_date: true, season_number: true },
+  const pendingRequests = await requestService.pendingRequestsForNeedsMatch({
+    applySuggestionAgeGate: !ignoreSuggestionAgeGate,
   });
 
   if (pendingRequests.length === 0) {
@@ -65,7 +55,16 @@ export async function computeRequestSuggestions({
     }
   }
 
-  const suggestions = matchSuggestions(pendingRequests, allTorrents);
+  const suggestions = matchSuggestions(
+    pendingRequests.map((request) => ({
+      id: request.id,
+      title: request.title,
+      media_type: request.media_type ?? '',
+      release_date: request.release_date,
+      season_number: request.season_number,
+    })),
+    allTorrents,
+  );
   let withSuggestion = 0;
   const scores: number[] = [];
   const persistenceErrors: Array<{ err: unknown; requestId: number }> = [];

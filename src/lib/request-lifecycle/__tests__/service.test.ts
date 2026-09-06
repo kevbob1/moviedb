@@ -501,7 +501,7 @@ describe('request-lifecycle/service', () => {
   });
 
   describe('needs-match reads', () => {
-    it('reads pending requests without a torrent in requested order', async () => {
+    it('reads pending requests without a torrent in requested order by default', async () => {
       const findManyMock = jest.fn().mockResolvedValue([]);
       const service = createRequestService({
         prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
@@ -513,6 +513,29 @@ describe('request-lifecycle/service', () => {
 
       expect(findManyMock).toHaveBeenCalledWith({
         where: { status: 'pending', torrent_hash: null },
+        orderBy: { requested_at: 'desc' },
+      });
+    });
+
+    it('applies the suggestion freshness policy when requested by the suggestion job', async () => {
+      const findManyMock = jest.fn().mockResolvedValue([]);
+      const service = createRequestService({
+        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      await service.pendingRequestsForNeedsMatch({ applySuggestionAgeGate: true });
+
+      expect(findManyMock).toHaveBeenCalledWith({
+        where: {
+          status: 'pending',
+          torrent_hash: null,
+          OR: [
+            { suggestion_computed_at: { lt: new Date('2026-06-15T11:59:00.000Z') } },
+            { suggestion_computed_at: { equals: null } },
+          ],
+        },
         orderBy: { requested_at: 'desc' },
       });
     });
