@@ -4,6 +4,8 @@ import { NeedsMatchSyncControl } from '@/components/NeedsMatchSyncControl';
 import Link from 'next/link';
 import { readNeedsMatch } from '@/lib/needs-match/read';
 
+export const dynamic = 'force-dynamic';
+
 export default async function NeedsMatchPage() {
   const {
     requests,

@@ -89,6 +89,7 @@ export function createTransmissionSync({
       const suggestionResult = await computeRequestSuggestions({
         catalog: transmissionCatalog,
         prisma,
+        requestService,
         now: () => now,
       }, { ignoreSuggestionAgeGate });
       for (const error of suggestionResult.persistenceErrors) {

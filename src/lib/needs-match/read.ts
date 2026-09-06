@@ -49,52 +49,52 @@ const defaultDeps: NeedsMatchReadDeps = {
   }),
 };
 
-export function createNeedsMatchRead(deps: NeedsMatchReadDeps = defaultDeps): () => Promise<NeedsMatchReadResult> {
-  return async function readNeedsMatch(): Promise<NeedsMatchReadResult> {
-    const [requests, needsAttention, torrentsResult, pingResult, lastSyncJob] = await Promise.all([
-      deps.requestService.pendingRequestsForNeedsMatch(),
-      deps.requestService.downloadingRequestsWithTorrentProblems(),
-      deps.getAll()
-        .then((torrents) => ({ torrents, error: null as string | null }))
-        .catch((error: unknown) => ({
-          torrents: [] as Torrent[],
-          error: error instanceof Error ? error.message : 'Unknown error',
-        })),
-      deps.ping(),
-      deps.findLatestTransmissionSync(),
-    ]);
+export async function createNeedsMatchRead(
+  deps: NeedsMatchReadDeps = defaultDeps,
+): Promise<NeedsMatchReadResult> {
+  const [requests, needsAttention, torrentsResult, pingResult, lastSyncJob] = await Promise.all([
+    deps.requestService.pendingRequestsForNeedsMatch(),
+    deps.requestService.downloadingRequestsWithTorrentProblems(),
+    deps.getAll()
+      .then((torrents) => ({ torrents, error: null as string | null }))
+      .catch((error: unknown) => ({
+        torrents: [] as Torrent[],
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })),
+    deps.ping(),
+    deps.findLatestTransmissionSync(),
+  ]);
 
-    if (torrentsResult.error) {
-      logger.error({ error: torrentsResult.error }, 'Failed to fetch transmission torrents for needs-match');
-    }
+  if (torrentsResult.error) {
+    logger.error({ error: torrentsResult.error }, 'Failed to fetch transmission torrents for needs-match');
+  }
 
-    const transmissionState =
-      pingResult.error === 'Transmission not configured'
-        ? 'not_configured'
-        : !pingResult.reachable || torrentsResult.error
-          ? 'unreachable'
-          : 'ok';
+  const transmissionState =
+    pingResult.error === 'Transmission not configured'
+      ? 'not_configured'
+      : !pingResult.reachable || torrentsResult.error
+        ? 'unreachable'
+        : 'ok';
 
-    return {
-      requests: [
-        ...requests,
-        ...needsAttention.filter((attention) => !requests.some((request) => request.id === attention.id)),
-      ],
-      needsAttention,
-      torrents: torrentsResult.torrents,
-      transmissionError: torrentsResult.error ?? pingResult.error ?? null,
-      transmissionState,
-      torrentCount: torrentsResult.error ? null : torrentsResult.torrents.length,
-      lastSync: lastSyncJob
-        ? {
-            status: lastSyncJob.status,
-            error: lastSyncJob.error,
-            createdAt: lastSyncJob.created_at.toISOString(),
-            completedAt: lastSyncJob.completed_at?.toISOString() ?? null,
-          }
-        : null,
-    };
+  return {
+    requests: [
+      ...requests,
+      ...needsAttention.filter((attention) => !requests.some((request) => request.id === attention.id)),
+    ],
+    needsAttention,
+    torrents: torrentsResult.torrents,
+    transmissionError: torrentsResult.error ?? pingResult.error ?? null,
+    transmissionState,
+    torrentCount: torrentsResult.error ? null : torrentsResult.torrents.length,
+    lastSync: lastSyncJob
+      ? {
+          status: lastSyncJob.status,
+          error: lastSyncJob.error,
+          createdAt: lastSyncJob.created_at.toISOString(),
+          completedAt: lastSyncJob.completed_at?.toISOString() ?? null,
+        }
+      : null,
   };
 }
 
-export const readNeedsMatch = createNeedsMatchRead();
+export const readNeedsMatch = createNeedsMatchRead;

@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { TransmissionCatalog } from '@/lib/transmission/catalog';
+import type { RequestService } from '@/lib/request-lifecycle';
 import { matchSuggestions } from '@/lib/matcher';
 import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
@@ -14,6 +15,7 @@ export interface ComputeRequestSuggestionsResult {
 interface ComputeRequestSuggestionsDeps {
   catalog: TransmissionCatalog;
   prisma: PrismaClient;
+  requestService: Pick<RequestService, 'persistSuggestion'>;
   now: () => Date;
 }
 
@@ -31,6 +33,7 @@ function median(values: number[]): number {
 export async function computeRequestSuggestions({
   catalog,
   prisma,
+  requestService,
   now: getNow,
 }: ComputeRequestSuggestionsDeps,
   { ignoreSuggestionAgeGate = false }: ComputeRequestSuggestionsOptions = {},
@@ -74,15 +77,9 @@ export async function computeRequestSuggestions({
         if (suggestion) {
           withSuggestion++;
           scores.push(suggestion.score);
-          await tx.request.update({
-            where: { id: request.id },
-            data: { suggestion_hash: suggestion.hash, suggestion_score: suggestion.score, suggestion_computed_at: now },
-          });
+          await requestService.persistSuggestion(request.id, suggestion, now, tx);
         } else {
-          await tx.request.update({
-            where: { id: request.id },
-            data: { suggestion_hash: null, suggestion_score: null, suggestion_computed_at: now },
-          });
+          await requestService.persistSuggestion(request.id, null, now, tx);
         }
       } catch (err) {
         persistenceErrors.push({ err, requestId: request.id });

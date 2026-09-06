@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { syncTransmission } from '@/app/actions/transmission-actions';
 import { readNeedsMatch } from '@/lib/needs-match/read';
-import NeedsMatchPage from './page';
+import NeedsMatchPage, { dynamic } from './page';
 
 jest.mock('@/app/actions/transmission-actions', () => ({
   syncTransmission: jest.fn(),
@@ -22,6 +22,10 @@ const syncTransmissionMock = jest.mocked(syncTransmission);
 const readNeedsMatchMock = jest.mocked(readNeedsMatch);
 
 describe('NeedsMatchPage', () => {
+  it('renders dynamically because it reads from the database', () => {
+    expect(dynamic).toBe('force-dynamic');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     readNeedsMatchMock.mockResolvedValue({

@@ -22,7 +22,7 @@ describe('needs-match read', () => {
       }),
     });
 
-    await expect(read()).resolves.toEqual({
+    await expect(read).resolves.toEqual({
       requests: [pending[0], attention[1]],
       needsAttention: attention,
       torrents: [{ hash: 'abc', name: 'torrent', percentDone: 0, status: 0 }],
@@ -51,7 +51,7 @@ describe('needs-match read', () => {
       findLatestTransmissionSync: jest.fn().mockResolvedValue(null),
     });
 
-    await expect(read()).resolves.toMatchObject({
+    await expect(read).resolves.toMatchObject({
       requests: pending,
       torrents: [],
       transmissionError: 'Transmission unavailable',

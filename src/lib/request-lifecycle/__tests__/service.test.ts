@@ -534,6 +534,35 @@ describe('request-lifecycle/service', () => {
     });
   });
 
+  describe('suggestion persistence', () => {
+    it('persists suggestion state through the request lifecycle transaction seam', async () => {
+      const fake = makeFakePrisma();
+      const service = createRequestService({
+        prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+      const request = await service.createRequest({
+        tmdbId: 42,
+        title: 'A film',
+        posterPath: null,
+        requestedBy: 'tester',
+        mediaType: 'movie',
+      });
+
+      await service.persistSuggestion(
+        request.id,
+        { hash: 'suggested-hash', score: 0.85 },
+        fixedNow(),
+        fake.txShape() as unknown as Prisma.TransactionClient,
+      );
+
+      expect(fake.rows[0].suggestion_hash).toBe('suggested-hash');
+      expect(fake.rows[0].suggestion_score).toBe(0.85);
+      expect(fake.rows[0].suggestion_computed_at).toEqual(fixedNow());
+    });
+  });
+
   describe('activeRequestsForSummary', () => {
     it('fetches pending and downloading requests ordered by requested_at desc', async () => {
       const findManyMock = jest.fn().mockResolvedValue([]);

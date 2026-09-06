@@ -19,6 +19,16 @@ it('forwards the age-gate option and uses the injected clock', async () => {
   const result = await computeRequestSuggestions({
     catalog: { getAll: jest.fn(), refresh: jest.fn() },
     prisma,
+    requestService: {
+      persistSuggestion: async (requestId, suggestion, computedAt, tx) => {
+        await tx.request.update({
+          where: { id: requestId },
+          data: suggestion
+            ? { suggestion_hash: suggestion.hash, suggestion_score: suggestion.score, suggestion_computed_at: computedAt }
+            : { suggestion_hash: null, suggestion_score: null, suggestion_computed_at: computedAt },
+        });
+      },
+    },
     now: () => now,
   }, { ignoreSuggestionAgeGate: true });
 
@@ -34,7 +44,12 @@ it('loads the full torrent list through the catalog seam', async () => {
     { id: 7, title: 'A Movie', media_type: 'movie', release_date: '2026', season_number: null },
   ]);
 
-  await computeRequestSuggestions({ catalog, prisma, now: () => new Date('2026-01-02T00:00:00.000Z') });
+  await computeRequestSuggestions({
+    catalog,
+    prisma,
+    requestService: { persistSuggestion: jest.fn() },
+    now: () => new Date('2026-01-02T00:00:00.000Z'),
+  });
 
   expect(catalog.getAll).toHaveBeenCalledTimes(1);
 });

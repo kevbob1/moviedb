@@ -32,6 +32,12 @@ export interface RequestService {
   cancelRequest(reqId: number): Promise<void>;
   fulfillBySync(reqId: number, tx: Prisma.TransactionClient): Promise<void>;
   flagTorrentProblem(reqId: number, problem: string, tx: Prisma.TransactionClient): Promise<void>;
+  persistSuggestion(
+    reqId: number,
+    suggestion: { hash: string; score: number } | null,
+    computedAt: Date,
+    tx: Prisma.TransactionClient,
+  ): Promise<void>;
   queueStats(): Promise<{ needsMatch: number; needsAttention: number }>;
   pendingRequestsForNeedsMatch(): Promise<Request[]>;
   downloadingRequestsWithTorrentProblems(): Promise<Request[]>;
@@ -222,6 +228,28 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     });
   }
 
+  async function persistSuggestion(
+    reqId: number,
+    suggestion: { hash: string; score: number } | null,
+    computedAt: Date,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await tx.request.update({
+      where: { id: reqId },
+      data: suggestion
+        ? {
+            suggestion_hash: suggestion.hash,
+            suggestion_score: suggestion.score,
+            suggestion_computed_at: computedAt,
+          }
+        : {
+            suggestion_hash: null,
+            suggestion_score: null,
+            suggestion_computed_at: computedAt,
+          },
+    });
+  }
+
   async function queueStats(): Promise<{ needsMatch: number; needsAttention: number }> {
     const [needsMatch, needsAttention] = await Promise.all([
       prisma.request.count({
@@ -287,6 +315,7 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     cancelRequest,
     fulfillBySync,
     flagTorrentProblem,
+    persistSuggestion,
     queueStats,
     pendingRequestsForNeedsMatch,
     downloadingRequestsWithTorrentProblems,
