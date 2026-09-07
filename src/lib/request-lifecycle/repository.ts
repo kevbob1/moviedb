@@ -16,6 +16,36 @@ export type EnqueueJob = (
   payload: Prisma.InputJsonValue,
 ) => Promise<void>;
 
+/**
+ * A suggestion is considered stale once it is older than this, which gates
+ * re-computation in the needs-match read used by the suggestion job.
+ */
+const SUGGESTION_MAX_AGE_MS = 60_000;
+
+/** A pending request that has not been linked to a torrent yet. */
+const NEEDS_MATCH_WHERE = {
+  status: 'pending',
+  torrent_hash: null,
+} satisfies Prisma.RequestWhereInput;
+
+/** A downloading request whose torrent has reported a problem. */
+const NEEDS_ATTENTION_WHERE = {
+  status: 'downloading',
+  torrent_problem: { not: null },
+} satisfies Prisma.RequestWhereInput;
+
+function needsMatchWhere(now: () => Date, applySuggestionAgeGate: boolean): Prisma.RequestWhereInput {
+  if (!applySuggestionAgeGate) return NEEDS_MATCH_WHERE;
+
+  return {
+    ...NEEDS_MATCH_WHERE,
+    OR: [
+      { suggestion_computed_at: { lt: new Date(now().getTime() - SUGGESTION_MAX_AGE_MS) } },
+      { suggestion_computed_at: { equals: null } },
+    ],
+  };
+}
+
 export interface RequestServiceDeps {
   prisma: PrismaClient;
   enqueueJob: EnqueueJob;
@@ -253,16 +283,10 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
   async function queueStats(): Promise<{ needsMatch: number; needsAttention: number }> {
     const [needsMatch, needsAttention] = await Promise.all([
       prisma.request.count({
-        where: {
-          status: 'pending',
-          torrent_hash: null,
-        },
+        where: NEEDS_MATCH_WHERE,
       }),
       prisma.request.count({
-        where: {
-          status: 'downloading',
-          torrent_problem: { not: null },
-        },
+        where: NEEDS_ATTENTION_WHERE,
       }),
     ]);
     return { needsMatch, needsAttention };
@@ -272,16 +296,7 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     { applySuggestionAgeGate = false }: { applySuggestionAgeGate?: boolean } = {},
   ): Promise<Request[]> {
     const rows = await prisma.request.findMany({
-      where: applySuggestionAgeGate
-        ? {
-            status: 'pending',
-            torrent_hash: null,
-            OR: [
-              { suggestion_computed_at: { lt: new Date(now().getTime() - 60_000) } },
-              { suggestion_computed_at: { equals: null } },
-            ],
-          }
-        : { status: 'pending', torrent_hash: null },
+      where: needsMatchWhere(now, applySuggestionAgeGate),
       orderBy: { requested_at: 'desc' },
     });
     return rows.map(toRequestModel);
@@ -289,7 +304,7 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
 
   async function downloadingRequestsWithTorrentProblems(): Promise<Request[]> {
     const rows = await prisma.request.findMany({
-      where: { status: 'downloading', torrent_problem: { not: null } },
+      where: NEEDS_ATTENTION_WHERE,
       orderBy: { requested_at: 'desc' },
     });
     return rows.map(toRequestModel);

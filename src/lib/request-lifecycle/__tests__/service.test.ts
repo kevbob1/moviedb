@@ -555,6 +555,27 @@ describe('request-lifecycle/service', () => {
         orderBy: { requested_at: 'desc' },
       });
     });
+
+    it('counts and reads each queue with the same predicate', async () => {
+      const countMock = jest.fn().mockResolvedValue(0);
+      const findManyMock = jest.fn().mockResolvedValue([]);
+      const service = createRequestService({
+        prisma: { request: { count: countMock, findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+
+      await service.queueStats();
+      await service.pendingRequestsForNeedsMatch();
+      await service.downloadingRequestsWithTorrentProblems();
+
+      const counts = countMock.mock.calls.map((call) => call[0].where);
+      const reads = findManyMock.mock.calls.map((call) => call[0].where);
+
+      expect(reads).toEqual(counts);
+      expect(counts[0]).toEqual({ status: 'pending', torrent_hash: null });
+      expect(counts[1]).toEqual({ status: 'downloading', torrent_problem: { not: null } });
+    });
   });
 
   describe('suggestion persistence', () => {
