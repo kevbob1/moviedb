@@ -2,6 +2,11 @@
 
 .DEFAULT_GOAL := help
 
+# Export the calling host user for compose interpolation of user: "${UID}:${GID}"
+# (bash does not export UID/GID by default).
+export UID := $(shell id -u)
+export GID := $(shell id -g)
+
 help:        ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*?## "; printf "Targets:\n"} {printf "  %-15s %s\n", $$1, $$2}'

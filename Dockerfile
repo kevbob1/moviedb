@@ -4,10 +4,28 @@ FROM node:25.9.0-alpine AS base
 # Stage – development (used by docker compose; shares base with prod build)
 # ---------------------------------------------------------------------------
 FROM base AS development
+# UID/GID of the calling host user, injected from compose build args;
+# keeps image content and the node_modules named volume owned by that user
+ARG DEV_UID=1000
+ARG DEV_GID=1000
 WORKDIR /app
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 COPY package.json package-lock.json ./
+RUN set -eu; \
+    if getent group "$DEV_GID" >/dev/null; then \
+      DEV_GROUP="$(getent group "$DEV_GID" | cut -d: -f1)"; \
+    else \
+      addgroup -g "$DEV_GID" dev; DEV_GROUP=dev; \
+    fi; \
+    if getent passwd "$DEV_UID" >/dev/null; then \
+      DEV_USER="$(getent passwd "$DEV_UID" | cut -d: -f1)"; \
+    else \
+      adduser -D -H -u "$DEV_UID" -G "$DEV_GROUP" dev; \
+    fi; \
+    chown -R "$DEV_UID:$DEV_GID" /app
+USER ${DEV_UID}:${DEV_GID}
+ENV HOME=/app
 RUN npm install
 ENV PATH=/app/node_modules/.bin:$PATH
 EXPOSE 3000

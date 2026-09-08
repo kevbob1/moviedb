@@ -17,9 +17,14 @@ services:
       start_period: 5s
 
   migrate:
+    # Run as the calling host user; anchor shared with web (resolved via Makefile-exported UID/GID)
+    user: &run-user "${UID:-1000}:${GID:-1000}"
     build:
       context: .
       target: development
+      args:
+        DEV_UID: "${UID:-1000}"
+        DEV_GID: "${GID:-1000}"
     command: ["npx", "prisma", "migrate", "deploy"]
     env_file: .env
     depends_on:
@@ -35,9 +40,13 @@ services:
     restart: "no"
 
   web:
+    user: *run-user
     build:
       context: .
       target: development
+      args:
+        DEV_UID: "${UID:-1000}"
+        DEV_GID: "${GID:-1000}"
     command: ["npm", "run", "dev"]
     env_file: .env
     ports:
