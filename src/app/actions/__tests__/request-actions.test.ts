@@ -13,7 +13,6 @@ jest.mock('@/lib/logger', () => ({
 }));
 jest.mock('@/lib/jobs', () => ({}));
 jest.mock('@/lib/tmdb', () => ({
-  getTMDBTVDetails: jest.fn(),
 }));
 
 const fullRow = (overrides: Record<string, unknown> = {}) => ({
@@ -241,3 +240,6 @@ describe('request-actions', () => {
     });
   });
 });
+jest.mock('@/lib/import-flow', () => ({
+  defaultImportFlow: { requestImport: jest.fn() },
+}));

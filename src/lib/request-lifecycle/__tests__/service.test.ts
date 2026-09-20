@@ -1,12 +1,9 @@
 import { Prisma } from '@/generated/prisma/client';
 
-jest.mock('@/lib/tmdb', () => ({
-  getTMDBTVDetails: jest.fn(),
-}));
+import { TmdbClient } from '@/lib/tmdb';
 
 import { createRequestService } from '../repository';
 import { InvalidTransitionError } from '../fsm';
-import { getTMDBTVDetails } from '@/lib/tmdb';
 
 type Row = {
   id: number;
@@ -219,7 +216,10 @@ describe('request-lifecycle/service', () => {
       const fake = makeFakePrisma();
       const { fn: enqueueJob, calls } = recordingEnqueueJob();
 
-      (getTMDBTVDetails as jest.Mock).mockResolvedValue({
+      const tmdb: TmdbClient = {
+        searchMovies: jest.fn(),
+        searchTV: jest.fn(),
+        tvDetails: jest.fn().mockResolvedValue({
         id: 100,
         name: 'Best Show',
         first_air_date: '2022-01-01',
@@ -229,12 +229,14 @@ describe('request-lifecycle/service', () => {
           { season_number: 1, name: 'Season 1', episode_count: 10 },
           { season_number: 2, name: 'Season 2', episode_count: 8 },
         ],
-      });
+        }),
+      };
 
       const service = createRequestService({
         prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
         enqueueJob,
         now: fixedNow,
+        tmdb,
       });
 
       const results = await service.createTvRequests(100, 'Alice');

@@ -1,9 +1,22 @@
 'use server';
 
+import { defaultImportFlow, ImportResult } from '@/lib/import-flow';
+
 import { revalidatePath } from 'next/cache';
 
 import { requestService } from '@/lib/request-lifecycle';
 import { CreateRequestInput } from '@/lib/request-lifecycle/validators';
+
+export async function requestImport(
+  result: ImportResult,
+  seasonNumber: number | 'all',
+  requestedBy: string,
+): Promise<ImportResult> {
+  const refreshed = await defaultImportFlow.requestImport(result, seasonNumber, requestedBy);
+  revalidatePath('/requests');
+  revalidatePath('/needs-match');
+  return refreshed;
+}
 
 export async function createRequest(
   tmdbId: number,

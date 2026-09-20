@@ -11,8 +11,8 @@ help:        ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*?## "; printf "Targets:\n"} {printf "  %-15s %s\n", $$1, $$2}'
 
-dev:         ## Start dev stack (web + postgres)
-	docker compose up
+dev:         ## Start dev stack (web + postgres, detached)
+	docker compose up -d
 
 dev-build:   ## Build dev images (cached layers)
 	docker compose build

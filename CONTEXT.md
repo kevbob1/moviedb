@@ -52,6 +52,11 @@ The media server whose library the app reflects. A `JellyfinCatalog` exposes the
 
 "Available" / "on Jellyfin" is a *Jellyfin catalog* question, not a `Request.status === 'fulfilled'` question. The two are related but distinct: a Request can be `pending` while the underlying content is already on Jellyfin.
 
+### Import flow
+The operator-facing flow of searching TMDB for titles the operator wants, checking Jellyfin availability, and submitting Requests from the results. The `src/lib/import-flow/` module owns all three: TMDB search, Jellyfin availability/season projection, and Request creation from a search result. The client (`src/app/page.tsx`) calls one surface — search returns `ImportResult[]` with availability merged per result (embedded, not side-maps); requests go through the `requestImport` server action which delegates to the same module and returns the refreshed projection.
+
+Error posture is asymmetric and part of the module's interface: a TMDB failure fails the search (`TmdbError`); a Jellyfin catalog failure degrades softly — availability data is absent and the result set still renders (see `availability.error` on the search return).
+
 ### TMDB
 Third-party movie/TV metadata provider. The app never calls TMDB from the client; all TMDB requests flow through API routes (`/api/**`). Configuration: `TMDB_API_KEY` (Secret), `TMDB_URL` (ConfigMap). See ADR-0001 for the dev-side env story.
 
@@ -99,5 +104,7 @@ These are the deepening-skill vocabulary. Use them exactly when writing architec
 - `docs/adr/0006-request-cancellation-is-deletion.md` — Cancellation is deletion; cron cleanup of resolved Requests
 - `docs/adr/0007-request-lifecycle-module.md` — One seam for the Request lifecycle
 - `docs/adr/0008-auto-match-suggestions.md` — Suggestion-only auto-match for torrent↔request pairing
+- `docs/adr/0009-auto-link-high-confidence.md` — auto-link at ≥ 0.90 confidence
+- `docs/adr/0010-import-flow-module.md` — one module for the import flow (search → availability → request)
 
 **Request lifecycle read surface:** the Request lifecycle module owns *all* Request state access behind the `RequestService` interface — not just writes. Reads that were historically imported direct Prisma predicates in API routes now live on the service: `queueStats()` (needs-match / needs-attention counts), `activeRequestsForSummary()` (pending+downloading for the daily summary), `retireResolved(olderThanDays)` (retention cleanup). This keeps the match/retention policy local to the module.

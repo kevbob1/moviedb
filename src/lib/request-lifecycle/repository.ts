@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@/generated/prisma/client';
-import { getTMDBTVDetails } from '@/lib/tmdb';
+import { createTmdbClient, TmdbClient } from '@/lib/tmdb';
 import { logger } from '@/lib/logger';
 import {
   canTransition,
@@ -50,6 +50,7 @@ export interface RequestServiceDeps {
   prisma: PrismaClient;
   enqueueJob: EnqueueJob;
   now?: () => Date;
+  tmdb?: TmdbClient;
 }
 
 export interface RequestService {
@@ -75,7 +76,7 @@ export interface RequestService {
   retireResolved(olderThanDays: number): Promise<number>;
 }
 
-export function createRequestService({ prisma, enqueueJob, now = () => new Date() }: RequestServiceDeps): RequestService {
+export function createRequestService({ prisma, enqueueJob, now = () => new Date(), tmdb }: RequestServiceDeps): RequestService {
   async function createRequest(input: CreateRequestInput): Promise<Request> {
     const validation = validateCreateRequestInput(input);
     if (!validation.ok) {
@@ -138,7 +139,7 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
       throw new Error(validation.reason);
     }
 
-    const details = await getTMDBTVDetails(tmdbId);
+    const details = await (tmdb ?? createTmdbClient()).tvDetails(tmdbId);
     const seasons = details.seasons.filter((s) => s.season_number > 0);
 
     const rows = await prisma.$transaction(async (tx) => {

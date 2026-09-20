@@ -1,94 +1,54 @@
-import { searchTMDBMovies, searchTMDBTV, getTMDBTVDetails } from '../tmdb';
+import {
+  createTmdbClient,
+  InMemoryTmdbAdapter,
+  TmdbError,
+} from '../tmdb';
 
-describe('TMDB library', () => {
-  const originalEnv = process.env;
+describe('TMDB client seam', () => {
+  const fetchMock = global.fetch as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    if (typeof global.fetch !== 'function' || !(global.fetch as jest.Mock).mock) {
-      global.fetch = jest.fn();
-    }
-    process.env.TMDB_API_KEY = 'test-tmdb-key';
+    delete process.env.TMDB_API_KEY;
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
+  it('throws TmdbError when the API key is missing', async () => {
+    await expect(createTmdbClient({ fetch: fetchMock }).searchMovies('test'))
+      .rejects.toBeInstanceOf(TmdbError);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  function mockSuccessfulResponse(data: unknown) {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => data,
-    });
-  }
+  it('returns the movie search response from HTTP', async () => {
+    const response = { page: 1, results: [{ id: 1, title: 'Dune' }], total_pages: 1, total_results: 1 };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => response });
 
-  function mockFailedResponse(status: number, statusText: string = 'Error') {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status,
-      statusText,
-    });
-  }
-
-  describe('searchTMDBMovies', () => {
-    it('returns movies on successful search', async () => {
-      const mockMovies = [
-        { id: 1, title: 'Movie 1', overview: 'Test 1' },
-        { id: 2, title: 'Movie 2', overview: 'Test 2' },
-      ];
-      mockSuccessfulResponse({ results: mockMovies, page: 1, total_pages: 1, total_results: 2 });
-
-      const results = await searchTMDBMovies('test');
-      expect(results).toEqual(mockMovies);
-    });
-
-    it('throws on API error', async () => {
-      mockFailedResponse(401, 'Unauthorized');
-      await expect(searchTMDBMovies('test')).rejects.toThrow('TMDB API error: 401 Unauthorized');
-    });
+    await expect(createTmdbClient({ apiKey: 'key', fetch: fetchMock })
+      .searchMovies('Dune')).resolves.toEqual(response);
   });
 
-  describe('searchTMDBTV', () => {
-    it('returns shows on successful search', async () => {
-      const mockShows = [
-        { id: 100, name: 'Show 1', overview: 'Test 1', first_air_date: '2020-01-01' },
-        { id: 200, name: 'Show 2', overview: 'Test 2', first_air_date: '2021-06-15' },
-      ];
-      mockSuccessfulResponse({ results: mockShows, page: 1, total_pages: 1, total_results: 2 });
+  it('throws TmdbError for non-ok responses', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized' });
 
-      const results = await searchTMDBTV('test');
-      expect(results).toEqual(mockShows);
-    });
-
-    it('throws on API error', async () => {
-      mockFailedResponse(401, 'Unauthorized');
-      await expect(searchTMDBTV('test')).rejects.toThrow('TMDB API error: 401 Unauthorized');
-    });
+    await expect(createTmdbClient({ apiKey: 'key', fetch: fetchMock }).searchTV('test'))
+      .rejects.toMatchObject({ name: 'TmdbError', message: 'TMDB API error: 401 Unauthorized', status: 401 });
   });
 
-  describe('getTMDBTVDetails', () => {
-    it('returns seasons array', async () => {
-      const mockDetails = {
-        id: 100,
-        name: 'Test Show',
-        seasons: [
-          { season_number: 1, name: 'Season 1', episode_count: 10, poster_path: '/s1.jpg' },
-          { season_number: 2, name: 'Season 2', episode_count: 8, poster_path: null },
-          { season_number: 0, name: 'Specials', episode_count: 2, poster_path: null },
-        ],
-      };
-      mockSuccessfulResponse(mockDetails);
+  it('reads the environment key when the HTTP adapter is constructed', async () => {
+    process.env.TMDB_API_KEY = 'from-env';
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 7, name: 'Show', seasons: [] }) });
 
-      const result = await getTMDBTVDetails(100);
-      expect(result.seasons).toHaveLength(3);
-      expect(result.seasons[0].season_number).toBe(1);
-      expect(result.seasons[1].season_number).toBe(2);
-      expect(result.seasons[2].season_number).toBe(0);
+    await createTmdbClient({ fetch: fetchMock }).tvDetails(7);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api_key=from-env'));
+  });
+
+  it('serves configured data through the in-memory adapter', async () => {
+    const details = { id: 7, name: 'Show', seasons: [] };
+    const client = new InMemoryTmdbAdapter({
+      movies: { page: 1, results: [{ id: 1, title: 'Movie' }], total_pages: 1, total_results: 1 },
+      details: { 7: details },
     });
 
-    it('throws on API error', async () => {
-      mockFailedResponse(404, 'Not Found');
-      await expect(getTMDBTVDetails(999)).rejects.toThrow('TMDB API error: 404 Not Found');
-    });
+    await expect(client.searchMovies()).resolves.toMatchObject({ results: [{ title: 'Movie' }] });
+    await expect(client.tvDetails(7)).resolves.toEqual(details);
   });
 });
