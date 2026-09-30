@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { createTransmissionSyncHandler, TransmissionSyncDependencies } from '../transmission-sync';
 import { computeRequestSuggestions } from '../compute-request-suggestions';
@@ -14,12 +13,11 @@ beforeEach(() => jest.clearAllMocks());
 it('runs completion before suggestions and forwards the manual-refresh option', async () => {
   const order: string[] = [];
   (observeRequestCompletions as jest.Mock).mockImplementation(async () => { order.push('completion'); return { scanned: 1, torrents: 1, fulfilled: 1, problems: 0 }; });
-  (computeRequestSuggestions as jest.Mock).mockImplementation(async () => { order.push('suggestions'); return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] }; });
+  (computeRequestSuggestions as jest.Mock).mockImplementation(async () => { order.push('suggestions'); return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0 }; });
 
   const adapter = { getTorrents: jest.fn(), ping: jest.fn() };
   const catalog = { getAll: jest.fn(), refresh: jest.fn(), suggestionsFor: jest.fn() };
   const dependencies: TransmissionSyncDependencies = {
-    prisma,
     requestService: {} as TransmissionSyncDependencies['requestService'],
     logger,
     adapter,
@@ -28,7 +26,7 @@ it('runs completion before suggestions and forwards the manual-refresh option', 
   await createTransmissionSyncHandler(dependencies).handle({ trigger: 'manual' });
 
   expect(order).toEqual(['completion', 'suggestions']);
-  expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ prisma, catalog }), { ignoreSuggestionAgeGate: true });
+  expect(computeRequestSuggestions).toHaveBeenCalledWith(expect.objectContaining({ catalog }), { ignoreSuggestionAgeGate: true });
 });
 
 it('skips suggestions when completion fails', async () => {
@@ -46,7 +44,6 @@ it('logs the metrics returned by both phases', async () => {
     suggestions: 2,
     medianScore: 0.8,
     parserFailures: 1,
-    persistenceErrors: [],
   });
 
   await createTransmissionSyncHandler({

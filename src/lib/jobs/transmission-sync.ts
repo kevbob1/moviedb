@@ -55,7 +55,6 @@ export async function enqueueTransmissionSync(
 }
 
 export interface TransmissionSyncDependencies {
-  prisma: typeof prisma;
   requestService: typeof requestService;
   logger: Pick<typeof logger, 'debug' | 'info' | 'error'>;
   adapter: TransmissionAdapter;
@@ -67,7 +66,6 @@ interface TransmissionSyncOptions {
 }
 
 export function createTransmissionSync({
-  prisma,
   requestService,
   logger,
   adapter,
@@ -78,23 +76,17 @@ export function createTransmissionSync({
   async function run(
     { ignoreSuggestionAgeGate = false }: TransmissionSyncOptions = {},
   ): Promise<void> {
-      const completionResult = await observeRequestCompletions({ adapter, prisma, requestService });
+      const completionResult = await observeRequestCompletions({ adapter, requestService });
       if (completionResult.scanned > 0) {
         logger.info(completionResult, 'transmission_sync completed');
       } else {
         logger.debug('transmission_sync: no downloading requests with torrent_hash');
       }
 
-      const now = new Date();
       const suggestionResult = await computeRequestSuggestions({
         catalog: transmissionCatalog,
-        prisma,
         requestService,
-        now: () => now,
       }, { ignoreSuggestionAgeGate });
-      for (const error of suggestionResult.persistenceErrors) {
-        logger.error({ err: error.err, requestId: error.requestId }, 'transmission_sync: failed to persist suggestion');
-      }
       if (suggestionResult.scanned === 0) {
         logger.debug('transmission_sync: no pending requests need suggestions');
         return;
@@ -116,10 +108,9 @@ export function createTransmissionSync({
 export function createTransmissionSyncHandler(
   dependencies: TransmissionSyncDependencies | { adapter: TransmissionAdapter },
 ): JobHandler<TransmissionSyncPayload | unknown> {
-  const resolvedDependencies: TransmissionSyncDependencies = 'prisma' in dependencies
+  const resolvedDependencies: TransmissionSyncDependencies = 'requestService' in dependencies
     ? { ...dependencies, catalog: dependencies.catalog ?? createTransmissionCatalog(dependencies.adapter) }
     : {
-        prisma,
         requestService,
         logger,
         adapter: dependencies.adapter,
@@ -145,7 +136,6 @@ function isTransmissionSyncPayload(payload: unknown): payload is TransmissionSyn
 const productionAdapter = new HttpTransmissionAdapter();
 
 registerJobType('transmission_sync', createTransmissionSyncHandler({
-  prisma,
   requestService,
   logger,
   adapter: productionAdapter,

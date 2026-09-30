@@ -74,6 +74,12 @@ const makeFakePrisma = () => {
     return row;
   });
 
+  const findMany = jest.fn(async ({ where }: { where: { status: string; torrent_hash: { not: null } } }) =>
+    rows
+      .filter((r) => r.status === where.status && r.torrent_hash !== null)
+      .map((r) => ({ id: r.id, torrent_hash: r.torrent_hash })),
+  );
+
   const del = jest.fn(async ({ where }: { where: { id: number } }) => {
     const idx = rows.findIndex((r) => r.id === where.id);
     if (idx === -1) throw new Error('Not found');
@@ -82,17 +88,26 @@ const makeFakePrisma = () => {
   });
 
   const txShape = () => ({
-    request: { findFirst, findUnique, create, update, delete: del },
+    request: { findFirst, findUnique, create, update, delete: del, findMany },
     job: { create: jest.fn().mockResolvedValue({ id: 1 }) },
   });
 
-  const $transaction = jest.fn(async (fn: (tx: ReturnType<typeof txShape>) => Promise<unknown>) =>
-    fn(txShape())
-  );
+  // Emulate transaction atomicity: snapshot rows up front, restore them if the
+  // transaction body throws, so aborted batches leave no partial writes.
+  const $transaction = jest.fn(async (fn: (tx: ReturnType<typeof txShape>) => Promise<unknown>) => {
+    const snapshot = rows.map((row) => ({ ...row }));
+    try {
+      return await fn(txShape());
+    } catch (err) {
+      rows.length = 0;
+      rows.push(...snapshot);
+      throw err;
+    }
+  });
 
   return {
     rows,
-    request: { findFirst, findUnique, create, update, delete: del },
+    request: { findFirst, findUnique, create, update, delete: del, findMany },
     job: { create: jest.fn().mockResolvedValue({ id: 1 }) },
     $transaction,
     txShape,
@@ -418,15 +433,17 @@ describe('request-lifecycle/service', () => {
     });
   });
 
-  describe('fulfillBySync', () => {
-    it('writes status=fulfilled, torrent_problem=null, resolved_at=now, and clears suggestion fields', async () => {
-      const fake = makeFakePrisma();
-      const { fn: enqueueJob } = recordingEnqueueJob();
-      const service = createRequestService({
+  describe('applySyncDecisions', () => {
+    const makeService = (fake: ReturnType<typeof makeFakePrisma>) =>
+      createRequestService({
         prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob,
+        enqueueJob: jest.fn(),
         now: fixedNow,
       });
+
+    it('applies a fulfilled decision with the full resolution column set', async () => {
+      const fake = makeFakePrisma();
+      const service = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -441,8 +458,7 @@ describe('request-lifecycle/service', () => {
       fake.rows[0].suggestion_score = 0.95;
       fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
-      const tx = fake.txShape();
-      await service.fulfillBySync(1, tx as unknown as Prisma.TransactionClient);
+      await service.applySyncDecisions([{ requestId: 1, outcome: 'fulfilled' }]);
 
       expect(fake.rows[0].status).toBe('fulfilled');
       expect(fake.rows[0].torrent_problem).toBeNull();
@@ -451,17 +467,10 @@ describe('request-lifecycle/service', () => {
       expect(fake.rows[0].suggestion_score).toBeNull();
       expect(fake.rows[0].suggestion_computed_at).toBeNull();
     });
-  });
 
-  describe('flagTorrentProblem', () => {
-    it('stamps torrent_problem only', async () => {
+    it('applies a problem decision stamping torrent_problem only', async () => {
       const fake = makeFakePrisma();
-      const { fn: enqueueJob } = recordingEnqueueJob();
-      const service = createRequestService({
-        prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob,
-        now: fixedNow,
-      });
+      const service = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -471,12 +480,39 @@ describe('request-lifecycle/service', () => {
         mediaType: 'movie',
       });
       await service.downloadRequest(1);
-      const tx = fake.txShape();
 
-      await service.flagTorrentProblem(1, 'Transmission error: disk full', tx as unknown as Prisma.TransactionClient);
+      await service.applySyncDecisions([
+        { requestId: 1, outcome: 'problem', problem: 'Transmission error: disk full' },
+      ]);
 
       expect(fake.rows[0].torrent_problem).toBe('Transmission error: disk full');
       expect(fake.rows[0].status).toBe('downloading');
+      expect(fake.rows[0].resolved_at).toBeNull();
+    });
+
+    it('applies nothing when an unknown request id aborts the whole batch', async () => {
+      const fake = makeFakePrisma();
+      const service = makeService(fake);
+
+      await service.createRequest({
+        tmdbId: 1,
+        title: 'Test',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.downloadRequest(1);
+      fake.rows[0].torrent_problem = 'prior problem';
+
+      await expect(
+        service.applySyncDecisions([
+          { requestId: 1, outcome: 'fulfilled' },
+          { requestId: 999, outcome: 'fulfilled' },
+        ]),
+      ).rejects.toThrow('Not found');
+
+      expect(fake.rows[0].status).toBe('downloading');
+      expect(fake.rows[0].torrent_problem).toBe('prior problem');
       expect(fake.rows[0].resolved_at).toBeNull();
     });
   });
@@ -580,8 +616,8 @@ describe('request-lifecycle/service', () => {
     });
   });
 
-  describe('suggestion persistence', () => {
-    it('persists suggestion state through the request lifecycle transaction seam', async () => {
+  describe('recordSuggestionBatch', () => {
+    it('writes suggestion columns for a present suggestion, stamped from the injected now', async () => {
       const fake = makeFakePrisma();
       const service = createRequestService({
         prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
@@ -596,16 +632,75 @@ describe('request-lifecycle/service', () => {
         mediaType: 'movie',
       });
 
-      await service.persistSuggestion(
-        request.id,
-        { hash: 'suggested-hash', score: 0.85 },
-        fixedNow(),
-        fake.txShape() as unknown as Prisma.TransactionClient,
-      );
+      await service.recordSuggestionBatch([
+        { requestId: request.id, suggestion: { hash: 'suggested-hash', score: 0.85 } },
+      ]);
 
       expect(fake.rows[0].suggestion_hash).toBe('suggested-hash');
       expect(fake.rows[0].suggestion_score).toBe(0.85);
       expect(fake.rows[0].suggestion_computed_at).toEqual(fixedNow());
+    });
+
+    it('clears suggestion hash and score when no suggestion matched', async () => {
+      const fake = makeFakePrisma();
+      const service = createRequestService({
+        prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+      const request = await service.createRequest({
+        tmdbId: 42,
+        title: 'A film',
+        posterPath: null,
+        requestedBy: 'tester',
+        mediaType: 'movie',
+      });
+      fake.rows[0].suggestion_hash = 'old-hash';
+      fake.rows[0].suggestion_score = 0.4;
+
+      await service.recordSuggestionBatch([{ requestId: request.id, suggestion: null }]);
+
+      expect(fake.rows[0].suggestion_hash).toBeNull();
+      expect(fake.rows[0].suggestion_score).toBeNull();
+      expect(fake.rows[0].suggestion_computed_at).toEqual(fixedNow());
+    });
+  });
+
+  describe('downloadingRequestsWithHashes', () => {
+    it('returns only downloading requests with a non-null torrent hash', async () => {
+      const fake = makeFakePrisma();
+      const service = createRequestService({
+        prisma: fake as unknown as Parameters<typeof createRequestService>[0]['prisma'],
+        enqueueJob: jest.fn(),
+        now: fixedNow,
+      });
+      await service.createRequest({
+        tmdbId: 1,
+        title: 'Linked film',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.createRequest({
+        tmdbId: 2,
+        title: 'Hashless film',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.createRequest({
+        tmdbId: 3,
+        title: 'Pending film',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.linkTorrent(1, 'hash1');
+      await service.downloadRequest(2);
+
+      const found = await service.downloadingRequestsWithHashes();
+
+      expect(found).toEqual([{ id: 1, torrent_hash: 'hash1' }]);
     });
   });
 

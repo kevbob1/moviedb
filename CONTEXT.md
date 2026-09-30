@@ -25,6 +25,9 @@ A proposed pairing of a `pending` Request with a Transmission torrent, produced 
 
 A `MatchSuggestion` carries the torrent hash, a title-similarity score, an eligibility flag, and reasons when the candidate is rejected. Only the single best suggestion per Request is kept; there is no suggestion history.
 
+### SyncDecision
+The job layer's output of observing linked torrents: a per-request `fulfilled` / `problem` verdict. The Request lifecycle module's `applySyncDecisions` verb applies a batch of them atomically in a transaction it owns — the job layer never threads Prisma transactions into the module. Computed suggestions flow through the same batched shape via `recordSuggestionBatch`.
+
 ### Job
 A unit of asynchronous work enqueued in the `jobs` table and processed by a registered handler. Distinct from a `Request`: a Request is *user intent*; a Job is *work the system owes*.
 

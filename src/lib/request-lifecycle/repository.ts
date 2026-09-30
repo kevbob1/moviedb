@@ -53,6 +53,21 @@ export interface RequestServiceDeps {
   tmdb?: TmdbClient;
 }
 
+/**
+ * The job layer's verdict after observing a linked torrent: either the
+ * download finished (`fulfilled`) or something is wrong (`problem`).
+ * Applied atomically by `applySyncDecisions`.
+ */
+export type SyncDecision =
+  | { requestId: number; outcome: 'fulfilled' }
+  | { requestId: number; outcome: 'problem'; problem: string };
+
+/** A computed suggestion (or its absence) for one pending request. */
+export type SuggestionEntry = {
+  requestId: number;
+  suggestion: { hash: string; score: number } | null;
+};
+
 export interface RequestService {
   createRequest(input: CreateRequestInput): Promise<Request>;
   createTvRequests(tmdbId: number, requestedBy: string): Promise<Request[]>;
@@ -61,14 +76,9 @@ export interface RequestService {
   fulfillRequest(reqId: number): Promise<Request>;
   downloadRequest(reqId: number): Promise<Request>;
   cancelRequest(reqId: number): Promise<void>;
-  fulfillBySync(reqId: number, tx: Prisma.TransactionClient): Promise<void>;
-  flagTorrentProblem(reqId: number, problem: string, tx: Prisma.TransactionClient): Promise<void>;
-  persistSuggestion(
-    reqId: number,
-    suggestion: { hash: string; score: number } | null,
-    computedAt: Date,
-    tx: Prisma.TransactionClient,
-  ): Promise<void>;
+  applySyncDecisions(decisions: SyncDecision[]): Promise<void>;
+  recordSuggestionBatch(entries: SuggestionEntry[]): Promise<void>;
+  downloadingRequestsWithHashes(): Promise<Array<{ id: number; torrent_hash: string }>>;
   queueStats(): Promise<{ needsMatch: number; needsAttention: number }>;
   pendingRequestsForNeedsMatch(options?: { applySuggestionAgeGate?: boolean }): Promise<Request[]>;
   downloadingRequestsWithTorrentProblems(): Promise<Request[]>;
@@ -238,47 +248,67 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     await prisma.request.delete({ where: { id: reqId } });
   }
 
-  async function fulfillBySync(reqId: number, tx: Prisma.TransactionClient): Promise<void> {
-    await tx.request.update({
-      where: { id: reqId },
-      data: {
-        status: 'fulfilled',
-        torrent_problem: null,
-        resolved_at: now(),
-        suggestion_hash: null,
-        suggestion_score: null,
-        suggestion_computed_at: null,
-      },
+  async function applySyncDecisions(decisions: SyncDecision[]): Promise<void> {
+    if (decisions.length === 0) return;
+
+    // One transaction for the whole batch: Postgres gives atomicity for free,
+    // so a bad row aborts every decision rather than applying a partial batch.
+    await prisma.$transaction(async (tx) => {
+      for (const decision of decisions) {
+        if (decision.outcome === 'fulfilled') {
+          await tx.request.update({
+            where: { id: decision.requestId },
+            data: {
+              status: 'fulfilled',
+              torrent_problem: null,
+              resolved_at: now(),
+              suggestion_hash: null,
+              suggestion_score: null,
+              suggestion_computed_at: null,
+            },
+          });
+        } else {
+          await tx.request.update({
+            where: { id: decision.requestId },
+            data: { torrent_problem: decision.problem },
+          });
+        }
+      }
     });
   }
 
-  async function flagTorrentProblem(reqId: number, problem: string, tx: Prisma.TransactionClient): Promise<void> {
-    await tx.request.update({
-      where: { id: reqId },
-      data: { torrent_problem: problem },
+  async function recordSuggestionBatch(entries: SuggestionEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+
+    const computedAt = now();
+    await prisma.$transaction(async (tx) => {
+      for (const entry of entries) {
+        await tx.request.update({
+          where: { id: entry.requestId },
+          data: entry.suggestion
+            ? {
+                suggestion_hash: entry.suggestion.hash,
+                suggestion_score: entry.suggestion.score,
+                suggestion_computed_at: computedAt,
+              }
+            : {
+                suggestion_hash: null,
+                suggestion_score: null,
+                suggestion_computed_at: computedAt,
+              },
+        });
+      }
     });
   }
 
-  async function persistSuggestion(
-    reqId: number,
-    suggestion: { hash: string; score: number } | null,
-    computedAt: Date,
-    tx: Prisma.TransactionClient,
-  ): Promise<void> {
-    await tx.request.update({
-      where: { id: reqId },
-      data: suggestion
-        ? {
-            suggestion_hash: suggestion.hash,
-            suggestion_score: suggestion.score,
-            suggestion_computed_at: computedAt,
-          }
-        : {
-            suggestion_hash: null,
-            suggestion_score: null,
-            suggestion_computed_at: computedAt,
-          },
+  async function downloadingRequestsWithHashes(): Promise<Array<{ id: number; torrent_hash: string }>> {
+    const rows = await prisma.request.findMany({
+      where: { status: 'downloading', torrent_hash: { not: null } },
+      select: { id: true, torrent_hash: true },
     });
+    return rows.flatMap((row) =>
+      row.torrent_hash === null ? [] : [{ id: row.id, torrent_hash: row.torrent_hash }],
+    );
   }
 
   async function queueStats(): Promise<{ needsMatch: number; needsAttention: number }> {
@@ -340,9 +370,9 @@ export function createRequestService({ prisma, enqueueJob, now = () => new Date(
     fulfillRequest,
     downloadRequest,
     cancelRequest,
-    fulfillBySync,
-    flagTorrentProblem,
-    persistSuggestion,
+    applySyncDecisions,
+    recordSuggestionBatch,
+    downloadingRequestsWithHashes,
     queueStats,
     pendingRequestsForNeedsMatch,
     downloadingRequestsWithTorrentProblems,

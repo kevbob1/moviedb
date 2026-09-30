@@ -1,30 +1,29 @@
-import { prisma } from '@/lib/prisma';
 import { requestService } from '@/lib/request-lifecycle';
 import { createTransmissionCatalog } from '@/lib/transmission/catalog';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
 import { createTransmissionSyncHandler, TransmissionSyncDependencies } from '../transmission-sync';
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    request: {
-      findMany: jest.fn().mockResolvedValue([]),
-    },
-    $transaction: jest.fn(async (callback: (tx: object) => Promise<void>) => callback({})),
-  },
-}));
+jest.mock('@/lib/prisma', () => ({ prisma: {} }));
 jest.mock('@/lib/request-lifecycle', () => ({
   requestService: {
+    downloadingRequestsWithHashes: jest.fn(),
+    applySyncDecisions: jest.fn(),
     pendingRequestsForNeedsMatch: jest.fn(),
-    persistSuggestion: jest.fn(),
+    recordSuggestionBatch: jest.fn(),
   },
 }));
 
+const downloadingRequestsWithHashesMock = jest.mocked(requestService.downloadingRequestsWithHashes);
+const applySyncDecisionsMock = jest.mocked(requestService.applySyncDecisions);
 const pendingRequestsMock = jest.mocked(requestService.pendingRequestsForNeedsMatch);
-const persistSuggestionMock = jest.mocked(requestService.persistSuggestion);
+const recordSuggestionBatchMock = jest.mocked(requestService.recordSuggestionBatch);
 
 describe('transmission sync integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    downloadingRequestsWithHashesMock.mockResolvedValue([]);
+    applySyncDecisionsMock.mockResolvedValue(undefined);
+    recordSuggestionBatchMock.mockResolvedValue(undefined);
     pendingRequestsMock.mockResolvedValue([
       {
         id: 7,
@@ -37,7 +36,6 @@ describe('transmission sync integration', () => {
         status: 'pending',
       },
     ]);
-    persistSuggestionMock.mockResolvedValue(undefined);
   });
 
   it('uses the real catalog suggestion path and persists its result', async () => {
@@ -51,7 +49,6 @@ describe('transmission sync integration', () => {
     const suggestionsForSpy = jest.spyOn(catalog, 'suggestionsFor');
     const logger = { debug: jest.fn(), info: jest.fn(), error: jest.fn() };
     const dependencies: TransmissionSyncDependencies = {
-      prisma,
       requestService,
       logger,
       adapter,
@@ -69,12 +66,9 @@ describe('transmission sync integration', () => {
         seasonNumber: null,
       },
     ]);
-    expect(persistSuggestionMock).toHaveBeenCalledWith(
-      7,
-      expect.objectContaining({ hash: 'aaa' }),
-      expect.any(Date),
-      expect.any(Object),
-    );
+    expect(recordSuggestionBatchMock).toHaveBeenCalledWith([
+      { requestId: 7, suggestion: expect.objectContaining({ hash: 'aaa' }) },
+    ]);
     expect(logger.info).toHaveBeenCalledWith(
       { scanned: 1, suggestions: 1, medianScore: expect.any(Number), parserFailures: 1 },
       'transmission_sync suggestions computed',

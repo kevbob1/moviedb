@@ -1,20 +1,16 @@
-import type { PrismaClient } from '@/generated/prisma/client';
 import type { TransmissionCatalog } from '@/lib/transmission/catalog';
-import type { RequestService } from '@/lib/request-lifecycle';
+import type { RequestService, SuggestionEntry } from '@/lib/request-lifecycle';
 
 export interface ComputeRequestSuggestionsResult {
   scanned: number;
   suggestions: number;
   medianScore: number;
   parserFailures: number;
-  persistenceErrors: Array<{ err: unknown; requestId: number }>;
 }
 
 interface ComputeRequestSuggestionsDeps {
   catalog: TransmissionCatalog;
-  prisma: PrismaClient;
-  requestService: Pick<RequestService, 'pendingRequestsForNeedsMatch' | 'persistSuggestion'>;
-  now: () => Date;
+  requestService: Pick<RequestService, 'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch'>;
 }
 
 interface ComputeRequestSuggestionsOptions {
@@ -30,19 +26,16 @@ function median(values: number[]): number {
 
 export async function computeRequestSuggestions({
   catalog,
-  prisma,
   requestService,
-  now: getNow,
 }: ComputeRequestSuggestionsDeps,
   { ignoreSuggestionAgeGate = false }: ComputeRequestSuggestionsOptions = {},
 ): Promise<ComputeRequestSuggestionsResult> {
-  const now = getNow();
   const pendingRequests = await requestService.pendingRequestsForNeedsMatch({
     applySuggestionAgeGate: !ignoreSuggestionAgeGate,
   });
 
   if (pendingRequests.length === 0) {
-    return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] };
+    return { scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0 };
   }
 
   const { suggestions, parserFailures } = await catalog.suggestionsFor(
@@ -56,30 +49,21 @@ export async function computeRequestSuggestions({
   );
   let withSuggestion = 0;
   const scores: number[] = [];
-  const persistenceErrors: Array<{ err: unknown; requestId: number }> = [];
-
-  await prisma.$transaction(async (tx) => {
-    for (const request of pendingRequests) {
-      try {
-        const suggestion = suggestions.get(request.id) ?? null;
-        if (suggestion) {
-          withSuggestion++;
-          scores.push(suggestion.score);
-          await requestService.persistSuggestion(request.id, suggestion, now, tx);
-        } else {
-          await requestService.persistSuggestion(request.id, null, now, tx);
-        }
-      } catch (err) {
-        persistenceErrors.push({ err, requestId: request.id });
-      }
+  const entries: SuggestionEntry[] = pendingRequests.map((request) => {
+    const suggestion = suggestions.get(request.id) ?? null;
+    if (suggestion) {
+      withSuggestion++;
+      scores.push(suggestion.score);
     }
+    return { requestId: request.id, suggestion };
   });
+
+  await requestService.recordSuggestionBatch(entries);
 
   return {
     scanned: pendingRequests.length,
     suggestions: withSuggestion,
     medianScore: median(scores),
     parserFailures,
-    persistenceErrors,
   };
 }

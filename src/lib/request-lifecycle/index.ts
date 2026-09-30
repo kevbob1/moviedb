@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { createRequestService, EnqueueJob, RequestService } from './repository';
 
 export { createRequestService } from './repository';
-export type { EnqueueJob, RequestService, RequestServiceDeps } from './repository';
+export type { EnqueueJob, RequestService, RequestServiceDeps, SuggestionEntry, SyncDecision } from './repository';
 
 export {
   REQUEST_TRANSITIONS,

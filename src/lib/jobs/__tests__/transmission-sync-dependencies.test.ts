@@ -6,7 +6,6 @@ import {
 import { observeRequestCompletions } from '../observe-request-completions';
 import { computeRequestSuggestions } from '../compute-request-suggestions';
 import { TransmissionAdapter } from '@/lib/transmission/adapter';
-import { prisma } from '@/lib/prisma';
 import { requestService } from '@/lib/request-lifecycle';
 
 jest.mock('../observe-request-completions', () => ({
@@ -21,7 +20,6 @@ const suggestionsMock = jest.mocked(computeRequestSuggestions);
 
 function dependencies(): TransmissionSyncDependencies {
   return {
-    prisma: {} as unknown as typeof prisma,
     requestService: {} as unknown as typeof requestService,
     logger: {
       debug: jest.fn(),
@@ -42,7 +40,6 @@ describe('transmission sync construction', () => {
       suggestions: 0,
       medianScore: 0,
       parserFailures: 0,
-      persistenceErrors: [],
     });
   });
 
@@ -54,11 +51,10 @@ describe('transmission sync construction', () => {
 
     expect(observeMock).toHaveBeenCalledWith({
       adapter: injected.adapter,
-      prisma: injected.prisma,
       requestService: injected.requestService,
     });
     expect(suggestionsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ catalog: injected.catalog, prisma: injected.prisma }),
+      expect.objectContaining({ catalog: injected.catalog }),
       { ignoreSuggestionAgeGate: false },
     );
     expect(observeMock.mock.invocationCallOrder[0]).toBeLessThan(

@@ -1,40 +1,17 @@
-import { prisma } from '@/lib/prisma';
 import { computeRequestSuggestions } from '../compute-request-suggestions';
 
-const mockTx = { request: { update: jest.fn().mockResolvedValue({}) } };
-
-jest.mock('@/lib/prisma', () => ({
-  prisma: { $transaction: jest.fn() },
-}));
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: typeof mockTx) => Promise<void>) => fn(mockTx));
-});
-
 it('delegates request selection to the lifecycle service', async () => {
-  const now = new Date('2026-01-02T00:00:00.000Z');
   const pendingRequestsForNeedsMatch = jest.fn().mockResolvedValue([]);
+  const recordSuggestionBatch = jest.fn();
 
   const result = await computeRequestSuggestions({
     catalog: { suggestionsFor: jest.fn(), getAll: jest.fn(), refresh: jest.fn() },
-    prisma,
-    requestService: {
-      pendingRequestsForNeedsMatch,
-      persistSuggestion: async (requestId, suggestion, computedAt, tx) => {
-        await tx.request.update({
-          where: { id: requestId },
-          data: suggestion
-            ? { suggestion_hash: suggestion.hash, suggestion_score: suggestion.score, suggestion_computed_at: computedAt }
-            : { suggestion_hash: null, suggestion_score: null, suggestion_computed_at: computedAt },
-        });
-      },
-    },
-    now: () => now,
+    requestService: { pendingRequestsForNeedsMatch, recordSuggestionBatch },
   }, { ignoreSuggestionAgeGate: true });
 
   expect(pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: false });
-  expect(result).toEqual({ scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0, persistenceErrors: [] });
+  expect(recordSuggestionBatch).not.toHaveBeenCalled();
+  expect(result).toEqual({ scanned: 0, suggestions: 0, medianScore: 0, parserFailures: 0 });
 });
 
 it('loads suggestions and parser failures through the catalog seam', async () => {
@@ -49,12 +26,39 @@ it('loads suggestions and parser failures through the catalog seam', async () =>
 
   await computeRequestSuggestions({
     catalog,
-    prisma,
-    requestService: { pendingRequestsForNeedsMatch, persistSuggestion: jest.fn() },
-    now: () => new Date('2026-01-02T00:00:00.000Z'),
+    requestService: { pendingRequestsForNeedsMatch, recordSuggestionBatch: jest.fn() },
   });
 
   expect(catalog.suggestionsFor).toHaveBeenCalledWith([
     { id: 7, title: 'A Movie', mediaType: 'movie', releaseDate: '2026', seasonNumber: null },
   ]);
+});
+
+it('builds one entry per pending request and persists the batch once', async () => {
+  const catalog = {
+    suggestionsFor: jest.fn().mockResolvedValue({
+      suggestions: new Map([[7, { hash: 'abc', score: 0.9 }]]),
+      parserFailures: 1,
+    }),
+    getAll: jest.fn(),
+    refresh: jest.fn(),
+  };
+  const recordSuggestionBatch = jest.fn().mockResolvedValue(undefined);
+
+  const result = await computeRequestSuggestions({
+    catalog,
+    requestService: {
+      pendingRequestsForNeedsMatch: jest.fn().mockResolvedValue([
+        { id: 7, title: 'A Movie', media_type: 'movie', release_date: '2026', season_number: null },
+        { id: 8, title: 'B Movie', media_type: 'movie', release_date: '2027', season_number: null },
+      ]),
+      recordSuggestionBatch,
+    },
+  });
+
+  expect(recordSuggestionBatch).toHaveBeenCalledWith([
+    { requestId: 7, suggestion: { hash: 'abc', score: 0.9 } },
+    { requestId: 8, suggestion: null },
+  ]);
+  expect(result).toEqual({ scanned: 2, suggestions: 1, medianScore: 0.9, parserFailures: 1 });
 });
