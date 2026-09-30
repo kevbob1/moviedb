@@ -5,7 +5,6 @@ import { defaultImportFlow, ImportResult } from '@/lib/import-flow';
 import { revalidatePath } from 'next/cache';
 
 import { requestService } from '@/lib/request-lifecycle';
-import { CreateRequestInput } from '@/lib/request-lifecycle/validators';
 
 export async function requestImport(
   result: ImportResult,
@@ -16,37 +15,6 @@ export async function requestImport(
   revalidatePath('/requests');
   revalidatePath('/needs-match');
   return refreshed;
-}
-
-export async function createRequest(
-  tmdbId: number,
-  title: string,
-  posterPath: string | null,
-  requestedBy: string,
-  releaseDate?: string,
-  overview?: string,
-  genreIds?: number[],
-  mediaType: string = 'movie',
-  seasonNumber?: number
-) {
-  const input: CreateRequestInput = {
-    tmdbId,
-    title,
-    posterPath,
-    requestedBy,
-    releaseDate,
-    overview,
-    genreIds,
-    mediaType,
-    seasonNumber,
-  };
-  return requestService.createRequest(input);
-}
-
-export async function createTvShowRequests(tmdbId: number, requestedBy: string) {
-  const result = await requestService.createTvRequests(tmdbId, requestedBy);
-  revalidatePath('/requests');
-  return result;
 }
 
 export async function fulfillRequest(requestId: number) {

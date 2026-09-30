@@ -8,7 +8,7 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
-// status: pending | downloading | fulfilled (see RequestStatus in src/lib/request-fsm.ts)
+// status: pending | downloading | fulfilled (see RequestStatus in src/lib/request-lifecycle/fsm.ts)
 model Request {
   id            Int       @id @default(autoincrement())
   title         String

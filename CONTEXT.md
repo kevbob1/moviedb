@@ -7,7 +7,7 @@ The single source of truth for domain vocabulary. Use these terms in issue title
 ## Core concepts
 
 ### Request
-A user-submitted request for a movie or TV show that is not currently on Jellyfin. Lifecycle: `pending` → `downloading` → `fulfilled`. State machine defined in `src/lib/request-fsm.ts`.
+A user-submitted request for a movie or TV show that is not currently on Jellyfin. Lifecycle: `pending` → `downloading` → `fulfilled`. State machine defined in `src/lib/request-lifecycle/fsm.ts`.
 
 **Status values** (`RequestStatus`):
 - `pending` — submitted, no work started

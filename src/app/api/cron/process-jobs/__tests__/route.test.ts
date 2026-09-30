@@ -49,7 +49,7 @@ describe('process-jobs cron API', () => {
     delete process.env.CRON_SECRET;
     headersMock.mockResolvedValue(new Headers());
     processPendingJobsMock.mockResolvedValue({ processed: 0, failed: 0 });
-    enqueueTransmissionSyncMock.mockResolvedValue(false);
+    enqueueTransmissionSyncMock.mockResolvedValue({ queued: false });
   });
 
   afterEach(() => {
@@ -116,7 +116,7 @@ describe('process-jobs cron API', () => {
 
   describe('transmission_sync enqueue', () => {
     it('enqueues a transmission_sync job before processing pending jobs', async () => {
-      enqueueTransmissionSyncMock.mockResolvedValue(true);
+      enqueueTransmissionSyncMock.mockResolvedValue({ queued: true });
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
@@ -131,7 +131,7 @@ describe('process-jobs cron API', () => {
     });
 
     it('reports transmissionSyncEnqueued false when a sync is already outstanding', async () => {
-      enqueueTransmissionSyncMock.mockResolvedValue(false);
+      enqueueTransmissionSyncMock.mockResolvedValue({ queued: false });
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);

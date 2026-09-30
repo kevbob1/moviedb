@@ -4,10 +4,9 @@ import { Switch } from '@/components/ui/Switch';
 
 interface ShowFulfilledSwitchProps {
   defaultChecked: boolean;
-  query: string;
 }
 
-export function ShowFulfilledSwitch({ defaultChecked, query }: ShowFulfilledSwitchProps) {
+export function ShowFulfilledSwitch({ defaultChecked }: ShowFulfilledSwitchProps) {
   return (
     <div className="flex items-center gap-3">
       <Switch
@@ -15,7 +14,6 @@ export function ShowFulfilledSwitch({ defaultChecked, query }: ShowFulfilledSwit
         label="Show fulfilled"
         onCheckedChange={(checked) => {
           const params = new URLSearchParams();
-          if (query) params.set('q', query);
           if (checked) params.set('showFulfilled', 'true');
           window.location.search = params.toString();
         }}

@@ -19,9 +19,7 @@ async function handler() {
 
   try {
     const transmissionSyncResult = await enqueueTransmissionSync({ trigger: 'scheduled' });
-    const transmissionSyncEnqueued = typeof transmissionSyncResult === 'boolean'
-      ? transmissionSyncResult
-      : transmissionSyncResult.queued;
+    const transmissionSyncEnqueued = transmissionSyncResult.queued;
     const result = await processPendingJobs();
 
     return NextResponse.json({

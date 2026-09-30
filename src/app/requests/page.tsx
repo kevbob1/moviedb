@@ -52,7 +52,6 @@ export default async function RequestsPage({
       <div className="mb-4">
         <ShowFulfilledSwitch
           defaultChecked={showFulfilled}
-          query=""
         />
       </div>
 

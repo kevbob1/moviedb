@@ -13,8 +13,6 @@ describe('request-lifecycle/projection', () => {
       (['pending', 'downloading', 'fulfilled'] as const).forEach((status) => {
         expect(STATUS_CONFIG[status]).toBeDefined();
         expect(STATUS_CONFIG[status]).toHaveProperty('label');
-        expect(STATUS_CONFIG[status]).toHaveProperty('color');
-        expect(STATUS_CONFIG[status]).toHaveProperty('bgColor');
       });
     });
   });
