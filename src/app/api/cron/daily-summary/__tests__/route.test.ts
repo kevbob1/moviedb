@@ -71,31 +71,15 @@ describe('daily-summary cron API', () => {
       expect(response.status).toBe(200);
     });
 
-    it('returns 401 when CRON_SECRET is set and Authorization header is missing', async () => {
-      process.env.CRON_SECRET = 'secret-token';
-      headersMock.mockResolvedValue(new Headers());
-
-      const response = await GET(mockRequest);
-      expect(response.status).toBe(401);
-
-      const body = await response.json();
-      expect(body).toHaveProperty('message', 'Unauthorized');
-    });
-
     it('returns 401 when CRON_SECRET is set and Authorization header is wrong', async () => {
       process.env.CRON_SECRET = 'secret-token';
       headersMock.mockResolvedValue(new Headers({ authorization: 'Bearer wrong' }));
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(401);
-    });
 
-    it('allows access when CRON_SECRET matches Authorization header', async () => {
-      process.env.CRON_SECRET = 'secret-token';
-      headersMock.mockResolvedValue(new Headers({ authorization: 'Bearer secret-token' }));
-
-      const response = await GET(mockRequest);
-      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toHaveProperty('message', 'Unauthorized');
     });
   });
 

@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
+import { requireCronAuth } from '@/lib/cron-auth';
 
 function toNotificationRequests(requests: Awaited<ReturnType<typeof requestService.activeRequestsForSummary>>): NotificationRequest[] {
   return requests.map((r) => ({
@@ -22,13 +23,8 @@ function toNotificationRequests(requests: Awaited<ReturnType<typeof requestServi
 export const dynamic = 'force-dynamic';
 
 async function handler() {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = (await headers()).get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
-    }
-  }
+  const unauthorized = requireCronAuth(await headers());
+  if (unauthorized) return unauthorized;
 
   try {
     const requests = await requestService.activeRequestsForSummary();
