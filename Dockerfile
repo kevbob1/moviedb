@@ -1,4 +1,4 @@
-FROM node:25.9.0-alpine AS base
+FROM node:26.10.0-alpine AS base
 
 # ---------------------------------------------------------------------------
 # Stage – development (used by docker compose; shares base with prod build)
