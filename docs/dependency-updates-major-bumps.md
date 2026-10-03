@@ -1,0 +1,58 @@
+# Major Version Dependency Updates (Deferred)
+
+**Date:** 2026-10-02  
+**Context:** Safe semver-compatible updates applied; major version bumps deferred to avoid breaking changes.
+
+## Skipped Major Version Bumps
+
+These packages have major version updates available but were intentionally skipped:
+
+### Production Dependencies
+
+| Package | Current | Latest | Notes |
+|---------|---------|--------|-------|
+| `dotenv` | ^17.4.2 | 18.0.5 | Major bump 17→18 |
+| `motion` | ^12.42.2 | 14.0.0 | Major bump 12→14, significant API changes likely |
+| `nodemailer` | ^7.0.13 | 10.0.13 | Major bump 7→10, three major versions behind |
+| `pino` | ^9.6.0 | 10.4.0 | Major bump 9→10 |
+
+### Development Dependencies
+
+| Package | Current | Latest | Notes |
+|---------|---------|--------|-------|
+| `@testing-library/jest-dom` | ^7.0.1 | 7.0.1 | ✅ Updated 2026-10-02, no breaking changes |
+| `eslint` | ^10.12.0 | 10.12.0 | ✅ Updated 2026-10-02, no breaking changes |
+| `typescript` | ^7.0.2 | 7.0.2 | ✅ Updated 2026-10-02, no breaking changes |
+
+## Migration Notes
+
+When tackling these updates:
+
+1. **Review changelogs** for each package before upgrading
+2. **Update one at a time** to isolate any breaking changes
+3. **Run full validation** after each update: `make dev-exec npm run check`
+4. **Pay special attention to:**
+   - `motion` 12→14: Likely API changes, check component usage
+   - `nodemailer` 7→10: Review email sending code for API changes
+
+### Completed Updates (2026-10-02)
+
+Phase 1 (Development Dependencies) completed successfully:
+- ✅ `@testing-library/jest-dom` 6→7: No breaking changes
+- ✅ `eslint` 9→10: No config changes required
+- ✅ `typescript` 6→7: No new type errors
+
+## Current Status
+
+All semver-compatible updates have been applied and validated:
+- ✅ 25 packages updated
+- ✅ Lint: 0 warnings
+- ✅ Tests: 389 passing
+- ✅ Typecheck: clean
+- ✅ Build: successful
+
+## Related Changes
+
+- `compose.yaml`: Updated `postgres:18.4` → `18.6`
+- `compose.yaml`: Changed config file mounts from `:ro` to `:rw`
+- `src/components/NeedsMatchSyncControl.test.tsx`: Added `bfcacheId: ''` to mock (required by Next 16.3.8)
