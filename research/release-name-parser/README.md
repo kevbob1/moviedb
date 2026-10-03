@@ -102,8 +102,9 @@ The `torrent-name-parser` family (`torrent-name-parser`, `parse-torrent-filename
 
 Generated against `@viren070/parse-torrent-title@0.8.6`, `parse-torrent-title@3.0.1`,
 `oleoo@2.0.4`, and `parse-torrent-name@0.5.4` installed via `npm install --no-save`
-on Node v25.9.0 (matches the runtime in `Dockerfile:1`). Source script inlined
-below the results.
+on Node v25.9.0 (the project runtime in `Dockerfile:1` at the time of this
+research; the runtime has since been upgraded to Node v26.10.0). Source script
+inlined below the results.
 
 ### a. Movie with year + 1080p + release group
 ```
