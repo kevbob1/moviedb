@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-config({ path: '.env.test' });
+config({ path: '.env.test', quiet: true });
 
 import { TextEncoder, TextDecoder } from 'util';
 import { ReadableStream } from 'node:stream/web';

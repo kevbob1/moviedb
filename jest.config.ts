@@ -21,10 +21,25 @@ const config: Config = {
   testPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   watchPathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/node_modules/"],
   transform: {
-    "^.+\\.(ts|tsx|js)$": ["ts-jest", {
-      tsconfig: "./tsconfig.test.json",
-      diagnostics: {
-        ignoreDeprecations: "6.0",
+    "^.+\\.(ts|tsx|js)$": ["@swc/jest", {
+      jsc: {
+        parser: {
+          syntax: "typescript",
+          tsx: true,
+          decorators: true,
+          dynamicImport: true,
+        },
+        transform: {
+          react: {
+            runtime: "automatic",
+            importSource: "react",
+          },
+        },
+        target: "es2023",
+        keepClassNames: true,
+      },
+      module: {
+        type: "commonjs",
       },
     }],
   },
