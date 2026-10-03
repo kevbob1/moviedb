@@ -12,8 +12,8 @@ These packages have major version updates available but were intentionally skipp
 | Package | Current | Latest | Notes |
 |---------|---------|--------|-------|
 | `dotenv` | ^18.0.5 | 18.0.5 | ✅ Updated 2026-10-02, no breaking changes |
-| `motion` | ^12.42.2 | 14.0.0 | Major bump 12→14, significant API changes likely |
-| `nodemailer` | ^7.0.13 | 10.0.13 | Major bump 7→10, three major versions behind |
+| `motion` | ^14.0.0 | 14.0.0 | ✅ Updated 2026-10-02, no breaking changes |
+| `nodemailer` | ^10.0.13 | 10.0.13 | ✅ Updated 2026-10-02, no breaking changes |
 | `pino` | ^10.4.0 | 10.4.0 | ✅ Updated 2026-10-02, no breaking changes |
 
 ### Development Dependencies
@@ -49,6 +49,10 @@ Tooling changes:
 Phase 2 (Production Dependencies - Medium Risk) completed successfully:
 - ✅ `dotenv` 17→18: No breaking changes
 - ✅ `pino` 9→10: Logger config compatible
+
+Phase 3 (Production Dependencies - High Risk) completed successfully:
+- ✅ `nodemailer` 7→10: No API changes required
+- ✅ `motion` 12→14: `motion/react` API remains compatible
 
 ## Current Status
 
