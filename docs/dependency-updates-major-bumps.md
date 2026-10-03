@@ -20,9 +20,9 @@ These packages have major version updates available but were intentionally skipp
 
 | Package | Current | Latest | Notes |
 |---------|---------|--------|-------|
-| `@testing-library/jest-dom` | ^7.0.1 | 7.0.1 | ✅ Updated 2026-10-02, no breaking changes |
-| `eslint` | ^10.12.0 | 10.12.0 | ✅ Updated 2026-10-02, no breaking changes |
-| `typescript` | ^7.0.2 | 7.0.2 | ✅ Updated 2026-10-02, no breaking changes |
+| `@testing-library/jest-dom` | ^7.0.1 | 7.0.1 | ✅ Updated 2026-10-02, requires `@testing-library/dom` peer |
+| `eslint` | ^9.39.5 | 10.12.0 | ❌ Reverted: `eslint-plugin-react` incompatible with ESLint 10 API |
+| `typescript` | ^6.0.3 | 7.0.2 | ❌ Reverted: `typescript-eslint` does not support TS 7.0 |
 
 ## Migration Notes
 
@@ -37,10 +37,14 @@ When tackling these updates:
 
 ### Completed Updates (2026-10-02)
 
-Phase 1 (Development Dependencies) completed successfully:
-- ✅ `@testing-library/jest-dom` 6→7: No breaking changes
-- ✅ `eslint` 9→10: No config changes required
-- ✅ `typescript` 6→7: No new type errors
+Phase 1 (Development Dependencies):
+- ✅ `@testing-library/jest-dom` 6→7: Working, added `@testing-library/dom` peer dependency
+- ❌ `eslint` 9→10: Reverted — `eslint-plugin-react` (via `eslint-config-next`) is incompatible with ESLint 10 API
+- ❌ `typescript` 6→7: Reverted — `typescript-eslint` does not support TS 7.0
+
+Tooling changes:
+- ✅ Replaced `ts-jest` with `@swc/jest` to remove the `typescript <7` peer dependency constraint
+- ✅ Added `allowScripts` config for native/binary package install scripts
 
 Phase 2 (Production Dependencies - Medium Risk) completed successfully:
 - ✅ `dotenv` 17→18: No breaking changes
