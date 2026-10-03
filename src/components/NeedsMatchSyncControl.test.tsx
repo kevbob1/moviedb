@@ -39,6 +39,7 @@ describe('NeedsMatchSyncControl', () => {
       push: jest.fn(),
       refresh,
       replace: jest.fn(),
+      bfcacheId: '',
     });
   });
 
