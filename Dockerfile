@@ -60,8 +60,10 @@ RUN npm run db:generate-client
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Compile the migration script for runtime
-RUN npx tsc scripts/migrate.ts --outDir . --esModuleInterop --module esnext --target es2020 --resolveJsonModule --ignoreConfig
+# Compile the migration script for runtime (--ignoreConfig bypasses the
+# project tsconfig, so skipLibCheck must be re-added to avoid errors
+# surfaced from third-party .d.ts files, e.g. thread-stream)
+RUN npx tsc scripts/migrate.ts --outDir . --esModuleInterop --module esnext --target es2020 --resolveJsonModule --ignoreConfig --skipLibCheck
 
 # ---------------------------------------------------------------------------
 # Stage 3 – Production runner
