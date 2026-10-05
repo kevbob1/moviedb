@@ -1,4 +1,4 @@
-import { HttpTransmissionAdapter } from '../adapter';
+import { HttpTransmissionAdapter, TransmissionNotConfiguredError } from '../adapter';
 
 describe('HttpTransmissionAdapter', () => {
   let originalUrl: string | undefined;
@@ -27,7 +27,7 @@ describe('HttpTransmissionAdapter', () => {
       delete process.env.TRANSMISSION_URL;
       const adapter = new HttpTransmissionAdapter();
       const result = await adapter.ping();
-      expect(result).toEqual({ reachable: false, error: 'Transmission not configured' });
+      expect(result).toEqual({ configured: false, reachable: false });
     });
 
     it('returns reachable on 409 from RPC endpoint (session handshake)', async () => {
@@ -39,7 +39,7 @@ describe('HttpTransmissionAdapter', () => {
 
       const adapter = new HttpTransmissionAdapter();
       const result = await adapter.ping();
-      expect(result).toEqual({ reachable: true });
+      expect(result).toEqual({ configured: true, reachable: true });
     });
 
     it('returns reachable on 401 from RPC endpoint (auth required)', async () => {
@@ -51,7 +51,7 @@ describe('HttpTransmissionAdapter', () => {
 
       const adapter = new HttpTransmissionAdapter();
       const result = await adapter.ping();
-      expect(result).toEqual({ reachable: true });
+      expect(result).toEqual({ configured: true, reachable: true });
     });
 
     it('returns not reachable on 500 from RPC endpoint', async () => {
@@ -63,6 +63,7 @@ describe('HttpTransmissionAdapter', () => {
 
       const adapter = new HttpTransmissionAdapter();
       const result = await adapter.ping();
+      expect(result.configured).toBe(true);
       expect(result.reachable).toBe(false);
       expect(result.error).toContain('Transmission API error: 500');
     });
@@ -72,6 +73,7 @@ describe('HttpTransmissionAdapter', () => {
 
       const adapter = new HttpTransmissionAdapter();
       const result = await adapter.ping();
+      expect(result.configured).toBe(true);
       expect(result.reachable).toBe(false);
       expect(result.error).toContain('Transmission connection failed: Connection refused');
     });
@@ -87,7 +89,7 @@ describe('HttpTransmissionAdapter', () => {
         url: 'http://transmission.example.com:9091',
       });
       const result = await adapter.ping();
-      expect(result).toEqual({ reachable: true });
+      expect(result).toEqual({ configured: true, reachable: true });
       expect(global.fetch).toHaveBeenCalledWith(
         'http://transmission.example.com:9091/transmission/rpc',
         expect.objectContaining({
@@ -102,11 +104,10 @@ describe('HttpTransmissionAdapter', () => {
   });
 
   describe('getTorrents (all)', () => {
-    it('returns empty array when TRANSMISSION_URL is missing', async () => {
+    it('throws TransmissionNotConfiguredError when TRANSMISSION_URL is missing', async () => {
       delete process.env.TRANSMISSION_URL;
       const adapter = new HttpTransmissionAdapter();
-      const result = await adapter.getTorrents();
-      expect(result).toEqual([]);
+      await expect(adapter.getTorrents()).rejects.toBeInstanceOf(TransmissionNotConfiguredError);
     });
 
     it('POSTs session handshake and RPC calls to {url}/transmission/rpc', async () => {

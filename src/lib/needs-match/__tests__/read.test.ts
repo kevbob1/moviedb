@@ -13,7 +13,7 @@ describe('needs-match read', () => {
         downloadingRequestsWithTorrentProblems: jest.fn().mockResolvedValue(attention),
       },
       getAll: jest.fn().mockResolvedValue([{ hash: 'abc', name: 'torrent', percentDone: 0, status: 0 }]),
-      ping: jest.fn().mockResolvedValue({ reachable: true }),
+      ping: jest.fn().mockResolvedValue({ configured: true, reachable: true }),
       findLatestTransmissionSync: jest.fn().mockResolvedValue({
         status: 'completed',
         error: null,
@@ -47,7 +47,7 @@ describe('needs-match read', () => {
         downloadingRequestsWithTorrentProblems: jest.fn().mockResolvedValue([]),
       },
       getAll: jest.fn().mockRejectedValue(error),
-      ping: jest.fn().mockResolvedValue({ reachable: false, error: 'Connection refused' }),
+      ping: jest.fn().mockResolvedValue({ configured: true, reachable: false, error: 'Connection refused' }),
       findLatestTransmissionSync: jest.fn().mockResolvedValue(null),
     });
 
@@ -57,6 +57,29 @@ describe('needs-match read', () => {
       transmissionError: 'Transmission unavailable',
       transmissionState: 'unreachable',
       torrentCount: null,
+      lastSync: null,
+    });
+  });
+
+  test('reports state not_configured and no error when Transmission ping is not configured', async () => {
+    const pending = [{ id: 1, title: 'Pending', status: 'pending', torrent_hash: null }];
+    const read = createNeedsMatchRead({
+      requestService: {
+        pendingRequestsForNeedsMatch: jest.fn().mockResolvedValue(pending),
+        downloadingRequestsWithTorrentProblems: jest.fn().mockResolvedValue([]),
+      },
+      getAll: jest.fn().mockResolvedValue([]),
+      ping: jest.fn().mockResolvedValue({ configured: false, reachable: false }),
+      findLatestTransmissionSync: jest.fn().mockResolvedValue(null),
+    });
+
+    await expect(read).resolves.toEqual({
+      requests: pending,
+      needsAttention: [],
+      torrents: [],
+      transmissionError: null,
+      transmissionState: 'not_configured',
+      torrentCount: 0,
       lastSync: null,
     });
   });

@@ -1,5 +1,5 @@
 import type { RequestService, SyncDecision } from '@/lib/request-lifecycle';
-import type { TransmissionAdapter } from '@/lib/transmission/adapter';
+import { TransmissionAdapter, TransmissionNotConfiguredError } from '@/lib/transmission/adapter';
 
 const SEEDING_STATUS = 6;
 
@@ -25,9 +25,17 @@ export async function observeRequestCompletions({
     return { scanned: 0, torrents: 0, fulfilled: 0, problems: 0 };
   }
 
-  const torrents = await adapter.getTorrents(
-    downloading.map((request) => request.torrent_hash),
-  );
+  let torrents: Awaited<ReturnType<TransmissionAdapter['getTorrents']>>;
+  try {
+    torrents = await adapter.getTorrents(
+      downloading.map((request) => request.torrent_hash),
+    );
+  } catch (err) {
+    if (err instanceof TransmissionNotConfiguredError) {
+      return { scanned: 0, torrents: 0, fulfilled: 0, problems: 0 };
+    }
+    throw err;
+  }
   const torrentByHash = new Map(torrents.map((torrent) => [torrent.hash, torrent]));
   const decisions: SyncDecision[] = [];
 

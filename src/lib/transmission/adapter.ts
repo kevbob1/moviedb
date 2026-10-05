@@ -1,5 +1,12 @@
 import { logger } from '@/lib/logger';
 
+export class TransmissionNotConfiguredError extends Error {
+  constructor() {
+    super('Transmission is not configured');
+    this.name = 'TransmissionNotConfiguredError';
+  }
+}
+
 export interface Torrent {
   hash: string;
   name: string;
@@ -10,9 +17,15 @@ export interface Torrent {
   files?: string[];
 }
 
+export interface PingResult {
+  configured: boolean;
+  reachable: boolean;
+  error?: string;
+}
+
 export interface TransmissionAdapter {
   getTorrents(hashes?: string[]): Promise<Torrent[]>;
-  ping(): Promise<{ reachable: boolean; error?: string }>;
+  ping(): Promise<PingResult>;
 }
 interface TransmissionArguments {
   torrents?: Array<{
@@ -152,7 +165,7 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
   }
 
   async getTorrents(hashes?: string[]): Promise<Torrent[]> {
-    if (!this.url) return [];
+    if (!this.url) throw new TransmissionNotConfiguredError();
     if (hashes !== undefined && hashes.length === 0) return [];
 
     const fields = ['hashString', 'name', 'percentDone', 'status', 'isFinished', 'errorString', 'files'];
@@ -161,9 +174,9 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
     return (result.arguments.torrents ?? []).map(t => this.mapTorrent(t));
   }
 
-  async ping(): Promise<{ reachable: boolean; error?: string }> {
+  async ping(): Promise<PingResult> {
     if (!this.url) {
-      return { reachable: false, error: 'Transmission not configured' };
+      return { configured: false, reachable: false };
     }
 
     try {
@@ -180,32 +193,42 @@ export class HttpTransmissionAdapter implements TransmissionAdapter {
       });
 
       if (response.status === 409 || response.status === 401) {
-        return { reachable: true };
+        return { configured: true, reachable: true };
       }
 
       return {
+        configured: true,
         reachable: false,
         error: `Transmission API error: ${response.status} ${response.statusText}`,
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Network error';
-      return { reachable: false, error: `Transmission connection failed: ${errorMessage}` };
+      return {
+        configured: true,
+        reachable: false,
+        error: `Transmission connection failed: ${errorMessage}`,
+      };
     }
   }
 }
 
 interface InMemoryTransmissionAdapterInit {
   torrents?: Torrent[];
-  ping?: { reachable: boolean; error?: string };
+  ping?: { configured?: boolean; reachable: boolean; error?: string };
 }
 
 export class InMemoryTransmissionAdapter implements TransmissionAdapter {
   private readonly torrents: Torrent[];
-  private readonly pingResult: { reachable: boolean; error?: string };
+  private readonly pingResult: PingResult;
 
   constructor(init: InMemoryTransmissionAdapterInit = {}) {
     this.torrents = init.torrents ?? [];
-    this.pingResult = init.ping ?? { reachable: true };
+    const seed = init.ping ?? { reachable: true };
+    this.pingResult = {
+      configured: seed.configured ?? true,
+      reachable: seed.reachable,
+      ...(seed.error !== undefined ? { error: seed.error } : {}),
+    };
   }
 
   async getTorrents(hashes?: string[]): Promise<Torrent[]> {
@@ -215,7 +238,7 @@ export class InMemoryTransmissionAdapter implements TransmissionAdapter {
     return this.torrents.filter(t => hashSet.has(t.hash)).map(t => ({ ...t }));
   }
 
-  async ping(): Promise<{ reachable: boolean; error?: string }> {
+  async ping(): Promise<PingResult> {
     return { ...this.pingResult };
   }
 }

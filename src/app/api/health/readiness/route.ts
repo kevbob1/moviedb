@@ -16,7 +16,7 @@ async function handler() {
                            jellyfinResult.reachable ? 'ok' : 'error';
 
     const transmissionResult = await transmissionPing();
-    const transmissionStatus = !transmissionResult.reachable && transmissionResult.error === 'Transmission not configured'
+    const transmissionStatus = !transmissionResult.configured
       ? 'not_configured'
       : transmissionResult.reachable
         ? 'ok'

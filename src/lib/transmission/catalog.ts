@@ -1,4 +1,4 @@
-import { TransmissionAdapter, Torrent } from './adapter';
+import { TransmissionAdapter, Torrent, TransmissionNotConfiguredError } from './adapter';
 import { matchSuggestions } from '@/lib/matcher';
 import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
@@ -41,7 +41,15 @@ export function createTransmissionCatalog(
     async getAll() {
       const now = Date.now();
       if (cached && now - cachedAt < ttlMs) return cached;
-      cached = await adapter.getTorrents();
+      try {
+        cached = await adapter.getTorrents();
+      } catch (err) {
+        if (err instanceof TransmissionNotConfiguredError) {
+          cached = [];
+        } else {
+          throw err;
+        }
+      }
       cachedAt = now;
       return cached;
     },

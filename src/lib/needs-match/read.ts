@@ -70,11 +70,15 @@ export async function createNeedsMatchRead(
   }
 
   const transmissionState =
-    pingResult.error === 'Transmission not configured'
+    !pingResult.configured
       ? 'not_configured'
       : !pingResult.reachable || torrentsResult.error
         ? 'unreachable'
         : 'ok';
+
+  const transmissionError = transmissionState === 'not_configured'
+    ? null
+    : (torrentsResult.error ?? pingResult.error ?? null);
 
   return {
     requests: [
@@ -83,7 +87,7 @@ export async function createNeedsMatchRead(
     ],
     needsAttention,
     torrents: torrentsResult.torrents,
-    transmissionError: torrentsResult.error ?? pingResult.error ?? null,
+    transmissionError,
     transmissionState,
     torrentCount: torrentsResult.error ? null : torrentsResult.torrents.length,
     lastSync: lastSyncJob
