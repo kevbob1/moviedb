@@ -3,6 +3,18 @@ import { createRequestService, EnqueueJob, RequestService } from './repository';
 
 export { createRequestService } from './repository';
 export type { EnqueueJob, RequestService, RequestServiceDeps, SuggestionEntry, SyncDecision } from './repository';
+export type {
+  RequestLifecycle,
+  RequestLifecycleDeps,
+} from './lifecycle';
+export type {
+  RequestIntake,
+  RequestIntakeDeps,
+} from './intake';
+export type {
+  RequestJobSync,
+  RequestJobSyncDeps,
+} from './jobsync';
 
 export {
   REQUEST_TRANSITIONS,

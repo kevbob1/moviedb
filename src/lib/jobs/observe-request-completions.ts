@@ -1,5 +1,6 @@
-import type { RequestService, SyncDecision } from '@/lib/request-lifecycle';
-import { TransmissionAdapter, TransmissionNotConfiguredError } from '@/lib/transmission/adapter';
+import type { RequestJobSync, SyncDecision } from '@/lib/request-lifecycle';
+import type { TransmissionAdapter } from '@/lib/transmission/adapter';
+import { TransmissionNotConfiguredError } from '@/lib/transmission/adapter';
 
 const SEEDING_STATUS = 6;
 
@@ -12,7 +13,7 @@ export interface ObserveRequestCompletionsResult {
 
 interface ObserveRequestCompletionsDeps {
   adapter: TransmissionAdapter;
-  requestService: Pick<RequestService, 'downloadingRequestsWithHashes' | 'applySyncDecisions'>;
+  requestService: Pick<RequestJobSync, 'downloadingRequestsWithHashes' | 'applySyncDecisions'>;
 }
 
 export async function observeRequestCompletions({

@@ -1,5 +1,5 @@
 import type { TransmissionCatalog } from '@/lib/transmission/catalog';
-import type { RequestService, SuggestionEntry } from '@/lib/request-lifecycle';
+import type { RequestJobSync, SuggestionEntry } from '@/lib/request-lifecycle';
 
 export interface ComputeRequestSuggestionsResult {
   scanned: number;
@@ -10,7 +10,7 @@ export interface ComputeRequestSuggestionsResult {
 
 interface ComputeRequestSuggestionsDeps {
   catalog: TransmissionCatalog;
-  requestService: Pick<RequestService, 'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch'>;
+  requestService: Pick<RequestJobSync, 'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch'>;
 }
 
 interface ComputeRequestSuggestionsOptions {
