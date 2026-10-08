@@ -21,9 +21,11 @@ Terminal states: `fulfilled`. No transitions out. Entering the terminal state is
 **Fields:** `id`, `title`, `tmdb_id`, `season_number` (TV only), `poster_path`, `release_date`, `overview`, `genre_ids`, `requested_at`, `requested_by`, `status`, `media_type`, `resolved_at`.
 
 ### MatchSuggestion
-A proposed pairing of a `pending` Request with a Transmission torrent, produced by the matcher and surfaced to the operator for confirmation. It is suggestion-only: it never changes a Request's status on its own. The operator accepts it by invoking the existing `linkTorrent` verb.
+A proposed pairing of a `pending` Request with a Transmission torrent, produced by the matcher. A suggestion at or above the **auto-link score** (`0.90`, ADR-0009) links itself: the Request is linked and transitions `pending → downloading` without operator action. Between the suggestion floor (`0.50`) and the auto-link score, the suggestion is surfaced to the operator, who accepts it by invoking the existing `linkTorrent` verb. Below `0.50`, no suggestion is produced.
 
 A `MatchSuggestion` carries the torrent hash, a title-similarity score, an eligibility flag, and reasons when the candidate is rejected. Only the single best suggestion per Request is kept; there is no suggestion history.
+
+**Torrent claim.** A torrent is *claimed* while its hash appears as `torrent_hash` on any Request row — `pending`, `downloading`, or `fulfilled`. The matcher excludes claimed torrents from every Request's candidates. Cancellation (deletion) releases the claim; fulfillment keeps it. `linkTorrent` is deliberately not claim-filtered, so the operator may link a claimed torrent by hand (for example a multi-season pack to a later season). When several `pending` Requests contend for one torrent in a sync pass, the pass allocates in order `season_number` ASC, `requested_at` ASC, `id` ASC: the first in order auto-links, and the losers get no suggestion that pass.
 
 ### SyncDecision
 The job layer's output of observing linked torrents: a per-request `fulfilled` / `problem` verdict. The Request lifecycle module's `applySyncDecisions` verb applies a batch of them atomically in a transaction it owns — the job layer never threads Prisma transactions into the module. Computed suggestions flow through the same batched shape via `recordSuggestionBatch`.
@@ -47,7 +49,7 @@ A `processing` job that hasn't updated in 5 minutes is reaped back to `pending` 
 When referring to a Job's `type` in docs or logs, use the registered string verbatim.
 
 ### Sync pass
-The module-level unit of Transmission observation (ADR-0005) and suggestion computation (ADR-0008): one run of the `transmission_sync` job. A single pass refreshes the catalog cache, observes linked torrents (deciding `fulfilled` / `problem` per downloading Request), computes suggestions for unmatched pending Requests, and persists both batches through the `request-lifecycle` module's sync verbs. Its output is one `SyncPassReport` (`downloading`, `fulfilled`, `problems`, `pending`, `suggestions`, `medianScore`, `parserFailures`). Owned by `src/lib/jobs/transmission-sync.ts`.
+The module-level unit of Transmission observation (ADR-0005) and suggestion computation (ADR-0008): one run of the `transmission_sync` job. A single pass refreshes the catalog cache, observes linked torrents (deciding `fulfilled` / `problem` per downloading Request), computes suggestions for unmatched pending Requests, and persists both batches through the `request-lifecycle` module's sync verbs. Its output is one `SyncPassReport` (`downloading`, `fulfilled`, `problems`, `pending`, `suggestions`, `autoLinked`, `medianScore`, `parserFailures`). `medianScore` covers every scored match, whether persisted as a suggestion or auto-linked. Owned by `src/lib/jobs/transmission-sync.ts`.
 
 ### Jellyfin (catalog)
 The media server whose library the app reflects. A `JellyfinCatalog` exposes the questions callers actually ask ("is X on Jellyfin?", "what seasons of show X exist?") and delegates transport to a `JellyfinAdapter` seam.

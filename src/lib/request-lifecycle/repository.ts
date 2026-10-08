@@ -7,7 +7,7 @@ import { createRequestLifecycle, RequestLifecycle, RequestLifecycleDeps } from '
 
 export type { RequestLifecycle } from './lifecycle';
 export type { RequestIntake } from './intake';
-export type { RequestJobSync, SuggestionEntry, SyncDecision } from './jobsync';
+export type { RequestJobSync, SuggestionEntry, SyncDecision, AutoLinkEntry } from './jobsync';
 export type { RequestLifecycleDeps, RequestIntakeDeps, RequestJobSyncDeps };
 
 export type { EnqueueJob } from './intake';

@@ -36,6 +36,10 @@ function makeFakeRequestService() {
     applySyncDecisions: jest.fn(),
     pendingRequestsForNeedsMatch: jest.fn().mockResolvedValue([]),
     recordSuggestionBatch: jest.fn(),
+    claimedTorrentHashes: jest.fn().mockResolvedValue([]),
+    autoLinkBatch: jest.fn(async (entries: Array<{ requestId: number }>) =>
+      entries.map((entry) => entry.requestId),
+    ),
   };
 }
 
@@ -173,29 +177,99 @@ describe('transmission_sync handler', () => {
   });
 
   describe('suggestion computation', () => {
-    it('records a suggestion entry for a pending request with a matching torrent', async () => {
+    const pendingMovie = (id: number, title: string) => ({
+      id,
+      title,
+      media_type: 'movie',
+      release_date: '2021-10-22',
+      season_number: null,
+      requested_at: '2026-01-01T00:00:00.000Z',
+      requested_by: 'tester',
+      status: 'pending',
+      torrent_hash: null,
+    });
+
+    it('auto-links a pending request at or above the auto-link threshold', async () => {
       const adapter = new InMemoryTransmissionAdapter({
         torrents: [
           { hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS', percentDone: 1, status: 6 },
         ],
       });
       const requestService = makeFakeRequestService();
-      requestService.pendingRequestsForNeedsMatch.mockResolvedValue([{
-        id: 10,
-        title: 'Dune',
-        media_type: 'movie',
-        release_date: '2021-10-22',
-        season_number: null,
+      requestService.pendingRequestsForNeedsMatch.mockResolvedValue([pendingMovie(10, 'Dune')]);
+
+      await syncFor(adapter, requestService).run();
+
+      expect(requestService.autoLinkBatch).toHaveBeenCalledWith([
+        { requestId: 10, torrentHash: 'h1' },
+      ]);
+      expect(requestService.recordSuggestionBatch).not.toHaveBeenCalled();
+    });
+
+    it('persists an operator-confirmed suggestion below the auto-link threshold', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS', percentDone: 1, status: 6 },
+        ],
+      });
+      const requestService = makeFakeRequestService();
+      requestService.pendingRequestsForNeedsMatch.mockResolvedValue([pendingMovie(11, 'Dune Movie')]);
+
+      await syncFor(adapter, requestService).run();
+
+      expect(requestService.autoLinkBatch).not.toHaveBeenCalled();
+      expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
+        { requestId: 11, suggestion: { hash: 'h1', score: 0.5 } },
+      ]);
+    });
+
+    it('excludes a torrent already claimed by an existing request', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS', percentDone: 1, status: 6 },
+        ],
+      });
+      const requestService = makeFakeRequestService();
+      requestService.claimedTorrentHashes.mockResolvedValue(['h1']);
+      requestService.pendingRequestsForNeedsMatch.mockResolvedValue([pendingMovie(14, 'Dune')]);
+
+      await syncFor(adapter, requestService).run();
+
+      expect(requestService.autoLinkBatch).not.toHaveBeenCalled();
+      expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
+        { requestId: 14, suggestion: null },
+      ]);
+    });
+
+    it('allocates a contended torrent to the lowest season and gives the loser no suggestion', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'pack', name: 'Severance.S01.S02.COMPLETE.1080p.WEB-DL.x264-GROUP', percentDone: 1, status: 6 },
+        ],
+      });
+      const requestService = makeFakeRequestService();
+      const seasonTwo = {
+        id: 22,
+        title: 'Severance',
+        media_type: 'tv',
+        release_date: null,
+        season_number: 2,
         requested_at: '2026-01-01T00:00:00.000Z',
         requested_by: 'tester',
         status: 'pending',
         torrent_hash: null,
-      }]);
+      };
+      const seasonOne = { ...seasonTwo, id: 21, season_number: 1, requested_at: '2026-02-01T00:00:00.000Z' };
+      // Season 2 is listed first to prove allocation reorders by season.
+      requestService.pendingRequestsForNeedsMatch.mockResolvedValue([seasonTwo, seasonOne]);
 
       await syncFor(adapter, requestService).run();
 
+      expect(requestService.autoLinkBatch).toHaveBeenCalledWith([
+        { requestId: 21, torrentHash: 'pack' },
+      ]);
       expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
-        { requestId: 10, suggestion: expect.objectContaining({ hash: 'h1' }) },
+        { requestId: 22, suggestion: null },
       ]);
     });
 
@@ -225,7 +299,7 @@ describe('transmission_sync handler', () => {
       ]);
     });
 
-    it('uses contained filenames when the torrent name is not descriptive', async () => {
+    it('auto-links from a contained filename when the torrent name is not descriptive', async () => {
       const adapter = new InMemoryTransmissionAdapter({
         torrents: [
           {
@@ -252,8 +326,8 @@ describe('transmission_sync handler', () => {
 
       await syncFor(adapter, requestService).run();
 
-      expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
-        { requestId: 12, suggestion: expect.objectContaining({ hash: 'h1' }) },
+      expect(requestService.autoLinkBatch).toHaveBeenCalledWith([
+        { requestId: 12, torrentHash: 'h1' },
       ]);
     });
 
@@ -279,8 +353,8 @@ describe('transmission_sync handler', () => {
       await syncFor(adapter, requestService).run({ ignoreSuggestionAgeGate: true });
 
       expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: false });
-      expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
-        expect.objectContaining({ requestId: 13 }),
+      expect(requestService.autoLinkBatch).toHaveBeenCalledWith([
+        { requestId: 13, torrentHash: 'h1' },
       ]);
     });
 

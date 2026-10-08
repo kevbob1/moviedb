@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '@/generated/prisma/client';
 
+import { canTransition, RequestStatus, resolveSideEffects } from './fsm';
 import { Request, toRequestModel } from './projection';
 
 /**
@@ -15,6 +16,15 @@ export type SyncDecision =
 export type SuggestionEntry = {
   requestId: number;
   suggestion: { hash: string; score: number } | null;
+};
+
+/**
+ * A per-request verdict to link without operator confirmation (ADR-0009).
+ * Applied atomically by `autoLinkBatch`.
+ */
+export type AutoLinkEntry = {
+  requestId: number;
+  torrentHash: string;
 };
 
 /**
@@ -58,6 +68,8 @@ export interface RequestJobSyncDeps {
 export interface RequestJobSync {
   applySyncDecisions(decisions: SyncDecision[]): Promise<void>;
   recordSuggestionBatch(entries: SuggestionEntry[]): Promise<void>;
+  autoLinkBatch(entries: AutoLinkEntry[]): Promise<number[]>;
+  claimedTorrentHashes(): Promise<string[]>;
   downloadingRequestsWithHashes(): Promise<Array<{ id: number; torrent_hash: string }>>;
   queueStats(): Promise<{ needsMatch: number; needsAttention: number }>;
   pendingRequestsForNeedsMatch(options?: { applySuggestionAgeGate?: boolean }): Promise<Request[]>;
@@ -118,6 +130,53 @@ export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): Reque
         });
       }
     });
+  }
+
+  /**
+   * ADR-0009: a torrent is claimed while any Request row carries its hash —
+   * pending, downloading, or fulfilled. Cancellation deletes the row, which
+   * releases the claim; fulfillment keeps it.
+   */
+  async function claimedTorrentHashes(): Promise<string[]> {
+    const rows = await prisma.request.findMany({
+      where: { torrent_hash: { not: null } },
+      select: { torrent_hash: true },
+    });
+    return rows.flatMap((row) =>
+      row.torrent_hash === null ? [] : [row.torrent_hash],
+    );
+  }
+
+  /**
+   * ADR-0009: link a batch of pending Requests without operator confirmation,
+   * through the same FSM side-effect resolver the named lifecycle verbs use.
+   * Requests that are no longer `pending` (an operator got there first, or a
+   * prior pass linked them) are skipped rather than aborting the batch; the
+   * returned ids are the ones actually linked.
+   */
+  async function autoLinkBatch(entries: AutoLinkEntry[]): Promise<number[]> {
+    if (entries.length === 0) return [];
+
+    const linked: number[] = [];
+    await prisma.$transaction(async (tx) => {
+      for (const entry of entries) {
+        const existing = await tx.request.findUnique({ where: { id: entry.requestId } });
+        if (!existing) continue;
+
+        const from = existing.status as RequestStatus;
+        if (!canTransition(from, 'downloading')) continue;
+
+        await tx.request.update({
+          where: { id: entry.requestId },
+          data: {
+            ...resolveSideEffects('downloading', now),
+            torrent_hash: entry.torrentHash,
+          },
+        });
+        linked.push(entry.requestId);
+      }
+    });
+    return linked;
   }
 
   async function downloadingRequestsWithHashes(): Promise<Array<{ id: number; torrent_hash: string }>> {
@@ -184,6 +243,8 @@ export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): Reque
   return {
     applySyncDecisions,
     recordSuggestionBatch,
+    autoLinkBatch,
+    claimedTorrentHashes,
     downloadingRequestsWithHashes,
     queueStats,
     pendingRequestsForNeedsMatch,

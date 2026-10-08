@@ -73,11 +73,15 @@ export const makeFakePrisma = () => {
     return row;
   });
 
-  const findMany = jest.fn(async ({ where }: { where: { status: string; torrent_hash: { not: null } } }) =>
-    rows
-      .filter((r) => r.status === where.status && r.torrent_hash !== null)
-      .map((r) => ({ id: r.id, torrent_hash: r.torrent_hash })),
-  );
+  const findMany = jest.fn(async ({ where }: { where: { status?: string; torrent_hash: { not: null } } }) => {
+    const withHash = rows.filter((r) => r.torrent_hash !== null);
+    if (where.status !== undefined) {
+      return withHash
+        .filter((r) => r.status === where.status)
+        .map((r) => ({ id: r.id, torrent_hash: r.torrent_hash }));
+    }
+    return withHash.map((r) => ({ torrent_hash: r.torrent_hash }));
+  });
 
   const del = jest.fn(async ({ where }: { where: { id: number } }) => {
     const idx = rows.findIndex((r) => r.id === where.id);

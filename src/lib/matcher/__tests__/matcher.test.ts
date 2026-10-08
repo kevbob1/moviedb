@@ -186,4 +186,19 @@ describe('matchSuggestions', () => {
       reasons: [],
     });
   });
+
+  it('excludes a torrent claimed by an existing request', () => {
+    const requests = [
+      request({ id: 'r1', title: 'Dune', media_type: 'movie', release_date: '2021-10-22' }),
+    ];
+    const torrents = [
+      torrent({ hash: 'h1', name: 'Dune.2021.1080p.BluRay.x264-SWEETNESS' }),
+    ];
+
+    const result = matchSuggestions(requests, torrents, {
+      claimedHashes: new Set(['h1']),
+    });
+
+    expect(result.get('r1')).toBeNull();
+  });
 });

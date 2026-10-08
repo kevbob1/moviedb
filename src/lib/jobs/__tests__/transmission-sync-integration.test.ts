@@ -9,6 +9,8 @@ jest.mock('@/lib/request-lifecycle', () => ({
     applySyncDecisions: jest.fn(),
     pendingRequestsForNeedsMatch: jest.fn(),
     recordSuggestionBatch: jest.fn(),
+    claimedTorrentHashes: jest.fn(),
+    autoLinkBatch: jest.fn(),
   },
 }));
 
@@ -16,6 +18,8 @@ const downloadingRequestsWithHashesMock = jest.mocked(requestService.downloading
 const applySyncDecisionsMock = jest.mocked(requestService.applySyncDecisions);
 const pendingRequestsMock = jest.mocked(requestService.pendingRequestsForNeedsMatch);
 const recordSuggestionBatchMock = jest.mocked(requestService.recordSuggestionBatch);
+const claimedTorrentHashesMock = jest.mocked(requestService.claimedTorrentHashes);
+const autoLinkBatchMock = jest.mocked(requestService.autoLinkBatch);
 
 describe('transmission sync integration', () => {
   beforeEach(() => {
@@ -23,6 +27,8 @@ describe('transmission sync integration', () => {
     downloadingRequestsWithHashesMock.mockResolvedValue([]);
     applySyncDecisionsMock.mockResolvedValue(undefined);
     recordSuggestionBatchMock.mockResolvedValue(undefined);
+    claimedTorrentHashesMock.mockResolvedValue([]);
+    autoLinkBatchMock.mockImplementation(async (entries) => entries.map((entry) => entry.requestId));
     pendingRequestsMock.mockResolvedValue([
       {
         id: 7,
@@ -37,7 +43,7 @@ describe('transmission sync integration', () => {
     ]);
   });
 
-  it('runs one pass: real matcher path, persisted suggestion, merged SyncPassReport', async () => {
+  it('runs one pass: real matcher path, auto-linked request, merged SyncPassReport', async () => {
     const adapter = new InMemoryTransmissionAdapter({
       torrents: [
         { hash: 'aaa', name: 'A Movie 2026 1080p', percentDone: 1, status: 6 },
@@ -54,25 +60,32 @@ describe('transmission sync integration', () => {
     const report = await createTransmissionSync(dependencies).run();
 
     expect(pendingRequestsMock).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
-    expect(recordSuggestionBatchMock).toHaveBeenCalledWith([
-      { requestId: 7, suggestion: expect.objectContaining({ hash: 'aaa' }) },
+    expect(autoLinkBatchMock).toHaveBeenCalledWith([
+      { requestId: 7, torrentHash: 'aaa' },
     ]);
+    expect(recordSuggestionBatchMock).not.toHaveBeenCalled();
     expect(report).toEqual({
       downloading: 0,
       fulfilled: 0,
       problems: 0,
       pending: 1,
-      suggestions: 1,
+      suggestions: 0,
+      autoLinked: 1,
       medianScore: expect.any(Number),
       parserFailures: 1,
     });
+    expect(logger.info).toHaveBeenCalledWith(
+      { requestId: 7, torrentHash: 'aaa', score: 1 },
+      'auto-linked pending request to torrent',
+    );
     expect(logger.info).toHaveBeenCalledWith(
       {
         downloading: 0,
         fulfilled: 0,
         problems: 0,
         pending: 1,
-        suggestions: 1,
+        suggestions: 0,
+        autoLinked: 1,
         medianScore: expect.any(Number),
         parserFailures: 1,
       },

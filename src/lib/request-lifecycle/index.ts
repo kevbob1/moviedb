@@ -9,6 +9,7 @@ export type {
   RequestJobSync,
   SuggestionEntry,
   SyncDecision,
+  AutoLinkEntry,
 } from './repository';
 
 /**

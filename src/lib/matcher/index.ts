@@ -92,6 +92,13 @@ const NOISE_TOKENS = new Set([
 
 const MINIMUM_SUGGESTION_SCORE = 0.5;
 
+/**
+ * ADR-0009: a generated suggestion at or above this score links itself. The
+ * band below it (and at or above `MINIMUM_SUGGESTION_SCORE`) stays an
+ * operator-confirmed suggestion.
+ */
+export const AUTO_LINK_SCORE = 0.9;
+
 function dropReleaseGroup(title: string): string {
   const lastDash = title.lastIndexOf('-');
   if (lastDash === -1) return title;
@@ -292,10 +299,21 @@ function isBetterRanked(a: RankedCandidate, b: RankedCandidate): boolean {
   return a.torrentIndex < b.torrentIndex;
 }
 
+export interface MatchOptions {
+  /**
+   * Torrent hashes already claimed by an existing Request (any status). ADR-0009
+   * excludes them from every Request's candidates; manual `linkTorrent` is not
+   * filtered by this option.
+   */
+  claimedHashes?: ReadonlySet<string>;
+}
+
 export function matchSuggestions(
   requests: MatchRequest[],
   torrents: MatchTorrent[],
+  options: MatchOptions = {},
 ): Map<MatchRequest['id'], MatchSuggestion | null> {
+  const claimed = options.claimedHashes;
   const result = new Map<MatchRequest['id'], MatchSuggestion | null>();
 
   for (const request of requests) {
@@ -303,6 +321,7 @@ export function matchSuggestions(
       const candidates: ParsedCandidate[] = [];
       for (let i = 0; i < torrents.length; i++) {
         const torrent = torrents[i];
+        if (claimed?.has(torrent.hash)) continue;
         const sources = [torrent.name, ...(torrent.files ?? [])];
         for (const source of sources) {
           if (!source) continue;

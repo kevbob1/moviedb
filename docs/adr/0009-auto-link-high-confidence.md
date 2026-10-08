@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-09-07). Partially supersedes ADR-0008: the suggestion-only posture and the "auto-link without operator confirmation" rejection are reversed. ADR-0008's matcher algorithm, eligibility gates, scoring, persistence, and surfaces stand unchanged.
+Accepted (2026-09-07). Implemented 2026-10-07. Partially supersedes ADR-0008: the suggestion-only posture and the "auto-link without operator confirmation" rejection are reversed. ADR-0008's matcher algorithm, eligibility gates, scoring, persistence, and surfaces stand unchanged.
 
 ## Context
 
@@ -45,4 +45,7 @@ The claim governs the automatic matcher only. `linkTorrent` stays unrestricted: 
 - `docs/adr/0008-auto-match-suggestions.md` — matcher, thresholds, persistence, surfaces (stands, except its suggestion-only posture).
 - `docs/adr/0005-transmission-read-only-observation.md` — Transmission posture (still holds).
 - `docs/adr/0007-request-lifecycle-module.md` — the lifecycle link path auto-link uses.
-- `src/lib/matcher/`, `src/lib/jobs/compute-request-suggestions.ts`, `src/lib/request-lifecycle/` — implementation homes.
+- `src/lib/matcher/` — `AUTO_LINK_SCORE` and the `claimedHashes` candidate exclusion.
+- `src/lib/jobs/transmission-sync.ts` — claim read, allocation order, and auto-link verdicts.
+- `src/lib/request-lifecycle/` — `claimedTorrentHashes` and `autoLinkBatch`.
+- `src/lib/request-lifecycle/fsm.ts` — the side-effects `autoLinkBatch` spreads on `pending → downloading`.

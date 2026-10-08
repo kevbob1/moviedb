@@ -92,4 +92,12 @@ export const matcherCorpus: MatcherCorpusCase[] = [
     expectedParsed: { title: 'Severance', seasons: [1], complete: true },
     expectedHash: 'corpus-severance-season',
   },
+  {
+    name: 'multi-season-pack',
+    provenance: 'ADR-0009 contention case: one pack eligible for two season Requests.',
+    torrent: { hash: 'corpus-severance-multi', name: 'Severance.S01.S02.COMPLETE.1080p.WEB-DL.x264-GROUP' },
+    request: { ...requestDefaults, id: 'severance-multi', title: 'Severance', media_type: 'tv', season_number: 2 },
+    expectedParsed: { title: 'Severance', seasons: [1, 2], complete: true },
+    expectedHash: 'corpus-severance-multi',
+  },
 ];

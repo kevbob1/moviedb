@@ -237,6 +237,69 @@ describe('request-lifecycle/jobsync', () => {
     });
   });
 
+  describe('claimedTorrentHashes', () => {
+    it('returns the hash of every request that holds one, whatever its status', async () => {
+      const fake = makeFakePrisma();
+      const { service } = makeService(fake);
+      await service.createRequest({ tmdbId: 1, title: 'A film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
+      await service.createRequest({ tmdbId: 2, title: 'Another film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
+      await service.linkTorrent(1, 'claimed-pending');
+      fake.rows[1].torrent_hash = 'claimed-fulfilled';
+      fake.rows[1].status = 'fulfilled';
+
+      expect(await service.claimedTorrentHashes()).toEqual([
+        'claimed-pending',
+        'claimed-fulfilled',
+      ]);
+    });
+  });
+
+  describe('autoLinkBatch', () => {
+    it('links a pending request through the FSM side-effects and returns the id', async () => {
+      const fake = makeFakePrisma();
+      const { service } = makeService(fake);
+      await service.createRequest({ tmdbId: 1, title: 'Dune', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
+      fake.rows[0].suggestion_hash = 'old-hash';
+      fake.rows[0].suggestion_score = 0.5;
+      fake.rows[0].torrent_problem = 'stale problem';
+
+      const linked = await service.autoLinkBatch([{ requestId: 1, torrentHash: 'h1' }]);
+
+      expect(linked).toEqual([1]);
+      expect(fake.rows[0].status).toBe('downloading');
+      expect(fake.rows[0].torrent_hash).toBe('h1');
+      expect(fake.rows[0].torrent_problem).toBeNull();
+      expect(fake.rows[0].suggestion_hash).toBeNull();
+      expect(fake.rows[0].suggestion_score).toBeNull();
+      expect(fake.rows[0].suggestion_computed_at).toBeNull();
+    });
+
+    it('skips requests that are no longer pending without aborting the batch', async () => {
+      const fake = makeFakePrisma();
+      const { service } = makeService(fake);
+      await service.createRequest({ tmdbId: 1, title: 'A film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
+      await service.createRequest({ tmdbId: 2, title: 'Another film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
+      await service.downloadRequest(2);
+
+      const linked = await service.autoLinkBatch([
+        { requestId: 1, torrentHash: 'h1' },
+        { requestId: 2, torrentHash: 'h2' },
+      ]);
+
+      expect(linked).toEqual([1]);
+      expect(fake.rows[0].torrent_hash).toBe('h1');
+      expect(fake.rows[1].torrent_hash).toBeNull();
+    });
+
+    it('is a no-op for an empty batch', async () => {
+      const fake = makeFakePrisma();
+      const { service } = makeService(fake);
+
+      expect(await service.autoLinkBatch([])).toEqual([]);
+      expect(fake.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('downloadingRequestsWithHashes', () => {
     it('returns only downloading requests with a non-null torrent hash', async () => {
       const fake = makeFakePrisma();

@@ -1,7 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { requestService } from '@/lib/request-lifecycle';
-import type { RequestJobSync, SuggestionEntry, SyncDecision } from '@/lib/request-lifecycle';
+import type {
+  AutoLinkEntry,
+  Request,
+  RequestJobSync,
+  SuggestionEntry,
+  SyncDecision,
+} from '@/lib/request-lifecycle';
 import { registerJobType, JobHandler } from '@/lib/job-queue';
 import { TransmissionAdapter, TransmissionNotConfiguredError } from '@/lib/transmission/adapter';
 import {
@@ -9,7 +15,7 @@ import {
   TransmissionCatalog,
 } from '@/lib/transmission/catalog';
 import { transmissionAdapter, transmissionCatalog } from '@/lib/transmission';
-import { matchSuggestions } from '@/lib/matcher';
+import { AUTO_LINK_SCORE, matchSuggestions } from '@/lib/matcher';
 import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
 const JOB_TYPE = 'transmission_sync';
@@ -60,6 +66,12 @@ export async function enqueueTransmissionSync(
   return { queued: true, status: 'pending', createdAt: job.created_at.toISOString() };
 }
 
+/**
+ * The pass's logging seam. Named so it can be narrowed without the `typeof logger`
+ * reference resolving to a function parameter of the same name.
+ */
+type SyncLogger = Pick<typeof logger, 'debug' | 'info' | 'error'>;
+
 const SEEDING_STATUS = 6;
 
 /**
@@ -72,16 +84,22 @@ export interface SyncPassReport {
   problems: number;      // decided problem
   pending: number;       // pending requests scored
   suggestions: number;   // requests with a persisted suggestion
-  medianScore: number;   // median of suggestion scores (0 when none)
+  autoLinked: number;    // requests linked without operator confirmation (ADR-0009)
+  medianScore: number;   // median of scored matches (suggestions + auto-links), 0 when none
   parserFailures: number;
 }
 
 export interface TransmissionSyncDependencies {
   requestService: Pick<
     RequestJobSync,
-    'downloadingRequestsWithHashes' | 'applySyncDecisions' | 'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch'
+    | 'downloadingRequestsWithHashes'
+    | 'applySyncDecisions'
+    | 'pendingRequestsForNeedsMatch'
+    | 'recordSuggestionBatch'
+    | 'claimedTorrentHashes'
+    | 'autoLinkBatch'
   >;
-  logger: Pick<typeof logger, 'debug' | 'info' | 'error'>;
+  logger: SyncLogger;
   adapter: TransmissionAdapter;
   catalog?: TransmissionCatalog;
 }
@@ -105,7 +123,7 @@ export function createTransmissionSync({
 
     const observation = await observeLinkedTorrents({ requestService, adapter });
     const suggestion = await computeSuggestions(
-      { requestService, catalog: transmissionCatalog },
+      { requestService, catalog: transmissionCatalog, logger },
       { ignoreSuggestionAgeGate },
     );
 
@@ -115,6 +133,7 @@ export function createTransmissionSync({
       problems: observation.problems,
       pending: suggestion.pending,
       suggestions: suggestion.suggestions,
+      autoLinked: suggestion.autoLinked,
       medianScore: suggestion.medianScore,
       parserFailures: suggestion.parserFailures,
     };
@@ -223,26 +242,54 @@ function median(values: number[]): number {
 }
 
 /**
- * Suggestion step (ADR-0008): score pending requests for needs-match against
- * the full catalog and persist one suggestion entry per request.
+ * ADR-0009 allocation order for a torrent contended for by several pending
+ * Requests: lowest season wins, then oldest Request, then lowest id. A null
+ * season (a movie) sorts last, matching Postgres `ASC` null ordering.
  */
-async function computeSuggestions({
-  requestService,
-  catalog,
-}: {
-  requestService: Pick<RequestJobSync, 'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch'>;
-  catalog: TransmissionCatalog;
+function byClaimOrder(a: Request, b: Request): number {
+  const seasonA = a.season_number ?? Number.POSITIVE_INFINITY;
+  const seasonB = b.season_number ?? Number.POSITIVE_INFINITY;
+  if (seasonA !== seasonB) return seasonA - seasonB;
+  if (a.requested_at !== b.requested_at) return a.requested_at < b.requested_at ? -1 : 1;
+  return a.id - b.id;
+}
+
+/**
+ * Suggestion step (ADR-0008 + ADR-0009): score pending requests for
+ * needs-match against the full catalog, link the ones at or above
+ * `AUTO_LINK_SCORE` without operator confirmation, and persist one suggestion
+ * entry per remaining request.
+ */
+async function computeSuggestions(
+  {
+    requestService,
+    catalog,
+    logger,
+  }: {
+    requestService: Pick<
+      RequestJobSync,
+      'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch' | 'claimedTorrentHashes' | 'autoLinkBatch'
+    >;
+    catalog: TransmissionCatalog;
+    logger: Pick<SyncLogger, 'info'>;
   },
   { ignoreSuggestionAgeGate = false }: { ignoreSuggestionAgeGate?: boolean } = {},
-): Promise<{ pending: number; suggestions: number; medianScore: number; parserFailures: number }> {
+): Promise<{
+  pending: number;
+  suggestions: number;
+  autoLinked: number;
+  medianScore: number;
+  parserFailures: number;
+}> {
   const pendingRequests = await requestService.pendingRequestsForNeedsMatch({
     applySuggestionAgeGate: !ignoreSuggestionAgeGate,
   });
 
   if (pendingRequests.length === 0) {
-    return { pending: 0, suggestions: 0, medianScore: 0, parserFailures: 0 };
+    return { pending: 0, suggestions: 0, autoLinked: 0, medianScore: 0, parserFailures: 0 };
   }
 
+  const claimed = new Set(await requestService.claimedTorrentHashes());
   const allTorrents = await catalog.getAll();
   let parserFailures = 0;
   for (const torrent of allTorrents) {
@@ -265,25 +312,63 @@ async function computeSuggestions({
       season_number: request.season_number,
     })),
     allTorrents,
+    { claimedHashes: claimed },
   );
 
-  let withSuggestion = 0;
   const scores: number[] = [];
-  const entries: SuggestionEntry[] = pendingRequests.map((request) => {
-    const match = matched.get(request.id);
-    const suggestion = match ? { hash: match.hash, score: match.score } : null;
-    if (suggestion) {
-      withSuggestion++;
-      scores.push(suggestion.score);
-    }
-    return { requestId: request.id, suggestion };
-  });
+  const autoLinks: Array<{ requestId: number; hash: string; score: number }> = [];
+  const entries: SuggestionEntry[] = [];
 
-  await requestService.recordSuggestionBatch(entries);
+  // Allocation happens in claim order so that, when one torrent can serve
+  // several Requests, the first in order takes it and the losers get nothing.
+  for (const request of [...pendingRequests].sort(byClaimOrder)) {
+    const match = matched.get(request.id);
+    if (!match) {
+      entries.push({ requestId: request.id, suggestion: null });
+      continue;
+    }
+
+    // A torrent claimed by an auto-link earlier in this pass is spent for the
+    // rest of it; a persisted suggestion does not claim the torrent.
+    if (claimed.has(match.hash)) {
+      entries.push({ requestId: request.id, suggestion: null });
+      continue;
+    }
+
+    scores.push(match.score);
+    if (match.score >= AUTO_LINK_SCORE) {
+      claimed.add(match.hash);
+      autoLinks.push({ requestId: request.id, hash: match.hash, score: match.score });
+    } else {
+      entries.push({
+        requestId: request.id,
+        suggestion: { hash: match.hash, score: match.score },
+      });
+    }
+  }
+
+  let linked: number[] = [];
+  if (autoLinks.length > 0) {
+    linked = await requestService.autoLinkBatch(
+      autoLinks.map<AutoLinkEntry>(({ requestId, hash }) => ({ requestId, torrentHash: hash })),
+    );
+    for (const autoLink of autoLinks) {
+      if (!linked.includes(autoLink.requestId)) continue;
+      logger.info(
+        { requestId: autoLink.requestId, torrentHash: autoLink.hash, score: autoLink.score },
+        'auto-linked pending request to torrent',
+      );
+    }
+  }
+
+  if (entries.length > 0) {
+    await requestService.recordSuggestionBatch(entries);
+  }
 
   return {
     pending: pendingRequests.length,
-    suggestions: withSuggestion,
+    suggestions: entries.filter((entry) => entry.suggestion !== null).length,
+    autoLinked: linked.length,
     medianScore: median(scores),
     parserFailures,
   };
