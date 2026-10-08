@@ -32,6 +32,14 @@ The claim governs the automatic matcher only. `linkTorrent` stays unrestricted: 
 - One `logger.info` line per auto-link (Request id, torrent hash, score). No audit table, no UI, no feature flag.
 - ADR-0005's Transmission posture is unchanged in substance: auto-link is bookkeeping on the MovieDB side; Transmission is still observed, never driven.
 
+## Implementation notes (2026-10-07)
+
+Recorded while implementing this ADR, so a future explorer does not re-derive them:
+
+- **Contention suppresses auto-link, not sub-threshold suggestions.** A claim is defined above as a Request row holding `torrent_hash`, and a suggestion does not set that column. So when a contended torrent scores below `0.90` for two Requests, both may still display it as a suggestion until one is accepted; the allocation order only decides the single auto-link winner. If duplicate suggestions for one torrent are unwanted, that is a new decision, not an implementation gap in this one.
+- **The scheduled suggestion age gate can delay an auto-link by up to 60 seconds.** `pendingRequestsForNeedsMatch({ applySuggestionAgeGate: true })` skips Requests scored within the last minute (ADR-0008's cadence control), so a `≥ 0.90` candidate that appears in that window links on the next pass that actually re-scores the Request. Manual refresh bypasses the gate. "First qualifying pass" means the first pass where the Request is scored, not the first pass after the torrent appears.
+- **Claim enforcement is read-then-write, not atomic.** The pass reads `claimedTorrentHashes()` once and writes auto-links in a separate transaction. Enqueue coalescing (ADR-0008) means only one `transmission_sync` job runs at a time, so the only race is an operator manually linking the same hash to a different Request inside that window. Rejected for now because closing it would require claim checking inside `autoLinkBatch` and a policy for which Request wins that contradicts the operator's explicit action.
+
 ## Considered Options
 
 - **Suggestion-only forever (status quo, ADR-0008).** Rejected: at `0.90`+ with all gates passed, operator confirmation adds latency without adding correctness.
