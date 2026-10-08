@@ -8,7 +8,7 @@ import { Surface } from '@/components/ui/Surface';
 import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
 import { ReleaseDate } from '@/components/ReleaseDate';
 import { Torrent } from '@/lib/transmission/adapter';
-import { Request } from '@/types/request';
+import { Request } from '@/lib/request-lifecycle';
 
 interface NeedsMatchViewProps {
   requests: Request[];

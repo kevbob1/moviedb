@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RequestListItem } from '../RequestListItem';
-import { Request } from '@/types/request';
+import { Request } from '@/lib/request-lifecycle';
 import * as genres from '@/lib/genres';
 import * as requestActions from '@/app/actions/request-actions';
 

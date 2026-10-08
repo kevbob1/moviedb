@@ -19,9 +19,8 @@ We need a primitive layer that:
 ### Directory layout
 
 - `src/components/ui/` — primitive components: `Button`, `Input`, `Pill`, `Spinner`, `Surface`, `Switch`. These are the only components that may apply visual styles directly.
-- `src/components/motion/` — Motion variants and motion-specific wrappers (`PageTransition`, `StaggerList`, shared variants). Motion logic lives here, not in pages.
+- `src/components/motion/` — Motion variants and motion-specific wrappers (`PageTransition`, `StaggerList`, shared variants). Motion logic lives here, not in pages. Components import `useReducedMotion` from `motion/react` directly; there is no lib-level motion re-export.
 - `src/lib/cn.ts` — single `cn()` helper wrapping `clsx` + `tailwind-merge`. The only sanctioned way to compose Tailwind classes.
-- `src/lib/motion.ts` — `useReducedMotion` re-export + token hook.
 
 ### Variants via CVA
 

@@ -127,16 +127,3 @@ export function createTmdbClient(options: { apiKey?: string; fetch?: Fetch } = {
     tvDetails: (id) => adapter.tvDetails(id),
   };
 }
-
-// Compatibility wrappers for callers not yet migrated to the factory seam.
-export async function searchTMDBMovies(query: string): Promise<TMDBMovie[]> {
-  return (await createTmdbClient().searchMovies(query)).results;
-}
-
-export async function searchTMDBTV(query: string): Promise<TMDBSeries[]> {
-  return (await createTmdbClient().searchTV(query)).results;
-}
-
-export function getTMDBTVDetails(id: number): Promise<TMDBTVDetailsResponse> {
-  return createTmdbClient().tvDetails(id);
-}

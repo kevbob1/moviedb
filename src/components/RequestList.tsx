@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Request } from '@/types/request';
+import { Request } from '@/lib/request-lifecycle';
 import { StaggerList } from '@/components/motion/StaggerList';
 import { RequestListItem } from './RequestListItem';
 

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
-import { Request } from '@/types/request';
+import { Request } from '@/lib/request-lifecycle';
 import { Torrent } from '@/lib/transmission/adapter';
 
 jest.mock('@/app/actions/request-actions', () => ({

@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useReducedMotion } from '@/lib/motion';
+import { useReducedMotion } from 'motion/react';
 
 const ROUTES = ['/', '/requests'] as const;
 

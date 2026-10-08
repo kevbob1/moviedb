@@ -8,7 +8,7 @@ import { getGenreNames } from '@/lib/genres';
 import { Pill } from '@/components/ui/Pill';
 import { Button } from '@/components/ui/Button';
 import { Surface } from '@/components/ui/Surface';
-import { Request } from '@/types/request';
+import { Request } from '@/lib/request-lifecycle';
 import { ReleaseDate } from './ReleaseDate';
 
 interface RequestCardProps {

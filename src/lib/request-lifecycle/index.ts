@@ -2,51 +2,24 @@ import { prisma } from '@/lib/prisma';
 import { createRequestService, EnqueueJob, RequestService } from './repository';
 
 export { createRequestService } from './repository';
-export type { EnqueueJob, RequestService, RequestServiceDeps, SuggestionEntry, SyncDecision } from './repository';
 export type {
-  RequestLifecycle,
-  RequestLifecycleDeps,
-} from './lifecycle';
-export type {
-  RequestIntake,
-  RequestIntakeDeps,
-} from './intake';
-export type {
+  EnqueueJob,
+  RequestService,
+  RequestServiceDeps,
   RequestJobSync,
-  RequestJobSyncDeps,
-} from './jobsync';
+  SuggestionEntry,
+  SyncDecision,
+} from './repository';
 
-export {
-  REQUEST_TRANSITIONS,
-  canTransition,
-  getAllowedTransitions,
-  InvalidTransitionError,
-  resolveSideEffects,
-} from './fsm';
-export type { RequestStatus, TransitionSideEffects } from './fsm';
-
-export {
-  STATUS_CONFIG,
-  statusToPill,
-  actionToButtonVariant,
-  getAvailableActions,
-  canCancel,
-  toRequestModel,
-} from './projection';
-export type {
-  ActionKind,
-  ButtonVariant,
-  PillVariant,
-  Request,
-  RequestAction,
-  StatusConfig,
-} from './projection';
-
-export {
-  validateCreateRequestInput,
-  validateRequestedBy,
-} from './validators';
-export type { CreateRequestInput, ValidationResult } from './validators';
+/**
+ * The caller-facing value object and its status union. The FSM, projection, and
+ * validators are internal seams: callers that need those import from the file
+ * that owns them (`./fsm`, `./projection`, `./validators`) rather than through
+ * this barrier.
+ */
+export type { Request } from './projection';
+export type { RequestStatus } from './fsm';
+export { toRequestModel } from './projection';
 
 const defaultEnqueueJob: EnqueueJob = async (tx, type, payload) => {
   await tx.job.create({

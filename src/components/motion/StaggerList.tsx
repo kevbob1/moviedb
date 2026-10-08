@@ -2,8 +2,7 @@
 
 import { Children, isValidElement } from 'react';
 import type { ReactNode } from 'react';
-import { motion } from 'motion/react';
-import { useReducedMotion } from '@/lib/motion';
+import { motion, useReducedMotion } from 'motion/react';
 import { fadeUp, stagger } from './variants';
 
 interface StaggerListProps {
