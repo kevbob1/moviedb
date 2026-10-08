@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
 import {
+  createTransmissionSync,
   createTransmissionSyncHandler,
   enqueueTransmissionSync,
   TransmissionSyncDependencies,
@@ -38,6 +39,17 @@ function makeFakeRequestService() {
   };
 }
 
+function syncFor(
+  adapter: InMemoryTransmissionAdapter,
+  requestService: ReturnType<typeof makeFakeRequestService>,
+) {
+  return createTransmissionSync({
+    requestService: requestService as unknown as TransmissionSyncDependencies['requestService'],
+    logger: { debug: jest.fn(), info: jest.fn(), error: jest.fn() },
+    adapter,
+  });
+}
+
 function handlerFor(
   adapter: InMemoryTransmissionAdapter,
   requestService: ReturnType<typeof makeFakeRequestService>,
@@ -62,7 +74,7 @@ describe('transmission_sync handler', () => {
         { id: 1, torrent_hash: 'hash1' },
       ]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.applySyncDecisions).toHaveBeenCalledWith([
         { requestId: 1, outcome: 'fulfilled' },
@@ -80,7 +92,7 @@ describe('transmission_sync handler', () => {
         { id: 2, torrent_hash: 'hash2' },
       ]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.applySyncDecisions).not.toHaveBeenCalled();
     });
@@ -96,7 +108,7 @@ describe('transmission_sync handler', () => {
         { id: 22, torrent_hash: 'hash2b' },
       ]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.applySyncDecisions).toHaveBeenCalledWith([
         { requestId: 22, outcome: 'fulfilled' },
@@ -116,7 +128,7 @@ describe('transmission_sync handler', () => {
         { id: 3, torrent_hash: 'hash3' },
       ]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.applySyncDecisions).toHaveBeenCalledWith([
         { requestId: 3, outcome: 'problem', problem: 'Transmission error: disk full' },
@@ -136,7 +148,7 @@ describe('transmission_sync handler', () => {
         { id: 4, torrent_hash: 'missing-hash' },
       ]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.applySyncDecisions).toHaveBeenCalledWith([
         { requestId: 4, outcome: 'problem', problem: 'Torrent not found in Transmission' },
@@ -153,7 +165,7 @@ describe('transmission_sync handler', () => {
       });
       const requestService = makeFakeRequestService();
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.applySyncDecisions).not.toHaveBeenCalled();
       expect(requestService.recordSuggestionBatch).not.toHaveBeenCalled();
@@ -180,7 +192,7 @@ describe('transmission_sync handler', () => {
         torrent_hash: null,
       }]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
         { requestId: 10, suggestion: expect.objectContaining({ hash: 'h1' }) },
@@ -206,7 +218,7 @@ describe('transmission_sync handler', () => {
         torrent_hash: null,
       }]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
         { requestId: 11, suggestion: null },
@@ -238,7 +250,7 @@ describe('transmission_sync handler', () => {
         torrent_hash: null,
       }]);
 
-      await handlerFor(adapter, requestService).handle({});
+      await syncFor(adapter, requestService).run();
 
       expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
         { requestId: 12, suggestion: expect.objectContaining({ hash: 'h1' }) },
@@ -264,7 +276,7 @@ describe('transmission_sync handler', () => {
         torrent_hash: null,
       }]);
 
-      await handlerFor(adapter, requestService).handle({ trigger: 'manual' });
+      await syncFor(adapter, requestService).run({ ignoreSuggestionAgeGate: true });
 
       expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: false });
       expect(requestService.recordSuggestionBatch).toHaveBeenCalledWith([
@@ -276,7 +288,36 @@ describe('transmission_sync handler', () => {
       const adapter = new InMemoryTransmissionAdapter();
       const requestService = makeFakeRequestService();
 
+      await syncFor(adapter, requestService).run();
+
+      expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
+    });
+  });
+
+  describe('sync pass handler seam', () => {
+    it('runs the pass with the age gate ignored on a manual trigger', async () => {
+      const adapter = new InMemoryTransmissionAdapter();
+      const requestService = makeFakeRequestService();
+
+      await handlerFor(adapter, requestService).handle({ trigger: 'manual' });
+
+      expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: false });
+    });
+
+    it('retains the age gate on a scheduled trigger', async () => {
+      const adapter = new InMemoryTransmissionAdapter();
+      const requestService = makeFakeRequestService();
+
       await handlerFor(adapter, requestService).handle({ trigger: 'scheduled' });
+
+      expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
+    });
+
+    it('falls back to the scheduled trigger for an unknown payload', async () => {
+      const adapter = new InMemoryTransmissionAdapter();
+      const requestService = makeFakeRequestService();
+
+      await handlerFor(adapter, requestService).handle({ something: 'else' });
 
       expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
     });

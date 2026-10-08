@@ -46,6 +46,9 @@ A `processing` job that hasn't updated in 5 minutes is reaped back to `pending` 
 
 When referring to a Job's `type` in docs or logs, use the registered string verbatim.
 
+### Sync pass
+The module-level unit of Transmission observation (ADR-0005) and suggestion computation (ADR-0008): one run of the `transmission_sync` job. A single pass refreshes the catalog cache, observes linked torrents (deciding `fulfilled` / `problem` per downloading Request), computes suggestions for unmatched pending Requests, and persists both batches through the `request-lifecycle` module's sync verbs. Its output is one `SyncPassReport` (`downloading`, `fulfilled`, `problems`, `pending`, `suggestions`, `medianScore`, `parserFailures`). Owned by `src/lib/jobs/transmission-sync.ts`.
+
 ### Jellyfin (catalog)
 The media server whose library the app reflects. A `JellyfinCatalog` exposes the questions callers actually ask ("is X on Jellyfin?", "what seasons of show X exist?") and delegates transport to a `JellyfinAdapter` seam.
 
