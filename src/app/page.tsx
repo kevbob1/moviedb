@@ -104,5 +104,16 @@ function MovieResultCard({ result, requesting, onRequest, onCancel, onSubmit }: 
 
 function TvResultCard({ result, requesting, onRequest, onCancel, onSubmit }: { result: ImportResult; requesting: string | null; onRequest: (season: number | 'all') => void; onCancel: () => void; onSubmit: (season: number | 'all', name: string) => Promise<void> }) {
   const seasons = (result.allSeasons ?? []).filter((season) => season.season_number > 0);
-  return <Surface elevation="raised" className="p-3"><div className="flex justify-between gap-2"><h2 className="font-semibold">{result.name}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div><p className="text-sm text-muted-foreground">{result.overview}</p><div className="mt-3 space-y-2">{seasons.map((season) => <div key={season.season_number} className="flex items-center justify-between"><span>Season {season.season_number}</span>{result.missingSeasons.includes(season.season_number) && requesting !== `${result.id}-${season.season_number}` && <Button size="sm" onClick={() => onRequest(season.season_number)}>Request</Button>}{requesting === `${result.id}-${season.season_number}` && <RequestForm isVisible onSubmit={(name) => onSubmit(season.season_number, name)} onCancel={onCancel} />}</div>)}{result.missingSeasons.length > 0 && requesting !== `${result.id}-all` && <Button size="sm" onClick={() => onRequest('all')}>Request all seasons</Button>}{requesting === `${result.id}-all` && <RequestForm isVisible onSubmit={(name) => onSubmit('all', name)} onCancel={onCancel} />}</div></Surface>;
+  return <Surface elevation="raised" className="flex gap-3 p-3">
+    {result.poster_path ? <Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.name ?? ''} width={80} height={120} className="h-auto w-20 rounded-lg object-cover" /> : <div className="h-[120px] w-20 rounded-lg bg-surface" />}
+    <div className="min-w-0 flex-1">
+      <div className="flex justify-between gap-2"><h2 className="font-semibold">{result.name}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div>
+      <p className="text-sm text-muted-foreground">{result.overview}</p>
+      <div className="mt-3 space-y-2">
+        {seasons.map((season) => <div key={season.season_number} className="flex items-center justify-between"><span>Season {season.season_number}</span>{result.missingSeasons.includes(season.season_number) && requesting !== `${result.id}-${season.season_number}` && <Button size="sm" onClick={() => onRequest(season.season_number)}>Request</Button>}{requesting === `${result.id}-${season.season_number}` && <RequestForm isVisible onSubmit={(name) => onSubmit(season.season_number, name)} onCancel={onCancel} />}</div>)}
+        {result.missingSeasons.length > 0 && requesting !== `${result.id}-all` && <Button size="sm" onClick={() => onRequest('all')}>Request all seasons</Button>}
+        {requesting === `${result.id}-all` && <RequestForm isVisible onSubmit={(name) => onSubmit('all', name)} onCancel={onCancel} />}
+      </div>
+    </div>
+  </Surface>;
 }

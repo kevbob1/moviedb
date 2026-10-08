@@ -41,6 +41,20 @@ describe('TMDB client seam', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api_key=from-env'));
   });
 
+  it('builds a tvDetails URL with a ? separator when the path has no query string', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 123, name: 'Show', seasons: [] }) });
+
+    await createTmdbClient({ apiKey: 'key', fetch: fetchMock }).tvDetails(123);
+    expect(fetchMock).toHaveBeenCalledWith('https://api.themoviedb.org/3/tv/123?api_key=key');
+  });
+
+  it('builds a searchMovies URL with a ? separator', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ page: 1, results: [], total_pages: 0, total_results: 0 }) });
+
+    await createTmdbClient({ apiKey: 'key', fetch: fetchMock }).searchMovies('Dune');
+    expect(fetchMock).toHaveBeenCalledWith('https://api.themoviedb.org/3/search/movie?query=Dune&api_key=key');
+  });
+
   it('serves configured data through the in-memory adapter', async () => {
     const details = { id: 7, name: 'Show', seasons: [] };
     const client = new InMemoryTmdbAdapter({

@@ -90,7 +90,8 @@ export class HttpTmdbAdapter implements TmdbAdapter {
 
   private async request<T>(path: string): Promise<T> {
     if (!this.apiKey) throw new TmdbError('TMDB API key is not configured');
-    const response = await this.fetchFn(`https://api.themoviedb.org/3${path}&api_key=${encodeURIComponent(this.apiKey)}`);
+    const separator = path.includes('?') ? '&' : '?';
+    const response = await this.fetchFn(`https://api.themoviedb.org/3${path}${separator}api_key=${encodeURIComponent(this.apiKey)}`);
     if (!response.ok) throw new TmdbError(`TMDB API error: ${response.status} ${response.statusText}`, response.status);
     return response.json() as Promise<T>;
   }
