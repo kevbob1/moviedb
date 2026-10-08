@@ -38,6 +38,7 @@ src/lib/request-lifecycle/
   fsm.ts          — pure transitions + side-effects + typed error
   projection.ts   — status→pill/action-variant, available-actions, cancel-allowed, model mapping
   validators.ts   — pure input validation (no throws)
+  reads.ts        — operator-facing reads (listRequests, requestById); job-facing reads stay on jobsync.ts
   repository.ts   — DB write helpers (createRequest, createTvRequests, linkTorrent, transitionToStatus, cancelRequest, fulfillBySync, flagTorrentProblem)
   index.ts        — createRequestService({ prisma, enqueueJob, now }) + default singleton + default enqueueJob shim
   use-request-actions.ts  — 'use client' hook unifying per-component dispatch

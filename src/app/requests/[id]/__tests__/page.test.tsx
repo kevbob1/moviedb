@@ -1,11 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import RequestPage from '../page';
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    request: {
-      findUnique: jest.fn(),
-    },
+jest.mock('@/lib/request-lifecycle', () => ({
+  requestService: {
+    requestById: jest.fn(),
   },
 }));
 
@@ -20,7 +18,7 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
 }));
 
-import { prisma } from '@/lib/prisma';
+import { requestService } from '@/lib/request-lifecycle';
 import { isOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 
@@ -45,18 +43,19 @@ const mockRequest = {
 
 describe('RequestPage', () => {
   it('renders request detail for valid id', async () => {
-    (prisma.request.findUnique as jest.Mock).mockResolvedValueOnce(mockRequest);
+    (requestService.requestById as jest.Mock).mockResolvedValueOnce(mockRequest);
     (isOnJellyfin as jest.Mock).mockResolvedValueOnce({ available: true, configured: true });
 
     const Component = await RequestPage({ params: Promise.resolve({ id: '1' }) });
     render(Component);
 
+    expect(requestService.requestById).toHaveBeenCalledWith(1);
     expect(screen.getByText('Test Movie')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
   });
 
   it('calls notFound for missing request', async () => {
-    (prisma.request.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    (requestService.requestById as jest.Mock).mockResolvedValueOnce(null);
 
     await expect(
       RequestPage({ params: Promise.resolve({ id: '999' }) })
@@ -71,12 +70,12 @@ describe('RequestPage', () => {
     ).rejects.toThrow('NEXT_NOT_FOUND');
 
     expect(notFound).toHaveBeenCalled();
-    expect(prisma.request.findUnique).not.toHaveBeenCalled();
+    expect(requestService.requestById).not.toHaveBeenCalled();
   });
 
-  it('does not call isOnJellyfin when tmdbId is null', async () => {
-    const requestWithoutTmdb = { ...mockRequest, tmdb_id: null };
-    (prisma.request.findUnique as jest.Mock).mockResolvedValueOnce(requestWithoutTmdb);
+  it('does not call isOnJellyfin when tmdbId is absent', async () => {
+    const requestWithoutTmdb = { ...mockRequest, tmdb_id: undefined };
+    (requestService.requestById as jest.Mock).mockResolvedValueOnce(requestWithoutTmdb);
 
     const Component = await RequestPage({ params: Promise.resolve({ id: '1' }) });
     render(Component);

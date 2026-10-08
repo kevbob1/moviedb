@@ -1,11 +1,10 @@
-import { prisma } from '@/lib/prisma';
 import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
 import { ShowFulfilledSwitch } from '@/components/ShowFulfilledSwitch';
 import { availabilityFor } from '@/lib/jellyfin';
-import { toRequestModel } from '@/lib/request-lifecycle';
+import { requestService } from '@/lib/request-lifecycle';
 
-const PAGE_SIZE = 12;
+export const dynamic = 'force-dynamic';
 
 export default async function RequestsPage({
   searchParams,
@@ -13,35 +12,16 @@ export default async function RequestsPage({
   searchParams: Promise<{ page?: string; showFulfilled?: string }>;
 }) {
   const params = await searchParams;
-  const page = parseInt(params.page || '1', 10);
-  const skip = (page - 1) * PAGE_SIZE;
-  const showFulfilled = params.showFulfilled === 'true';
+  const page = parseInt(params.page || '1', 10) || 1;
+  const includeResolved = params.showFulfilled === 'true';
 
-  const where = {
-    status: showFulfilled
-      ? undefined
-      : { notIn: ['fulfilled'] },
-  };
+  const { rows, totalPages } = await requestService.listRequests({ page, includeResolved });
 
-  const [requests, total] = await Promise.all([
-    prisma.request.findMany({
-      where,
-      orderBy: { requested_at: 'desc' },
-      skip,
-      take: PAGE_SIZE,
-    }),
-    prisma.request.count({ where }),
-  ]);
-
-  const tmdbIds = requests.map(r => r.tmdb_id).filter((id): id is number => id !== null);
+  const tmdbIds = rows.map(r => r.tmdb_id).filter((id): id is number => id !== null && id !== undefined);
   const jellyfinAvailabilityResult = await availabilityFor(tmdbIds);
   const jellyfinAvailability = Object.fromEntries(
     Object.entries(jellyfinAvailabilityResult).map(([k, v]) => [k, v.available])
   );
-
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-
-  const typedRequests = requests.map(toRequestModel);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
@@ -51,12 +31,12 @@ export default async function RequestsPage({
 
       <div className="mb-4">
         <ShowFulfilledSwitch
-          defaultChecked={showFulfilled}
+          defaultChecked={includeResolved}
         />
       </div>
 
       <RequestList
-        requests={typedRequests}
+        requests={rows}
         jellyfinAvailability={jellyfinAvailability}
       />
 

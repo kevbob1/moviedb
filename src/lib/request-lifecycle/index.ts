@@ -7,6 +7,7 @@ export type {
   RequestService,
   RequestServiceDeps,
   RequestJobSync,
+  RequestReads,
   SuggestionEntry,
   SyncDecision,
   AutoLinkEntry,

@@ -1,8 +1,7 @@
-import { prisma } from '@/lib/prisma';
 import { isOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 import RequestDetail from './RequestDetail';
-import { toRequestModel } from '@/lib/request-lifecycle';
+import { requestService } from '@/lib/request-lifecycle';
 
 export default async function RequestPage({
   params,
@@ -16,9 +15,7 @@ export default async function RequestPage({
     notFound();
   }
 
-  const request = await prisma.request.findUnique({
-    where: { id: requestId },
-  });
+  const request = await requestService.requestById(requestId);
 
   if (!request) {
     notFound();
@@ -26,17 +23,15 @@ export default async function RequestPage({
 
   const tmdbId = request.tmdb_id;
   let jellyfinAvailability = false;
-  if (tmdbId !== null) {
+  if (tmdbId !== undefined) {
     const result = await isOnJellyfin(tmdbId);
     jellyfinAvailability = result.available;
   }
 
-  const typedRequest = toRequestModel(request);
-
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
       <h1 className="mb-6 text-2xl font-bold text-foreground">Request Details</h1>
-      <RequestDetail request={typedRequest} jellyfinAvailable={jellyfinAvailability} />
+      <RequestDetail request={request} jellyfinAvailable={jellyfinAvailability} />
     </main>
   );
 }
