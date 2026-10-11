@@ -73,6 +73,22 @@ export const makeFakePrisma = () => {
     return row;
   });
 
+  /**
+   * Reports zero rows for an unknown id instead of throwing, matching the real
+   * client's `updateMany` — that is why the batch can stamp a problem without
+   * needing a pre-read.
+   */
+  const updateMany = jest.fn(async ({ where, data }: { where: { id?: { in?: number[] } | number }; data: Partial<Row> }) => {
+    const ids = typeof where.id === 'number' ? [where.id] : (where.id?.in ?? []);
+    let count = 0;
+    for (const row of rows) {
+      if (!ids.includes(row.id)) continue;
+      Object.assign(row, data);
+      count++;
+    }
+    return { count };
+  });
+
   const findMany = jest.fn(async ({ where }: { where: { status?: string; torrent_hash: { not: null } } }) => {
     const withHash = rows.filter((r) => r.torrent_hash !== null);
     if (where.status !== undefined) {
@@ -91,7 +107,7 @@ export const makeFakePrisma = () => {
   });
 
   const txShape = () => ({
-    request: { findFirst, findUnique, create, update, delete: del, findMany },
+    request: { findFirst, findUnique, create, update, updateMany, delete: del, findMany },
     job: { create: jest.fn().mockResolvedValue({ id: 1 }) },
   });
 
@@ -110,7 +126,7 @@ export const makeFakePrisma = () => {
 
   return {
     rows,
-    request: { findFirst, findUnique, create, update, delete: del, findMany },
+    request: { findFirst, findUnique, create, update, updateMany, delete: del, findMany },
     job: { create: jest.fn().mockResolvedValue({ id: 1 }) },
     $transaction,
     txShape,

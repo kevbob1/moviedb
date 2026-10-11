@@ -36,11 +36,17 @@ Collapse the five lib files into one module, `src/lib/request-lifecycle/`, behin
 ```
 src/lib/request-lifecycle/
   fsm.ts          — pure transitions + side-effects + typed error
+  transitions.ts  — applyTransition: the module's single FSM-aware write path
+                    (findUnique → canTransition → resolveSideEffects → update),
+                    usable with the root client or inside a transaction
   projection.ts   — status→pill/action-variant, available-actions, cancel-allowed, model mapping
   validators.ts   — pure input validation (no throws)
   reads.ts        — operator-facing reads (listRequests, requestById); job-facing reads stay on jobsync.ts
-  repository.ts   — DB write helpers (createRequest, createTvRequests, linkTorrent, transitionToStatus, cancelRequest, fulfillBySync, flagTorrentProblem)
-  index.ts        — createRequestService({ prisma, enqueueJob, now }) + default singleton + default enqueueJob shim
+  lifecycle.ts    — named transition verbs (fulfillRequest, downloadRequest, linkTorrent, cancelRequest) over applyTransition
+  intake.ts       — createRequest, createTvRequests (row creation, not transitions)
+  jobsync.ts      — job-facing reads + batch verbs (applySyncDecisions, autoLinkBatch, recordSuggestionBatch, …)
+  repository.ts   — composition root: createRequestService wiring the four factory modules
+  index.ts        — createRequestService({ prisma, enqueueJob, now, tmdb }) + default singleton + default enqueueJob shim
   use-request-actions.ts  — 'use client' hook unifying per-component dispatch
 ```
 
@@ -51,14 +57,15 @@ createRequestService({
   prisma: PrismaClient,
   enqueueJob: (tx, type, payload) => Promise<void>,
   now?: () => Date,
+  tmdb?: TmdbClient,
 }): RequestService
 ```
 
-`RequestService` exposes the verbs: `createRequest`, `createTvRequests`, `linkTorrent`, `transitionToStatus`, `fulfillRequest`, `downloadRequest`, `cancelRequest`, `fulfillBySync`, `flagTorrentProblem`. `createTvRequests` returns canonical `Request[]` (projected, not raw Prisma rows).
+`RequestService` is the union of the four module interfaces (`RequestLifecycle & RequestIntake & RequestJobSync & RequestReads`); callers depend on the narrow interface they need. Every transition — a named verb or a batch verb — passes through `applyTransition`. `createTvRequests` returns canonical `Request[]` (projected, not raw Prisma rows).
 
 ### FSM owns side-effects
 
-`fsm.resolveSideEffects(from, to)` returns the fields to set on transition (`{ resolved_at: now, torrent_problem: null }` on `→ fulfilled`, `{ torrent_problem: null }` otherwise). The repository spreads the result into the Prisma update. Lifecycle invariants live in one place.
+`fsm.resolveSideEffects(from, to)` returns the fields to set on transition (`{ resolved_at: now, torrent_problem: null }` on `→ fulfilled`, `{ torrent_problem: null }` otherwise). `transitions.ts` spreads the result into the update on every path — named verbs and batch sync verbs alike. Lifecycle invariants live in one place.
 
 ### `InvalidTransitionError` typed error
 
@@ -74,7 +81,7 @@ The FSM throws `InvalidTransitionError` on disallowed transitions and on missing
 
 ### Cron path
 
-`jobs/transmission-sync.ts` calls `defaultService.flagTorrentProblem(req.id, message, tx)` for missing or errored torrents, and `defaultService.fulfillBySync(req.id, tx)` for completion. The success path no longer bypasses the seam.
+The sync pass batches its verdicts through `jobsync.ts`: `applySyncDecisions` applies observation verdicts through `applyTransition` (a row that is gone or no longer transitionable is skipped, not thrown), and `autoLinkBatch` links suggestion winners the same way. The problem verdict stamps `torrent_problem` via `updateMany` inside the same transaction. No transition path bypasses the seam.
 
 ## Considered Options
 
@@ -89,8 +96,9 @@ The FSM throws `InvalidTransitionError` on disallowed transitions and on missing
 - Five lib files + three component handler maps collapse to one module + one hook.
 - The FSM owns `resolveSideEffects`; the repository spreads it.
 - `cancel` is a verb on the service (the FSM still has no `canceled` state, per ADR-0006).
-- `fulfillBySync(reqId, tx)` is the new verb the cron uses to satisfy ADR-0005's bypass — the bypass shrinks to "must run inside an existing transaction," the only reason it was inline.
-- `flagTorrentProblem(reqId, problem, tx)` is a new verb; the cron no longer writes `torrent_problem` directly.
+- `applySyncDecisions` / `autoLinkBatch` are the batch verbs on `jobsync.ts`; both spread `resolveSideEffects` through `applyTransition` inside a transaction the module owns.
+- The problem verdict writes `torrent_problem` via `updateMany` in the same transaction; a row deleted before apply is skipped, never thrown.
+- `applySyncDecisions` returns `{ applied, skipped }`; `SyncPassReport.fulfilled` counts applied, and `skipped` counts every unapplied decision.
 - Re-linking a `downloading` Request to a different torrent remains out of scope (ADR-0005). `linkTorrent` keeps its current check.
 - `request-actions.ts` (`'use server'`) calls `defaultService.<verb>` and adds `revalidatePath`; the file stays as the Next.js RPC boundary.
 - Test surface reorganizes: `src/lib/request-lifecycle/__tests__/{fsm,projection,validators,service}.test.ts`. Test helpers co-locate per file.

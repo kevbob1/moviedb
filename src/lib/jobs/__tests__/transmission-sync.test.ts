@@ -33,7 +33,7 @@ beforeEach(() => {
 function makeFakeRequestService() {
   return {
     downloadingRequestsWithHashes: jest.fn().mockResolvedValue([]),
-    applySyncDecisions: jest.fn(),
+    applySyncDecisions: jest.fn().mockResolvedValue({ applied: [], skipped: 0 }),
     pendingRequestsForNeedsMatch: jest.fn().mockResolvedValue([]),
     recordSuggestionBatch: jest.fn(),
     claimedTorrentHashes: jest.fn().mockResolvedValue([]),
@@ -83,6 +83,39 @@ describe('transmission_sync handler', () => {
       expect(requestService.applySyncDecisions).toHaveBeenCalledWith([
         { requestId: 1, outcome: 'fulfilled' },
       ]);
+    });
+
+    it('counts only what the batch actually applied, and reports what it skipped', async () => {
+      const adapter = new InMemoryTransmissionAdapter({
+        torrents: [
+          { hash: 'hash1', name: 'Movie A', percentDone: 0, status: 6, isFinished: true },
+          { hash: 'hash2', name: 'Movie B', percentDone: 0.3, status: 4, error: 'disk full' },
+        ],
+      });
+      const requestService = makeFakeRequestService();
+      requestService.downloadingRequestsWithHashes.mockResolvedValue([
+        { id: 1, torrent_hash: 'hash1' },
+        { id: 2, torrent_hash: 'hash2' },
+      ]);
+      requestService.applySyncDecisions.mockResolvedValue({ applied: [1], skipped: 1 });
+
+      const report = await syncFor(adapter, requestService).run();
+
+      expect(report.downloading).toBe(2);
+      expect(report.fulfilled).toBe(1);
+      expect(report.problems).toBe(0);
+      expect(report.skipped).toBe(1);
+    });
+
+    it('reports skipped as 0 when the pass observed nothing', async () => {
+      const adapter = new InMemoryTransmissionAdapter({ torrents: [] });
+      const requestService = makeFakeRequestService();
+
+      const report = await syncFor(adapter, requestService).run();
+
+      expect(report.skipped).toBe(0);
+      expect(report.fulfilled).toBe(0);
+      expect(report.problems).toBe(0);
     });
 
     it('does NOT fulfill while torrent is still downloading (status 4)', async () => {

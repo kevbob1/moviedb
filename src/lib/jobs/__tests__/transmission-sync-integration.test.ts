@@ -25,7 +25,7 @@ describe('transmission sync integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     downloadingRequestsWithHashesMock.mockResolvedValue([]);
-    applySyncDecisionsMock.mockResolvedValue(undefined);
+    applySyncDecisionsMock.mockResolvedValue({ applied: [], skipped: 0 });
     recordSuggestionBatchMock.mockResolvedValue(undefined);
     claimedTorrentHashesMock.mockResolvedValue([]);
     autoLinkBatchMock.mockImplementation(async (entries) => entries.map((entry) => entry.requestId));
@@ -68,6 +68,7 @@ describe('transmission sync integration', () => {
       downloading: 0,
       fulfilled: 0,
       problems: 0,
+      skipped: 0,
       pending: 1,
       suggestions: 0,
       autoLinked: 1,
@@ -83,6 +84,7 @@ describe('transmission sync integration', () => {
         downloading: 0,
         fulfilled: 0,
         problems: 0,
+        skipped: 0,
         pending: 1,
         suggestions: 0,
         autoLinked: 1,

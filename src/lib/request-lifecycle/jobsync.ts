@@ -1,7 +1,9 @@
 import { Prisma, PrismaClient } from '@/generated/prisma/client';
 
-import { canTransition, RequestStatus, resolveSideEffects } from './fsm';
+import { logger } from '@/lib/logger';
+
 import { Request, toRequestModel } from './projection';
+import { applyTransition } from './transitions';
 
 /**
  * The job layer's verdict after observing a linked torrent: either the
@@ -65,8 +67,18 @@ export interface RequestJobSyncDeps {
   now: () => Date;
 }
 
+/**
+ * What one batch of sync decisions actually did: the Requests it moved into a
+ * new status, and how many it left alone because the row no longer qualified or
+ * no longer exists.
+ */
+export interface SyncApplyResult {
+  applied: number[];
+  skipped: number;
+}
+
 export interface RequestJobSync {
-  applySyncDecisions(decisions: SyncDecision[]): Promise<void>;
+  applySyncDecisions(decisions: SyncDecision[]): Promise<SyncApplyResult>;
   recordSuggestionBatch(entries: SuggestionEntry[]): Promise<void>;
   autoLinkBatch(entries: AutoLinkEntry[]): Promise<number[]>;
   claimedTorrentHashes(): Promise<string[]>;
@@ -79,33 +91,52 @@ export interface RequestJobSync {
 }
 
 export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): RequestJobSync {
-  async function applySyncDecisions(decisions: SyncDecision[]): Promise<void> {
-    if (decisions.length === 0) return;
+  /**
+   * ADR-0005: batches observation verdicts into one transaction the module owns.
+   * `fulfilled` verdicts go through `applyTransition` so they pick up the FSM
+   * side effects every other transition gets; `problem` verdicts stamp
+   * `torrent_problem` without moving status, so they are not transitions.
+   *
+   * A Request the operator moved or deleted between observation and apply is a
+   * stale verdict, not an error: it is skipped and counted, leaving the rest of
+   * the batch intact.
+   */
+  async function applySyncDecisions(decisions: SyncDecision[]): Promise<SyncApplyResult> {
+    if (decisions.length === 0) return { applied: [], skipped: 0 };
+
+    const applied: number[] = [];
+    let skipped = 0;
 
     // One transaction for the whole batch: Postgres gives atomicity for free,
     // so a bad row aborts every decision rather than applying a partial batch.
     await prisma.$transaction(async (tx) => {
       for (const decision of decisions) {
         if (decision.outcome === 'fulfilled') {
-          await tx.request.update({
-            where: { id: decision.requestId },
-            data: {
-              status: 'fulfilled',
-              torrent_problem: null,
-              resolved_at: now(),
-              suggestion_hash: null,
-              suggestion_score: null,
-              suggestion_computed_at: null,
-            },
-          });
-        } else {
-          await tx.request.update({
-            where: { id: decision.requestId },
-            data: { torrent_problem: decision.problem },
-          });
+          const outcome = await applyTransition(tx, decision.requestId, 'fulfilled', {}, now);
+          if (!outcome.ok) {
+            skipped++;
+            logger.debug({ requestId: decision.requestId, reason: outcome.skipped }, 'skipped fulfilled sync decision');
+          } else {
+            applied.push(decision.requestId);
+          }
+          continue;
+        }
+
+        // `updateMany` reports zero rows for a Request deleted since the
+        // observation instead of throwing, so one cancellation cannot take down
+        // the decisions that follow it.
+        const stamped = await tx.request.updateMany({
+          where: { id: decision.requestId },
+          data: { torrent_problem: decision.problem },
+        });
+        if (stamped.count === 0) {
+          skipped++;
+          logger.debug({ requestId: decision.requestId, reason: 'not_found' }, 'skipped problem sync decision');
         }
       }
     });
+
+    return { applied, skipped };
   }
 
   async function recordSuggestionBatch(entries: SuggestionEntry[]): Promise<void> {
@@ -149,10 +180,10 @@ export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): Reque
 
   /**
    * ADR-0009: link a batch of pending Requests without operator confirmation,
-   * through the same FSM side-effect resolver the named lifecycle verbs use.
-   * Requests that are no longer `pending` (an operator got there first, or a
-   * prior pass linked them) are skipped rather than aborting the batch; the
-   * returned ids are the ones actually linked.
+   * through the same write path the named lifecycle verbs use. Requests that
+   * are no longer `pending` (an operator got there first, or a prior pass
+   * linked them) are skipped rather than aborting the batch; the returned ids
+   * are the ones actually linked.
    */
   async function autoLinkBatch(entries: AutoLinkEntry[]): Promise<number[]> {
     if (entries.length === 0) return [];
@@ -160,19 +191,17 @@ export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): Reque
     const linked: number[] = [];
     await prisma.$transaction(async (tx) => {
       for (const entry of entries) {
-        const existing = await tx.request.findUnique({ where: { id: entry.requestId } });
-        if (!existing) continue;
-
-        const from = existing.status as RequestStatus;
-        if (!canTransition(from, 'downloading')) continue;
-
-        await tx.request.update({
-          where: { id: entry.requestId },
-          data: {
-            ...resolveSideEffects('downloading', now),
-            torrent_hash: entry.torrentHash,
-          },
-        });
+        const outcome = await applyTransition(
+          tx,
+          entry.requestId,
+          'downloading',
+          { torrent_hash: entry.torrentHash },
+          now,
+        );
+        if (!outcome.ok) {
+          logger.debug({ requestId: entry.requestId, reason: outcome.skipped }, 'skipped auto-link');
+          continue;
+        }
         linked.push(entry.requestId);
       }
     });

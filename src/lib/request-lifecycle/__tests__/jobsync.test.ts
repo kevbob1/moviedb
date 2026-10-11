@@ -37,8 +37,9 @@ describe('request-lifecycle/jobsync', () => {
       fake.rows[0].suggestion_score = 0.95;
       fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
-      await service.applySyncDecisions([{ requestId: 1, outcome: 'fulfilled' }]);
+      const result = await service.applySyncDecisions([{ requestId: 1, outcome: 'fulfilled' }]);
 
+      expect(result).toEqual({ applied: [1], skipped: 0 });
       expect(fake.rows[0].status).toBe('fulfilled');
       expect(fake.rows[0].torrent_problem).toBeNull();
       expect(fake.rows[0].resolved_at?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
@@ -60,16 +61,17 @@ describe('request-lifecycle/jobsync', () => {
       });
       await service.downloadRequest(1);
 
-      await service.applySyncDecisions([
+      const result = await service.applySyncDecisions([
         { requestId: 1, outcome: 'problem', problem: 'Transmission error: disk full' },
       ]);
 
+      expect(result).toEqual({ applied: [], skipped: 0 });
       expect(fake.rows[0].torrent_problem).toBe('Transmission error: disk full');
       expect(fake.rows[0].status).toBe('downloading');
       expect(fake.rows[0].resolved_at).toBeNull();
     });
 
-    it('applies nothing when an unknown request id aborts the whole batch', async () => {
+    it('skips a verdict for a request that is gone and keeps the rest of the batch', async () => {
       const fake = makeFakePrisma();
       const service = makeJobService(fake);
 
@@ -81,18 +83,66 @@ describe('request-lifecycle/jobsync', () => {
         mediaType: 'movie',
       });
       await service.downloadRequest(1);
-      fake.rows[0].torrent_problem = 'prior problem';
 
-      await expect(
-        service.applySyncDecisions([
-          { requestId: 1, outcome: 'fulfilled' },
-          { requestId: 999, outcome: 'fulfilled' },
-        ]),
-      ).rejects.toThrow('Not found');
+      const result = await service.applySyncDecisions([
+        { requestId: 1, outcome: 'fulfilled' },
+        { requestId: 999, outcome: 'fulfilled' },
+      ]);
 
-      expect(fake.rows[0].status).toBe('downloading');
-      expect(fake.rows[0].torrent_problem).toBe('prior problem');
-      expect(fake.rows[0].resolved_at).toBeNull();
+      expect(result).toEqual({ applied: [1], skipped: 1 });
+      expect(fake.rows[0].status).toBe('fulfilled');
+      expect(fake.rows[0].resolved_at?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
+    });
+
+    it('skips a fulfilled verdict for a request the operator already fulfilled', async () => {
+      const fake = makeFakePrisma();
+      const service = makeJobService(fake);
+
+      await service.createRequest({
+        tmdbId: 1,
+        title: 'Test',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.fulfillRequest(1);
+      const resolvedAt = fake.rows[0].resolved_at;
+
+      const result = await service.applySyncDecisions([{ requestId: 1, outcome: 'fulfilled' }]);
+
+      expect(result).toEqual({ applied: [], skipped: 1 });
+      expect(fake.rows[0].status).toBe('fulfilled');
+      expect(fake.rows[0].resolved_at).toEqual(resolvedAt);
+    });
+
+    it('skips a problem verdict for a request deleted before the batch ran', async () => {
+      const fake = makeFakePrisma();
+      const service = makeJobService(fake);
+
+      await service.createRequest({
+        tmdbId: 1,
+        title: 'Test',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+
+      const result = await service.applySyncDecisions([
+        { requestId: 1, outcome: 'problem', problem: 'Transmission error: disk full' },
+        { requestId: 999, outcome: 'problem', problem: 'Torrent not found in Transmission' },
+      ]);
+
+      expect(result).toEqual({ applied: [], skipped: 1 });
+      expect(fake.rows[0].torrent_problem).toBe('Transmission error: disk full');
+    });
+
+    it('reports nothing applied when there is no verdict to apply', async () => {
+      const fake = makeFakePrisma();
+      const service = makeJobService(fake);
+
+      await expect(service.applySyncDecisions([])).resolves.toEqual({ applied: [], skipped: 0 });
+      expect(fake.request.update).not.toHaveBeenCalled();
+      expect(fake.request.updateMany).not.toHaveBeenCalled();
     });
   });
 

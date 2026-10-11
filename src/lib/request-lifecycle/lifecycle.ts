@@ -1,22 +1,8 @@
-import { Prisma, PrismaClient } from '@/generated/prisma/client';
+import { PrismaClient } from '@/generated/prisma/client';
 
-import {
-  canTransition,
-  InvalidTransitionError,
-  RequestStatus,
-  resolveSideEffects,
-} from './fsm';
-import { Request, toRequestModel } from './projection';
-
-/**
- * Shared client shape used by the lifecycle transition helper: both the root
- * `PrismaClient` and the transaction client handed to `$transaction(fn)` expose
- * the same `request.findUnique` / `request.update` surface, so a helper can
- * serve both `fulfillRequest` / `downloadRequest` (which write directly) and
- * `linkTorrent` (which writes inside a transaction for atomicity with future
- * companion writes).
- */
-type TransitionClient = PrismaClient | Prisma.TransactionClient;
+import { InvalidTransitionError, RequestStatus } from './fsm';
+import { Request } from './projection';
+import { applyTransition, TransitionClient } from './transitions';
 
 export interface RequestLifecycleDeps {
   prisma: PrismaClient;
@@ -38,9 +24,11 @@ export function createRequestLifecycle({
    * Internal FSM-aware transition helper. Used by every lifecycle verb:
    * - `fulfillRequest` and `downloadRequest` call it directly via `prisma`.
    * - `linkTorrent` calls it inside `prisma.$transaction` so the torrent_hash
-   *   write is atomic with the transition; this is the same canTransition +
-   *   resolveSideEffects pipeline, with `torrent_hash` spread into the
-   *   side-effects so the FSM reconciliation is uniform across verbs.
+   *   write is atomic with the transition.
+   *
+   * It delegates to `applyTransition`, the module's single write path, and maps
+   * what that reports to this call site's error modes: a missing Request throws
+   * `Request not found`, a disallowed transition throws `InvalidTransitionError`.
    *
    * `transitionToStatus` is deliberately NOT exposed on `RequestLifecycle`:
    * callers must use a named verb so intent is encoded in the call site.
@@ -51,22 +39,14 @@ export function createRequestLifecycle({
     target: RequestStatus,
     extras: Record<string, unknown> = {},
   ): Promise<Request> {
-    const existing = await client.request.findUnique({ where: { id: reqId } });
-    if (!existing) {
-      throw new Error('Request not found');
+    const outcome = await applyTransition(client, reqId, target, extras, now);
+    if (!outcome.ok) {
+      if (outcome.skipped === 'not_found') {
+        throw new Error('Request not found');
+      }
+      throw new InvalidTransitionError(`Cannot transition from ${outcome.from} to ${target}`);
     }
-
-    const from = existing.status as RequestStatus;
-    if (!canTransition(from, target)) {
-      throw new InvalidTransitionError(`Cannot transition from ${from} to ${target}`);
-    }
-
-    const sideEffects = resolveSideEffects(target, now);
-    const row = await client.request.update({
-      where: { id: reqId },
-      data: { ...sideEffects, ...extras },
-    });
-    return toRequestModel(row);
+    return outcome.request;
   }
 
   function fulfillRequest(reqId: number): Promise<Request> {

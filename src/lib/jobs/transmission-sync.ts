@@ -80,8 +80,9 @@ const SEEDING_STATUS = 6;
  */
 export interface SyncPassReport {
   downloading: number;   // linked downloading requests observed
-  fulfilled: number;     // decided fulfilled
-  problems: number;      // decided problem
+  fulfilled: number;     // actually applied by the batch (a stale verdict does not count)
+  problems: number;      // actually stamped with a torrent problem
+  skipped: number;       // verdicts the batch left alone: already moved, or row gone
   pending: number;       // pending requests scored
   suggestions: number;   // requests with a persisted suggestion
   autoLinked: number;    // requests linked without operator confirmation (ADR-0009)
@@ -131,6 +132,7 @@ export function createTransmissionSync({
       downloading: observation.downloading,
       fulfilled: observation.fulfilled,
       problems: observation.problems,
+      skipped: observation.skipped,
       pending: suggestion.pending,
       suggestions: suggestion.suggestions,
       autoLinked: suggestion.autoLinked,
@@ -178,11 +180,11 @@ async function observeLinkedTorrents({
 }: {
   requestService: Pick<RequestJobSync, 'downloadingRequestsWithHashes' | 'applySyncDecisions'>;
   adapter: TransmissionAdapter;
-}): Promise<{ downloading: number; fulfilled: number; problems: number }> {
+}): Promise<{ downloading: number; fulfilled: number; problems: number; skipped: number }> {
   const downloading = await requestService.downloadingRequestsWithHashes();
 
   if (downloading.length === 0) {
-    return { downloading: 0, fulfilled: 0, problems: 0 };
+    return { downloading: 0, fulfilled: 0, problems: 0, skipped: 0 };
   }
 
   let torrents: Awaited<ReturnType<TransmissionAdapter['getTorrents']>>;
@@ -192,7 +194,7 @@ async function observeLinkedTorrents({
     );
   } catch (err) {
     if (err instanceof TransmissionNotConfiguredError) {
-      return { downloading: 0, fulfilled: 0, problems: 0 };
+      return { downloading: 0, fulfilled: 0, problems: 0, skipped: 0 };
     }
     throw err;
   }
@@ -222,15 +224,16 @@ async function observeLinkedTorrents({
     }
   }
 
-  if (decisions.length > 0) {
-    await requestService.applySyncDecisions(decisions);
-  }
+  // Nothing decided means nothing to apply: the module is not called at all.
+  const result = decisions.length > 0
+    ? await requestService.applySyncDecisions(decisions)
+    : { applied: [] as number[], skipped: 0 };
 
-  const fulfilled = decisions.filter((decision) => decision.outcome === 'fulfilled').length;
   return {
     downloading: downloading.length,
-    fulfilled,
-    problems: decisions.length - fulfilled,
+    fulfilled: result.applied.length,
+    problems: decisions.length - result.applied.length - result.skipped,
+    skipped: result.skipped,
   };
 }
 

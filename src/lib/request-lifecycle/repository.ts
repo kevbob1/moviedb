@@ -8,7 +8,7 @@ import { createRequestReads, RequestReads, RequestReadsDeps } from './reads';
 
 export type { RequestLifecycle } from './lifecycle';
 export type { RequestIntake } from './intake';
-export type { RequestJobSync, SuggestionEntry, SyncDecision, AutoLinkEntry } from './jobsync';
+export type { RequestJobSync, SuggestionEntry, SyncDecision, SyncApplyResult, AutoLinkEntry } from './jobsync';
 export type { RequestReads } from './reads';
 export type { RequestLifecycleDeps, RequestIntakeDeps, RequestJobSyncDeps, RequestReadsDeps };
 
