@@ -13,6 +13,8 @@ export interface MatchRequest {
   media_type: string;
   release_date?: string | Date | null;
   season_number?: number | null;
+  /** ADR-0009: the tie-break by which Requests contend for one torrent. */
+  requested_at: string | Date;
 }
 
 export interface MatchTorrent {
@@ -308,36 +310,112 @@ export interface MatchOptions {
   claimedHashes?: ReadonlySet<string>;
 }
 
-export function matchSuggestions(
+/**
+ * What one pass decided for one Request, after scores, thresholds and
+ * contention have all been resolved. Above `AUTO_LINK_SCORE` the match links
+ * itself; in the band above the suggestion floor it waits for the operator;
+ * otherwise there is nothing to surface. A plain `none` is deliberate —
+ * ADR-0009 already says a Request that loses contention simply gets no
+ * suggestion that pass.
+ */
+export type MatchOutcome =
+  | { requestId: MatchRequest['id']; outcome: 'auto-link'; hash: string; score: number }
+  | { requestId: MatchRequest['id']; outcome: 'suggestion'; hash: string; score: number }
+  | { requestId: MatchRequest['id']; outcome: 'none' };
+
+/**
+ * The result of one allocation pass: one outcome per Request, in the order the
+ * allocation considered them, plus how many release names the parser could not
+ * read — the metric only this module can observe.
+ */
+export interface MatchAllocation {
+  outcomes: MatchOutcome[];
+  parserFailures: number;
+}
+
+function requestedAtTime(requestedAt: string | Date): number {
+  const date = typeof requestedAt === 'string' ? new Date(requestedAt) : requestedAt;
+  const time = date.getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+function compareIds(a: MatchRequest['id'], b: MatchRequest['id']): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b));
+}
+
+/**
+ * ADR-0009 allocation order for Requests contended for by one torrent: lowest
+ * season, then oldest Request, then lowest id. A missing season sorts last,
+ * matching Postgres `ASC` null ordering.
+ */
+function byClaimOrder(a: MatchRequest, b: MatchRequest): number {
+  const seasonA = a.season_number ?? Number.POSITIVE_INFINITY;
+  const seasonB = b.season_number ?? Number.POSITIVE_INFINITY;
+  if (seasonA !== seasonB) return seasonA - seasonB;
+
+  const requestedA = requestedAtTime(a.requested_at);
+  const requestedB = requestedAtTime(b.requested_at);
+  if (requestedA !== requestedB) return requestedA < requestedB ? -1 : 1;
+
+  return compareIds(a.id, b.id);
+}
+
+/**
+ * ADR-0008 + ADR-0009 in one pass. Scores every Request against the torrent
+ * catalogue, then allocates: one torrent serves one Request, so the Requests
+ * are walked in claim order and the first one whose top candidate clears
+ * `AUTO_LINK_SCORE` takes the torrent for the rest of the pass.
+ *
+ * A persisted suggestion does not spend a claim; only an auto-link does. So two
+ * Requests scoring below the auto-link threshold may still be offered the same
+ * torrent, which is the behaviour ADR-0009 records.
+ */
+export function allocateMatches(
   requests: MatchRequest[],
   torrents: MatchTorrent[],
   options: MatchOptions = {},
-): Map<MatchRequest['id'], MatchSuggestion | null> {
-  const claimed = options.claimedHashes;
-  const result = new Map<MatchRequest['id'], MatchSuggestion | null>();
+): MatchAllocation {
+  const claimed = new Set<string>(options.claimedHashes ?? []);
 
-  for (const request of requests) {
-    try {
-      const candidates: ParsedCandidate[] = [];
-      for (let i = 0; i < torrents.length; i++) {
-        const torrent = torrents[i];
-        if (claimed?.has(torrent.hash)) continue;
-        const sources = [torrent.name, ...(torrent.files ?? [])];
-        for (const source of sources) {
-          if (!source) continue;
-          const parsed = parseTorrentTitle(source);
-          candidates.push({
-            hash: torrent.hash,
-            torrentIndex: i,
-            sourceName: source,
-            parsed,
-          });
-        }
+  // Parse every release name once for the whole catalogue. This is the only
+  // parse in the system: reporting cannot afford to redo it, and the parse is
+  // the expensive part a pass performs per torrent rather than per Request.
+  const candidates: ParsedCandidate[] = [];
+  let parserFailures = 0;
+  for (let i = 0; i < torrents.length; i++) {
+    const torrent = torrents[i];
+    for (const source of [torrent.name, ...(torrent.files ?? [])]) {
+      if (!source) continue;
+      let parsed: ReturnType<typeof parseTorrentTitle>;
+      try {
+        parsed = parseTorrentTitle(source);
+      } catch {
+        parserFailures++;
+        continue;
       }
+      if (!parsed.title) {
+        parserFailures++;
+        continue;
+      }
+      candidates.push({
+        hash: torrent.hash,
+        torrentIndex: i,
+        sourceName: source,
+        parsed,
+      });
+    }
+  }
 
-      const evaluated = candidates.map((candidate) =>
-        evaluateCandidate(request, candidate)
-      );
+  const outcomes: MatchOutcome[] = [];
+
+  for (const request of [...requests].sort(byClaimOrder)) {
+    let outcome: MatchOutcome = { requestId: request.id, outcome: 'none' };
+    try {
+      // A claimed torrent is nobody's candidate, whether it was claimed before
+      // the pass or by an auto-link earlier in this one.
+      const eligible = candidates.filter((candidate) => !claimed.has(candidate.hash));
+      const evaluated = eligible.map((candidate) => evaluateCandidate(request, candidate));
 
       // Keep the best candidate per torrent hash.
       const bestByHash = new Map<string, RankedCandidate>();
@@ -357,12 +435,18 @@ export function matchSuggestions(
         }
       }
 
-      result.set(request.id, top?.suggestion ?? null);
+      if (top) {
+        outcome = top.suggestion.score >= AUTO_LINK_SCORE
+          ? { requestId: request.id, outcome: 'auto-link', hash: top.hash, score: top.suggestion.score }
+          : { requestId: request.id, outcome: 'suggestion', hash: top.hash, score: top.suggestion.score };
+        if (outcome.outcome === 'auto-link') claimed.add(top.hash);
+      }
     } catch {
-      // A per-request error must not fail the whole batch.
-      result.set(request.id, null);
+      // A per-Request error must not fail the whole batch.
     }
+
+    outcomes.push(outcome);
   }
 
-  return result;
+  return { outcomes, parserFailures };
 }

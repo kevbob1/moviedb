@@ -38,6 +38,7 @@ Recorded while implementing this ADR, so a future explorer does not re-derive th
 
 - **Contention suppresses auto-link, not sub-threshold suggestions.** A claim is defined above as a Request row holding `torrent_hash`, and a suggestion does not set that column. So when a contended torrent scores below `0.90` for two Requests, both may still display it as a suggestion until one is accepted; the allocation order only decides the single auto-link winner. If duplicate suggestions for one torrent are unwanted, that is a new decision, not an implementation gap in this one.
 - **The scheduled suggestion age gate can delay an auto-link by up to 60 seconds.** `pendingRequestsForNeedsMatch({ applySuggestionAgeGate: true })` skips Requests scored within the last minute (ADR-0008's cadence control), so a `≥ 0.90` candidate that appears in that window links on the next pass that actually re-scores the Request. Manual refresh bypasses the gate. "First qualifying pass" means the first pass where the Request is scored, not the first pass after the torrent appears.
+- **Allocation moved into the matcher (2026-10-10).** `allocateMatches()` now owns the scoring, both thresholds, the ADR-0009 allocation order, and the in-pass claim spend, returning one outcome per Request (`auto-link` / `suggestion` / `none`). The sync pass no longer re-parses the catalogue for `parserFailures` — the parse happens once inside the matcher and is reported alongside the outcomes. Claim *reads* still belong to `request-lifecycle` and are handed to the matcher as `claimedHashes`, so the transaction boundary below is unchanged.
 - **Claim enforcement is read-then-write, not atomic.** The pass reads `claimedTorrentHashes()` once and writes auto-links in a separate transaction. Enqueue coalescing (ADR-0008) means only one `transmission_sync` job runs at a time, so the only race is an operator manually linking the same hash to a different Request inside that window. Rejected for now because closing it would require claim checking inside `autoLinkBatch` and a policy for which Request wins that contradicts the operator's explicit action.
 
 ## Considered Options
@@ -53,7 +54,7 @@ Recorded while implementing this ADR, so a future explorer does not re-derive th
 - `docs/adr/0008-auto-match-suggestions.md` — matcher, thresholds, persistence, surfaces (stands, except its suggestion-only posture).
 - `docs/adr/0005-transmission-read-only-observation.md` — Transmission posture (still holds).
 - `docs/adr/0007-request-lifecycle-module.md` — the lifecycle link path auto-link uses.
-- `src/lib/matcher/` — `AUTO_LINK_SCORE` and the `claimedHashes` candidate exclusion.
-- `src/lib/jobs/transmission-sync.ts` — claim read, allocation order, and auto-link verdicts.
+- `src/lib/matcher/` — `AUTO_LINK_SCORE`, the `claimedHashes` candidate exclusion, claim allocation, and the parser-failure count.
+- `src/lib/jobs/transmission-sync.ts` — claim read and carrying the allocation verdicts to the lifecycle batch verbs.
 - `src/lib/request-lifecycle/` — `claimedTorrentHashes` and `autoLinkBatch`.
 - `src/lib/request-lifecycle/fsm.ts` — the side-effects `autoLinkBatch` spreads on `pending → downloading`.

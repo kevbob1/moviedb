@@ -15,7 +15,7 @@ export interface MatcherCorpusCase {
   expectedHash: string | null;
 }
 
-const requestDefaults = { release_date: null, season_number: null };
+const requestDefaults = { release_date: null, season_number: null, requested_at: '2026-01-01T00:00:00Z' };
 
 export const matcherCorpus: MatcherCorpusCase[] = [
   {

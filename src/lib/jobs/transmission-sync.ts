@@ -3,7 +3,6 @@ import { logger } from '@/lib/logger';
 import { requestService } from '@/lib/request-lifecycle';
 import type {
   AutoLinkEntry,
-  Request,
   RequestJobSync,
   SuggestionEntry,
   SyncDecision,
@@ -15,8 +14,7 @@ import {
   TransmissionCatalog,
 } from '@/lib/transmission/catalog';
 import { transmissionAdapter, transmissionCatalog } from '@/lib/transmission';
-import { AUTO_LINK_SCORE, matchSuggestions } from '@/lib/matcher';
-import { parseTorrentTitle } from '@viren070/parse-torrent-title';
+import { allocateMatches } from '@/lib/matcher';
 
 const JOB_TYPE = 'transmission_sync';
 
@@ -245,23 +243,10 @@ function median(values: number[]): number {
 }
 
 /**
- * ADR-0009 allocation order for a torrent contended for by several pending
- * Requests: lowest season wins, then oldest Request, then lowest id. A null
- * season (a movie) sorts last, matching Postgres `ASC` null ordering.
- */
-function byClaimOrder(a: Request, b: Request): number {
-  const seasonA = a.season_number ?? Number.POSITIVE_INFINITY;
-  const seasonB = b.season_number ?? Number.POSITIVE_INFINITY;
-  if (seasonA !== seasonB) return seasonA - seasonB;
-  if (a.requested_at !== b.requested_at) return a.requested_at < b.requested_at ? -1 : 1;
-  return a.id - b.id;
-}
-
-/**
- * Suggestion step (ADR-0008 + ADR-0009): score pending requests for
- * needs-match against the full catalog, link the ones at or above
- * `AUTO_LINK_SCORE` without operator confirmation, and persist one suggestion
- * entry per remaining request.
+ * Suggestion step (ADR-0008 + ADR-0009): hand the pending requests and the
+ * torrent catalog to the matcher, which scores them and allocates claimed
+ * torrents, then persist what it resolved — auto-links immediately, the rest as
+ * suggestions for the operator.
  */
 async function computeSuggestions(
   {
@@ -294,25 +279,18 @@ async function computeSuggestions(
 
   const claimed = new Set(await requestService.claimedTorrentHashes());
   const allTorrents = await catalog.getAll();
-  let parserFailures = 0;
-  for (const torrent of allTorrents) {
-    for (const source of [torrent.name, ...(torrent.files ?? [])]) {
-      if (!source) continue;
-      try {
-        if (!parseTorrentTitle(source).title) parserFailures++;
-      } catch {
-        parserFailures++;
-      }
-    }
-  }
 
-  const matched = matchSuggestions(
+  // The matcher owns scoring, thresholds, and claim allocation (ADR-0008 +
+  // ADR-0009): one call resolves who gets what. This step's job is to carry
+  // those verdicts to the lifecycle module's batch verbs.
+  const { outcomes, parserFailures } = allocateMatches(
     pendingRequests.map((request) => ({
       id: request.id,
       title: request.title,
       media_type: request.media_type ?? '',
       release_date: request.release_date,
       season_number: request.season_number,
+      requested_at: request.requested_at,
     })),
     allTorrents,
     { claimedHashes: claimed },
@@ -322,32 +300,19 @@ async function computeSuggestions(
   const autoLinks: Array<{ requestId: number; hash: string; score: number }> = [];
   const entries: SuggestionEntry[] = [];
 
-  // Allocation happens in claim order so that, when one torrent can serve
-  // several Requests, the first in order takes it and the losers get nothing.
-  for (const request of [...pendingRequests].sort(byClaimOrder)) {
-    const match = matched.get(request.id);
-    if (!match) {
-      entries.push({ requestId: request.id, suggestion: null });
+  for (const outcome of outcomes) {
+    const requestId = Number(outcome.requestId);
+    if (outcome.outcome === 'auto-link') {
+      scores.push(outcome.score);
+      autoLinks.push({ requestId, hash: outcome.hash, score: outcome.score });
       continue;
     }
-
-    // A torrent claimed by an auto-link earlier in this pass is spent for the
-    // rest of it; a persisted suggestion does not claim the torrent.
-    if (claimed.has(match.hash)) {
-      entries.push({ requestId: request.id, suggestion: null });
+    if (outcome.outcome === 'suggestion') {
+      scores.push(outcome.score);
+      entries.push({ requestId, suggestion: { hash: outcome.hash, score: outcome.score } });
       continue;
     }
-
-    scores.push(match.score);
-    if (match.score >= AUTO_LINK_SCORE) {
-      claimed.add(match.hash);
-      autoLinks.push({ requestId: request.id, hash: match.hash, score: match.score });
-    } else {
-      entries.push({
-        requestId: request.id,
-        suggestion: { hash: match.hash, score: match.score },
-      });
-    }
+    entries.push({ requestId, suggestion: null });
   }
 
   let linked: number[] = [];
