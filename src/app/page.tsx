@@ -10,13 +10,15 @@ import { Pill } from '@/components/ui/Pill';
 import { Surface } from '@/components/ui/Surface';
 import { Spinner } from '@/components/ui/Spinner';
 import { Input } from '@/components/ui/Input';
-import type { ImportResult, Season } from '@/lib/import-flow';
+import type { ImportResult } from '@/lib/import-flow';
 
 type SearchType = 'movie' | 'tv';
 
+/** Route failures answer with one field; anything else is a fallback message. */
 function errorMessage(data: unknown, fallback: string): string {
-  if (typeof data === 'object' && data !== null && 'details' in data && typeof data.details === 'string') return data.details;
-  if (typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string') return data.error;
+  if (typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string') {
+    return data.error;
+  }
   return fallback;
 }
 
@@ -45,17 +47,6 @@ export default function ImportPage() {
       setResults(searchResult.items);
       if (!searchResult.availability.configured || searchResult.availability.error) {
         setAvailabilityError(searchResult.availability.error ?? 'Jellyfin is not configured.');
-      }
-      if (searchType === 'tv') {
-        const hydrated = await Promise.all(searchResult.items.map(async (item) => {
-          const seasonsResponse = await fetch(`/api/import/seasons?id=${item.id}`);
-          if (!seasonsResponse.ok) return item;
-          const seasonsData = await seasonsResponse.json() as { seasons: Season[] | null };
-          const allSeasons = seasonsData.seasons ?? [];
-          const regular = allSeasons.filter((season) => season.season_number > 0).map((season) => season.season_number);
-          return { ...item, allSeasons, missingSeasons: regular.filter((number) => !item.availableSeasons.includes(number)) };
-        }));
-        setResults(hydrated);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Search failed');
@@ -102,16 +93,22 @@ function MovieResultCard({ result, requesting, onRequest, onCancel, onSubmit }: 
   </Surface>;
 }
 
+/**
+ * Renders the projected season rows the module already answered. Nothing here
+ * decides which seasons are regular or missing — that is module work.
+ */
 function TvResultCard({ result, requesting, onRequest, onCancel, onSubmit }: { result: ImportResult; requesting: string | null; onRequest: (season: number | 'all') => void; onCancel: () => void; onSubmit: (season: number | 'all', name: string) => Promise<void> }) {
-  const seasons = (result.allSeasons ?? []).filter((season) => season.season_number > 0);
+  const rows = result.seasonRows ?? [];
+  const requestable = rows.filter((row) => !row.available);
   return <Surface elevation="raised" className="flex gap-3 p-3">
     {result.poster_path ? <Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.name ?? ''} width={80} height={120} className="h-auto w-20 rounded-lg object-cover" /> : <div className="h-[120px] w-20 rounded-lg bg-surface" />}
     <div className="min-w-0 flex-1">
       <div className="flex justify-between gap-2"><h2 className="font-semibold">{result.name}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div>
       <p className="text-sm text-muted-foreground">{result.overview}</p>
+      {result.seasonError && <p role="status" className="mt-2 text-xs text-amber-200">Seasons unavailable: {result.seasonError}</p>}
       <div className="mt-3 space-y-2">
-        {seasons.map((season) => <div key={season.season_number} className="flex items-center justify-between"><span>Season {season.season_number}</span>{result.missingSeasons.includes(season.season_number) && requesting !== `${result.id}-${season.season_number}` && <Button size="sm" onClick={() => onRequest(season.season_number)}>Request</Button>}{requesting === `${result.id}-${season.season_number}` && <RequestForm isVisible onSubmit={(name) => onSubmit(season.season_number, name)} onCancel={onCancel} />}</div>)}
-        {result.missingSeasons.length > 0 && requesting !== `${result.id}-all` && <Button size="sm" onClick={() => onRequest('all')}>Request all seasons</Button>}
+        {rows.map((row) => <div key={row.season.season_number} className="flex items-center justify-between"><span>Season {row.season.season_number}</span>{!row.available && requesting !== `${result.id}-${row.season.season_number}` && <Button size="sm" onClick={() => onRequest(row.season.season_number)}>Request</Button>}{requesting === `${result.id}-${row.season.season_number}` && <RequestForm isVisible onSubmit={(name) => onSubmit(row.season.season_number, name)} onCancel={onCancel} />}</div>)}
+        {requestable.length > 0 && requesting !== `${result.id}-all` && <Button size="sm" onClick={() => onRequest('all')}>Request all seasons</Button>}
         {requesting === `${result.id}-all` && <RequestForm isVisible onSubmit={(name) => onSubmit('all', name)} onCancel={onCancel} />}
       </div>
     </div>

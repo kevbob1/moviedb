@@ -8,11 +8,29 @@ export interface JellyfinImportCatalog {
   seasonsForMany(ids: number[]): Promise<Record<number, SeasonsResult>>;
 }
 
+/**
+ * Reads a TV result's season list. Rejects when TMDB cannot be reached, so the
+ * caller decides whether that degrades softly per result or fails the search.
+ */
+export type ReadSeasons = (id: number) => Promise<Season[]>;
+
 type SearchType = 'movie' | 'tv';
+
+/**
+ * One TV result's seasons, or the reason they could not be read. Kept next to
+ * the fan-in that needs it so no caller has to ask TMDB for seasons itself.
+ */
+interface SeasonPlan {
+  seasons: Season[];
+  error: string | null;
+}
+
+const noSeasons: SeasonPlan = { seasons: [], error: null };
 
 export async function searchCatalog(
   tmdb: TmdbClient,
   jellyfin: JellyfinImportCatalog,
+  readSeasons: ReadSeasons,
   query: string,
   type: SearchType,
 ): Promise<{ items: ImportResult[]; availability: { configured: boolean; error: string | null } }> {
@@ -34,17 +52,53 @@ export async function searchCatalog(
     summary = { configured: false, error: error instanceof Error ? error.message : String(error) };
   }
 
+  // Seasons arrive with the results: one search returns everything the operator
+  // needs to act on, rather than sending them back for a second round per row.
+  const plans = await planSeasons(source, type, readSeasons);
+
   return {
-    items: source.map((item) => {
+    items: source.map((item, index) => {
       const isMovie = type === 'movie';
-      const projection = projectAvailability(availability[item.id], seasonAvailability[item.id]);
+      const projection = projectAvailability(
+        availability[item.id],
+        seasonAvailability[item.id],
+        plans[index].seasons,
+      );
       return {
         ...item,
         mediaType: type,
-        ...(isMovie ? { title: (item as TMDBMovie).title } : { name: (item as TMDBSeries).name, allSeasons: [] as Season[] }),
+        ...(isMovie
+          ? { title: (item as TMDBMovie).title }
+          : { name: (item as TMDBSeries).name }),
         ...projection,
+        seasonError: plans[index].error,
       };
     }),
     availability: summary,
   };
+}
+
+/**
+ * Reads every TV result's season list in parallel and projects it. One result
+ * whose seasons cannot be read degrades on its own; the rest still render.
+ */
+async function planSeasons(
+  source: (TMDBMovie | TMDBSeries)[],
+  type: SearchType,
+  readSeasons: ReadSeasons,
+): Promise<SeasonPlan[]> {
+  if (type === 'movie') return source.map(() => noSeasons);
+
+  return Promise.all(
+    source.map(async (item) => {
+      try {
+        return { seasons: await readSeasons(item.id), error: null };
+      } catch (error) {
+        return {
+          seasons: [],
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
 }
