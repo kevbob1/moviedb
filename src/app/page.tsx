@@ -88,7 +88,7 @@ export default function ImportPage() {
 
 function MovieResultCard({ result, requesting, onRequest, onCancel, onSubmit }: { result: ImportResult; requesting: boolean; onRequest: () => void; onCancel: () => void; onSubmit: (name: string) => Promise<void> }) {
   return <Surface elevation="raised" className="flex gap-3 p-3">
-    {result.poster_path ? <Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.title ?? ''} width={80} height={120} className="h-auto w-20 rounded-lg object-cover" /> : <div className="h-[120px] w-20 rounded-lg bg-surface" />}
+    {result.poster_path ? <div className="w-20 max-w-[35vw] flex-shrink-0"><Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.title ?? ''} width={80} height={120} sizes="80px" className="h-auto w-full rounded-lg" /></div> : <div className="aspect-[2/3] w-20 max-w-[35vw] flex-shrink-0 rounded-lg bg-surface" />}
     <div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><h2 className="font-semibold">{result.title}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div><p className="text-sm text-muted-foreground">{result.overview}</p><div className="mt-2">{!result.onJellyfin && !requesting && <Button size="sm" onClick={onRequest}>Request</Button>}{requesting && <RequestForm isVisible onSubmit={onSubmit} onCancel={onCancel} />}</div></div>
   </Surface>;
 }
@@ -101,7 +101,7 @@ function TvResultCard({ result, requesting, onRequest, onCancel, onSubmit }: { r
   const rows = result.seasonRows ?? [];
   const requestable = rows.filter((row) => !row.available);
   return <Surface elevation="raised" className="flex gap-3 p-3">
-    {result.poster_path ? <Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.name ?? ''} width={80} height={120} className="h-auto w-20 rounded-lg object-cover" /> : <div className="h-[120px] w-20 rounded-lg bg-surface" />}
+    {result.poster_path ? <div className="w-20 max-w-[35vw] flex-shrink-0"><Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.name ?? ''} width={80} height={120} sizes="80px" className="h-auto w-full rounded-lg" /></div> : <div className="aspect-[2/3] w-20 max-w-[35vw] flex-shrink-0 rounded-lg bg-surface" />}
     <div className="min-w-0 flex-1">
       <div className="flex justify-between gap-2"><h2 className="font-semibold">{result.name}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div>
       <p className="text-sm text-muted-foreground">{result.overview}</p>
