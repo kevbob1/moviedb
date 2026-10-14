@@ -112,7 +112,7 @@ export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): Reque
     await prisma.$transaction(async (tx) => {
       for (const decision of decisions) {
         if (decision.outcome === 'fulfilled') {
-          const outcome = await applyTransition(tx, decision.requestId, 'fulfilled', {}, now);
+          const outcome = await applyTransition(tx, decision.requestId, 'fulfilled', now);
           if (!outcome.ok) {
             skipped++;
             logger.debug({ requestId: decision.requestId, reason: outcome.skipped }, 'skipped fulfilled sync decision');
@@ -195,8 +195,8 @@ export function createRequestJobSync({ prisma, now }: RequestJobSyncDeps): Reque
           tx,
           entry.requestId,
           'downloading',
-          { torrent_hash: entry.torrentHash },
           now,
+          { torrent_hash: entry.torrentHash },
         );
         if (!outcome.ok) {
           logger.debug({ requestId: entry.requestId, reason: outcome.skipped }, 'skipped auto-link');

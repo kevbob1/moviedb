@@ -79,7 +79,7 @@ describe('request-lifecycle/transitions', () => {
   it('applies the resolved side effects and returns the projected request', async () => {
     const { state, client } = clientFor(makeRow('downloading'));
 
-    const outcome = await applyTransition(client, 1, 'fulfilled', {}, fixedNow);
+    const outcome = await applyTransition(client, 1, 'fulfilled', fixedNow);
 
     expect(outcome).toMatchObject({ ok: true });
     if (!outcome.ok) return;
@@ -96,7 +96,7 @@ describe('request-lifecycle/transitions', () => {
   it('writes extras alongside the side effects', async () => {
     const { state, client } = clientFor(makeRow('pending'));
 
-    const outcome = await applyTransition(client, 1, 'downloading', { torrent_hash: 'h1' }, fixedNow);
+    const outcome = await applyTransition(client, 1, 'downloading', fixedNow, { torrent_hash: 'h1' });
 
     expect(outcome.ok).toBe(true);
     expect(state.row?.torrent_hash).toBe('h1');
@@ -108,7 +108,7 @@ describe('request-lifecycle/transitions', () => {
   it('reports a missing request without writing', async () => {
     const { state, updates, client } = clientFor(null);
 
-    const outcome = await applyTransition(client, 999, 'fulfilled', {}, fixedNow);
+    const outcome = await applyTransition(client, 999, 'fulfilled', fixedNow);
 
     expect(outcome).toEqual({ ok: false, skipped: 'not_found' });
     expect(updates).toHaveLength(0);
@@ -118,7 +118,7 @@ describe('request-lifecycle/transitions', () => {
   it('reports a disallowed transition with the status it is actually in', async () => {
     const { state, updates, client } = clientFor(makeRow('fulfilled'));
 
-    const outcome = await applyTransition(client, 1, 'downloading', {}, fixedNow);
+    const outcome = await applyTransition(client, 1, 'downloading', fixedNow);
 
     expect(outcome).toEqual({ ok: false, skipped: 'invalid_transition', from: 'fulfilled' });
     expect(updates).toHaveLength(0);
@@ -129,8 +129,8 @@ describe('request-lifecycle/transitions', () => {
     const tx = clientFor(makeRow('pending'));
     const root = clientFor(makeRow('pending'));
 
-    const fromTx = await applyTransition(tx.client, 1, 'downloading', {}, fixedNow);
-    const fromRoot = await applyTransition(root.client, 1, 'downloading', {}, fixedNow);
+    const fromTx = await applyTransition(tx.client, 1, 'downloading', fixedNow);
+    const fromRoot = await applyTransition(root.client, 1, 'downloading', fixedNow);
 
     expect(fromTx).toMatchObject({ ok: true });
     expect(fromRoot).toMatchObject({ ok: true });

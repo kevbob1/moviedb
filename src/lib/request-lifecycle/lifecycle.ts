@@ -2,7 +2,7 @@ import { PrismaClient } from '@/generated/prisma/client';
 
 import { InvalidTransitionError, RequestStatus } from './fsm';
 import { Request } from './projection';
-import { applyTransition, TransitionClient } from './transitions';
+import { applyTransition, TransitionClient, TransitionExtras } from './transitions';
 
 export interface RequestLifecycleDeps {
   prisma: PrismaClient;
@@ -37,9 +37,9 @@ export function createRequestLifecycle({
     client: TransitionClient,
     reqId: number,
     target: RequestStatus,
-    extras: Record<string, unknown> = {},
+    extras: TransitionExtras = {},
   ): Promise<Request> {
-    const outcome = await applyTransition(client, reqId, target, extras, now);
+    const outcome = await applyTransition(client, reqId, target, now, extras);
     if (!outcome.ok) {
       if (outcome.skipped === 'not_found') {
         throw new Error('Request not found');

@@ -13,6 +13,16 @@ import { Request, toRequestModel } from './projection';
 export type TransitionClient = PrismaClient | Prisma.TransactionClient;
 
 /**
+ * Extra columns a transition may write alongside the FSM-resolved side
+ * effects. Each field is optional so callers pass only what their transition
+ * needs; the spread keeps the write atomic with the side effects in a single
+ * `request.update`.
+ */
+export interface TransitionExtras {
+  torrent_hash?: string;
+}
+
+/**
  * Why a target Request was left alone. `invalid_transition` carries the status
  * the row is actually in, so the caller can describe it without re-reading.
  */
@@ -29,15 +39,20 @@ export type TransitionOutcome =
  * A skip is not an error: the caller decides what one means. The named verbs
  * throw; the batch verbs count it and carry on.
  *
- * `extras` is written alongside the resolved side effects (currently only
- * `torrent_hash`, from `linkTorrent` and `autoLinkBatch`).
+ * `extras` is written alongside the resolved side effects. The shape is
+ * `TransitionExtras` (currently only `torrent_hash`, from `linkTorrent` and
+ * `autoLinkBatch`); adding a new column means extending the interface, not
+ * widening the type at the call site.
+ *
+ * Deletion via `cancelRequest` (ADR-0006 cancel=delete) is intentionally
+ * outside this write path because it is not a status transition.
  */
 export async function applyTransition(
   client: TransitionClient,
   reqId: number,
   target: RequestStatus,
-  extras: Record<string, unknown>,
   now: () => Date,
+  extras: TransitionExtras = {},
 ): Promise<TransitionOutcome> {
   const existing = await client.request.findUnique({ where: { id: reqId } });
   if (!existing) {
