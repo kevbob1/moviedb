@@ -32,36 +32,85 @@ export interface EnqueueTransmissionSyncResult {
   createdAt: string;
 }
 
-export async function enqueueTransmissionSync(
-  payload: TransmissionSyncPayload = { trigger: 'scheduled' },
-): Promise<EnqueueTransmissionSyncResult> {
-  const outstanding = await prisma.job.findFirst({
+interface OutstandingJob {
+  id: number;
+  status: string;
+  payload: unknown;
+  created_at: Date;
+}
+
+/** Attempts allowed when a unique violation costs us the insert race. */
+const MAX_ENQUEUE_ATTEMPTS = 2;
+
+function findOutstandingSync(): Promise<OutstandingJob | null> {
+  return prisma.job.findFirst({
     where: { type: JOB_TYPE, status: { in: ['pending', 'processing'] } },
     select: { id: true, status: true, payload: true, created_at: true },
   });
+}
 
+/** Every "not queued" exit funnels through here, including the race loser. */
+async function settleOutstanding(
+  outstanding: OutstandingJob,
+  payload: TransmissionSyncPayload,
+): Promise<EnqueueTransmissionSyncResult> {
+  if (payload.trigger === 'manual' && outstanding.status === 'pending'
+    && !(isTransmissionSyncPayload(outstanding.payload) && outstanding.payload.trigger === 'manual')) {
+    await prisma.job.update({
+      where: { id: outstanding.id },
+      data: { payload: { trigger: 'manual' } },
+    });
+  }
+  logger.debug({ jobId: outstanding.id }, 'transmission_sync already outstanding, skipping enqueue');
+  return {
+    queued: false,
+    status: outstanding.status as TransmissionSyncJobStatus,
+    createdAt: outstanding.created_at.toISOString(),
+  };
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === 'P2002';
+}
+
+export async function enqueueTransmissionSync(
+  payload: TransmissionSyncPayload = { trigger: 'scheduled' },
+): Promise<EnqueueTransmissionSyncResult> {
+  const outstanding = await findOutstandingSync();
   if (outstanding) {
-    if (payload.trigger === 'manual' && outstanding.status === 'pending'
-      && !(isTransmissionSyncPayload(outstanding.payload) && outstanding.payload.trigger === 'manual')) {
-      await prisma.job.update({
-        where: { id: outstanding.id },
-        data: { payload: { trigger: 'manual' } },
-      });
-    }
-    logger.debug({ jobId: outstanding.id }, 'transmission_sync already outstanding, skipping enqueue');
-    return {
-      queued: false,
-      status: outstanding.status as TransmissionSyncJobStatus,
-      createdAt: outstanding.created_at.toISOString(),
-    };
+    return settleOutstanding(outstanding, payload);
   }
 
-  const job = await prisma.job.create({
-    data: { type: JOB_TYPE, payload: { trigger: payload.trigger } },
-    select: { created_at: true },
-  });
-  logger.info('transmission_sync job enqueued');
-  return { queued: true, status: 'pending', createdAt: job.created_at.toISOString() };
+  // The fast path above is not a lock: a concurrent caller can insert between
+  // the find and the create. The partial unique index
+  // jobs_singleton_live_type_key (see prisma/migrations/20261020050000) turns
+  // that race into a P2002 instead of a duplicate row, so the loser reports
+  // queued: false rather than inserting twice.
+  for (let attempt = 1; attempt <= MAX_ENQUEUE_ATTEMPTS; attempt++) {
+    try {
+      const job = await prisma.job.create({
+        data: { type: JOB_TYPE, payload: { trigger: payload.trigger } },
+        select: { created_at: true },
+      });
+      logger.info('transmission_sync job enqueued');
+      return { queued: true, status: 'pending', createdAt: job.created_at.toISOString() };
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+
+      const winner = await findOutstandingSync();
+      if (winner) {
+        return settleOutstanding(winner, payload);
+      }
+      // The winner finished before we could read it; the slot is free again.
+      if (attempt === MAX_ENQUEUE_ATTEMPTS) throw error;
+    }
+  }
+
+  // Unreachable: the loop either returns or throws.
+  throw new Error('transmission_sync enqueue exhausted its attempts');
 }
 
 /**
@@ -342,9 +391,12 @@ async function computeSuggestions(
   };
 }
 
-registerJobType('transmission_sync', createTransmissionSyncHandler({
-  requestService,
-  logger,
-  adapter: transmissionAdapter,
-  catalog: transmissionCatalog,
-}));
+export const transmissionSyncHandler: JobHandler<TransmissionSyncPayload | unknown> =
+  createTransmissionSyncHandler({
+    requestService,
+    logger,
+    adapter: transmissionAdapter,
+    catalog: transmissionCatalog,
+  });
+
+registerJobType(JOB_TYPE, transmissionSyncHandler);

@@ -517,4 +517,70 @@ describe('enqueueTransmissionSync', () => {
       select: { created_at: true },
     });
   });
+
+  it('reports queued:false when a concurrent enqueue wins the unique-index race', async () => {
+    (prisma.job.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 21,
+        status: 'pending',
+        created_at: createdAt,
+        payload: { trigger: 'scheduled' },
+      });
+    (prisma.job.create as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+    );
+
+    const enqueued = await enqueueTransmissionSync();
+
+    expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
+    expect(prisma.job.create).toHaveBeenCalledTimes(1);
+    expect(prisma.job.findFirst).toHaveBeenCalledTimes(2);
+  });
+
+  it('upgrades a race-winning scheduled job to manual', async () => {
+    (prisma.job.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 22,
+        status: 'pending',
+        created_at: createdAt,
+        payload: { trigger: 'scheduled' },
+      });
+    (prisma.job.create as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+    );
+    (prisma.job.update as jest.Mock).mockResolvedValue({ id: 22 });
+
+    const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
+
+    expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
+    expect(prisma.job.update).toHaveBeenCalledWith({
+      where: { id: 22 },
+      data: { payload: { trigger: 'manual' } },
+    });
+  });
+
+  it('retries the insert when the race winner finished before it could be read', async () => {
+    (prisma.job.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.job.create as jest.Mock)
+      .mockRejectedValueOnce(Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }))
+      .mockResolvedValueOnce({ id: 23, created_at: createdAt });
+
+    const enqueued = await enqueueTransmissionSync();
+
+    expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: createdAt.toISOString() });
+    expect(prisma.job.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('rethrows non-unique-violation create failures', async () => {
+    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    const failure = new Error('connection refused');
+    (prisma.job.create as jest.Mock).mockRejectedValue(failure);
+
+    await expect(enqueueTransmissionSync()).rejects.toThrow('connection refused');
+    expect(prisma.job.create).toHaveBeenCalledTimes(1);
+  });
 });

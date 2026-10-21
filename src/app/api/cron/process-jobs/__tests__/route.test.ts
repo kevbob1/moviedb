@@ -1,17 +1,29 @@
 import { logger } from '@/lib/logger';
 
 const processPendingJobsMock = jest.fn();
+const registerJobTypeMock = jest.fn();
 const enqueueTransmissionSyncMock = jest.fn();
+
+const mockTransmissionSyncHandler = { handle: jest.fn() };
+const mockRequestNotificationHandler = { handle: jest.fn() };
+const mockTvSeriesRequestNotificationHandler = { handle: jest.fn() };
+
 const headersMock = jest.fn();
 
 jest.mock('@/lib/job-queue', () => ({
   processPendingJobs: (...args: unknown[]) => processPendingJobsMock(...args),
+  registerJobType: (...args: unknown[]) => registerJobTypeMock(...args),
 }));
-
-jest.mock('@/lib/jobs', () => ({}));
 
 jest.mock('@/lib/jobs/transmission-sync', () => ({
   enqueueTransmissionSync: (...args: unknown[]) => enqueueTransmissionSyncMock(...args),
+  transmissionSyncHandler: mockTransmissionSyncHandler,
+}));
+
+jest.mock('@/lib/jobs/request-notification', () => ({ requestNotificationHandler: mockRequestNotificationHandler }));
+
+jest.mock('@/lib/jobs/tv-series-request-notification', () => ({
+  tvSeriesRequestNotificationHandler: mockTvSeriesRequestNotificationHandler,
 }));
 
 jest.mock('next/headers', () => ({
@@ -32,6 +44,7 @@ interface MockResponse {
 }
 
 let GET: (req: Request) => Promise<MockResponse>;
+let registeredCalls: Array<[string, unknown]>;
 
 beforeAll(() => {
   jest.isolateModules(() => {
@@ -39,6 +52,7 @@ beforeAll(() => {
     const route = require('../route');
     GET = route.GET;
   });
+  registeredCalls = registerJobTypeMock.mock.calls.map(([type, handler]) => [type as string, handler]);
 });
 
 describe('process-jobs cron API', () => {
@@ -54,6 +68,16 @@ describe('process-jobs cron API', () => {
 
   afterEach(() => {
     delete process.env.CRON_SECRET;
+  });
+
+  describe('handler registration', () => {
+    it('registers every job handler explicitly at import time', () => {
+      expect(registeredCalls).toEqual([
+        ['transmission_sync', mockTransmissionSyncHandler],
+        ['request_notification', mockRequestNotificationHandler],
+        ['tv_series_request_notification', mockTvSeriesRequestNotificationHandler],
+      ]);
+    });
   });
 
   describe('authentication', () => {

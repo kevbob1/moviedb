@@ -50,5 +50,9 @@ model Job {
 
   @@index([status])
   @@index([status, created_at])
+  // Concurrency guard for singleton job types lives in migration
+  // 20261020050000_add_job_singleton_unique_index: a partial unique index on
+  // (type) WHERE type = 'transmission_sync' AND status IN ('pending','processing').
+  // Prisma cannot express partial indexes in the schema, so it is migration-managed.
   @@map("jobs")
 }
