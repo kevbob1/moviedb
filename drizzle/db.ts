@@ -29,3 +29,10 @@ if (process.env.NODE_ENV !== "production") {
 
 export { schema };
 export type Db = typeof db;
+
+/**
+ * The transaction handle `db.transaction(fn)` hands its callback. Write paths
+ * take `Db | Tx` and are typed against the smaller `Pick<...>` they actually
+ * use, so the same helper serves both the root client and a transaction.
+ */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];

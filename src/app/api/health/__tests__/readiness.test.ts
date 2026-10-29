@@ -5,13 +5,10 @@ interface MockResponse {
   headers: Map<string, string>;
 }
 
-const prismaQueryRawMock = jest.fn();
+const dbExecuteMock = jest.fn();
 
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    $queryRaw: prismaQueryRawMock,
-    $disconnect: jest.fn().mockResolvedValue(undefined),
-  },
+jest.mock('../../../../../drizzle/db', () => ({
+  db: { execute: dbExecuteMock },
 }));
 
 const mockJellyfinFn = jest.fn();
@@ -64,7 +61,7 @@ describe('readiness API', () => {
 
   describe('database connectivity', () => {
     it('returns 503 when database query fails', async () => {
-      prismaQueryRawMock.mockRejectedValueOnce(new Error('DB connection failed'));
+      dbExecuteMock.mockRejectedValueOnce(new Error('DB connection failed'));
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -77,7 +74,7 @@ describe('readiness API', () => {
     });
 
     it('returns 200 when database is connected', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -92,7 +89,7 @@ describe('readiness API', () => {
 
   describe('jellyfin connectivity', () => {
     it('returns 200 when jellyfin is configured and reachable', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -107,7 +104,7 @@ describe('readiness API', () => {
     it('returns 200 when jellyfin is not configured', async () => {
       delete process.env.JELLYFIN_URL;
       delete process.env.JELLYFIN_API_KEY;
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: false, reachable: false, error: 'Jellyfin not configured' });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -120,7 +117,7 @@ describe('readiness API', () => {
     });
 
     it('returns 503 when jellyfin is configured but unreachable', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: false, error: 'Connection refused' });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -135,7 +132,7 @@ describe('readiness API', () => {
 
   describe('transmission connectivity', () => {
     it('returns 200 when transmission is configured and reachable', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -147,7 +144,7 @@ describe('readiness API', () => {
     });
 
     it('returns 200 when transmission is not configured', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: false, reachable: false });
 
@@ -159,7 +156,7 @@ describe('readiness API', () => {
     });
 
     it('returns 503 when transmission is configured but unreachable', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: false, error: 'Connection refused' });
 
@@ -173,7 +170,7 @@ describe('readiness API', () => {
 
   describe('combined checks', () => {
     it('returns 503 when db is ok but jellyfin is unreachable', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: false, error: 'Jellyfin API error: 500' });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -186,7 +183,7 @@ describe('readiness API', () => {
     });
 
     it('returns 503 when db is unreachable regardless of jellyfin status', async () => {
-      prismaQueryRawMock.mockRejectedValueOnce(new Error('connection refused'));
+      dbExecuteMock.mockRejectedValueOnce(new Error('connection refused'));
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -195,7 +192,7 @@ describe('readiness API', () => {
     });
 
     it('returns 200 when all services are healthy', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: true });
 
@@ -210,7 +207,7 @@ describe('readiness API', () => {
     });
 
     it('returns 503 when transmission is unreachable', async () => {
-      prismaQueryRawMock.mockResolvedValueOnce([{ '?column?': 1 }]);
+      dbExecuteMock.mockResolvedValueOnce([{ '?column?': 1 }]);
       mockJellyfinFn.mockResolvedValueOnce({ configured: true, reachable: true });
       mockTransmissionFn.mockResolvedValueOnce({ configured: true, reachable: false, error: 'Connection refused' });
 

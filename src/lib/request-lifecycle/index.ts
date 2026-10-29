@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma';
+import { jobs } from '../../../drizzle/schema';
+
 import { createRequestService, EnqueueJob, RequestService } from './repository';
 
 export { createRequestService } from './repository';
@@ -24,12 +25,11 @@ export type { RequestStatus } from './fsm';
 export { toRequestModel } from './projection';
 
 const defaultEnqueueJob: EnqueueJob = async (tx, type, payload) => {
-  await tx.job.create({
-    data: { type, payload, status: 'pending' },
-  });
+  // `updated_at` has no database default (Prisma's `@updatedAt` wrote it), so
+  // the insert supplies it explicitly.
+  await tx.insert(jobs).values({ type, payload, status: 'pending', updatedAt: new Date() });
 };
 
 export const requestService: RequestService = createRequestService({
-  prisma,
   enqueueJob: defaultEnqueueJob,
 });

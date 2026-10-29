@@ -1,9 +1,9 @@
-// src/app/actions/__tests__/request-actions.test.ts
-import { fulfillRequest, cancelRequest, downloadRequest, linkTorrent } from '../request-actions';
-import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+jest.mock('../../../../drizzle/db', () => {
+  const { makeInMemoryDrizzle } = jest.requireActual('../../../test-support/fake-drizzle');
+  const fake = makeInMemoryDrizzle();
+  return { db: fake.db };
+});
 
-jest.mock('@/lib/prisma');
 jest.mock('@/lib/logger', () => ({
   logger: {
     info: jest.fn(),
@@ -11,118 +11,105 @@ jest.mock('@/lib/logger', () => ({
     warn: jest.fn(),
   },
 }));
+
 jest.mock('@/lib/jobs', () => ({}));
-jest.mock('@/lib/tmdb', () => ({
+jest.mock('@/lib/tmdb', () => ({}));
+jest.mock('@/lib/import-flow', () => ({
+  defaultImportFlow: { requestImport: jest.fn() },
 }));
 
-const fullRow = (overrides: Record<string, unknown> = {}) => ({
-  id: 1,
-  title: 'Test Movie',
-  tmdb_id: 123,
-  poster_path: '/path.jpg',
-  overview: 'A movie',
-  release_date: '2024-01-01',
-  genre_ids: [28, 12],
-  requested_by: 'John Doe',
-  requested_at: new Date('2024-06-01T00:00:00Z'),
-  status: 'pending',
-  season_number: null,
-  media_type: 'movie',
-  torrent_hash: null,
-  torrent_problem: null,
-  resolved_at: null,
-  ...overrides,
-});
+import { revalidatePath } from 'next/cache';
+
+import { db } from '../../../../drizzle/db';
+import { storeOf } from '../../../test-support/fake-drizzle';
+import {
+  cancelRequest,
+  downloadRequest,
+  fulfillRequest,
+  linkTorrent,
+} from '../request-actions';
+
+const store = storeOf(db);
+
+/** A full Request row in the snake_case shape the store and mapper use. */
+const seedRequest = (overrides: Record<string, unknown> = {}) => {
+  const row = {
+    id: store.requests.length + 1,
+    title: 'Test Movie',
+    tmdb_id: 123,
+    season_number: null,
+    poster_path: '/path.jpg',
+    overview: 'A movie',
+    release_date: '2024-01-01',
+    genre_ids: [28, 12],
+    requested_by: 'John Doe',
+    requested_at: new Date('2024-06-01T00:00:00Z'),
+    status: 'pending',
+    media_type: 'movie',
+    torrent_hash: null,
+    torrent_problem: null,
+    resolved_at: null,
+    suggestion_hash: null,
+    suggestion_score: null,
+    suggestion_computed_at: null,
+    ...overrides,
+  };
+  store.requests.push(row);
+  return row;
+};
 
 describe('request-actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    /* eslint-disable @typescript-eslint/no-explicit-any */
-    (prisma as any).request = {
-      findUnique: jest.fn(),
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn()
-    };
-    (prisma as any).job = {
-      create: jest.fn(),
-    };
-    (prisma as unknown as Record<string, unknown>).$transaction = jest.fn().mockImplementation(
-      async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-        const prismaAny = prisma as unknown as Record<string, unknown>;
-        const tx = {
-          request: { ...(prismaAny.request as Record<string, unknown>) },
-          job: { ...(prismaAny.job as Record<string, unknown>) },
-        };
-        return await fn(tx);
-      }
-    );
-    /* eslint-enable @typescript-eslint/no-explicit-any */
+    store.requests.length = 0;
+    store.writes.length = 0;
   });
 
   describe('fulfillRequest', () => {
     it('updates status to fulfilled when valid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'pending' }));
-      (prisma.request.update as jest.Mock).mockResolvedValue(fullRow({ status: 'fulfilled' }));
+      const row = seedRequest();
 
-      await fulfillRequest(1);
+      await fulfillRequest(row.id);
 
-      expect(prisma.request.findUnique).toHaveBeenCalledWith({ where: { id: 1 } });
-      expect(prisma.request.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: {
-          status: 'fulfilled',
-          torrent_problem: null,
-          resolved_at: expect.any(Date),
-          suggestion_hash: null,
-          suggestion_score: null,
-          suggestion_computed_at: null,
-        },
-      });
+      expect(row.status).toBe('fulfilled');
+      expect(row.resolved_at).toEqual(expect.any(Date));
+      expect(row.torrent_problem).toBeNull();
+      expect(row.suggestion_hash).toBeNull();
+      expect(row.suggestion_score).toBeNull();
+      expect(row.suggestion_computed_at).toBeNull();
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
 
     it('throws if request not found', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(null);
-
       await expect(fulfillRequest(1)).rejects.toThrow('Request not found');
     });
 
     it('throws if transition is invalid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'fulfilled' }));
+      const row = seedRequest({ status: 'fulfilled' });
 
-      await expect(fulfillRequest(1)).rejects.toThrow(
+      await expect(fulfillRequest(row.id)).rejects.toThrow(
         'Cannot transition from fulfilled to fulfilled'
       );
+      expect(row.status).toBe('fulfilled');
     });
   });
 
   describe('downloadRequest', () => {
     it('updates status to downloading when valid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'pending' }));
-      (prisma.request.update as jest.Mock).mockResolvedValue(fullRow({ status: 'downloading' }));
+      const row = seedRequest();
 
-      await downloadRequest(1);
+      await downloadRequest(row.id);
 
-      expect(prisma.request.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: {
-          status: 'downloading',
-          torrent_problem: null,
-          suggestion_hash: null,
-          suggestion_score: null,
-          suggestion_computed_at: null,
-        },
-      });
+      expect(row.status).toBe('downloading');
+      expect(row.torrent_problem).toBeNull();
+      expect(row.suggestion_hash).toBeNull();
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
 
     it('throws if transition is invalid', async () => {
-      (prisma.request.findUnique as jest.Mock).mockResolvedValue(fullRow({ status: 'fulfilled' }));
+      const row = seedRequest({ status: 'fulfilled' });
 
-      await expect(downloadRequest(1)).rejects.toThrow(
+      await expect(downloadRequest(row.id)).rejects.toThrow(
         'Cannot transition from fulfilled to downloading'
       );
     });
@@ -130,53 +117,41 @@ describe('request-actions', () => {
 
   describe('cancelRequest', () => {
     it('deletes the request and revalidates paths', async () => {
-      (prisma.request.delete as jest.Mock).mockResolvedValue(fullRow());
+      const row = seedRequest();
 
-      await cancelRequest(1);
+      await cancelRequest(row.id);
 
-      expect(prisma.request.delete).toHaveBeenCalledWith({ where: { id: 1 } });
-      expect(prisma.request.findUnique).not.toHaveBeenCalled();
-      expect(prisma.request.update).not.toHaveBeenCalled();
+      expect(store.requests).toHaveLength(0);
+      expect(store.writes.filter((write) => write.op === 'update')).toHaveLength(0);
       expect(revalidatePath).toHaveBeenCalledWith('/requests');
       expect(revalidatePath).toHaveBeenCalledWith('/needs-match');
+    });
+
+    it('is a no-op when the row is already gone', async () => {
+      await expect(cancelRequest(999)).resolves.toBeUndefined();
+      expect(revalidatePath).toHaveBeenCalledWith('/requests');
     });
   });
 
   describe('linkTorrent', () => {
     it('links a torrent to a pending request and revalidates', async () => {
-      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-        const tx = {
-          request: {
-            findUnique: jest.fn().mockResolvedValue(fullRow({ status: 'pending' })),
-            update: jest.fn().mockResolvedValue(fullRow({ status: 'downloading', torrent_hash: 'abc123' })),
-          },
-        };
-        return await fn(tx);
-      });
+      const row = seedRequest();
 
-      const result = await linkTorrent(1, 'abc123');
+      const result = await linkTorrent(row.id, 'abc123');
 
       expect(result.status).toBe('downloading');
       expect(result.torrent_hash).toBe('abc123');
+      expect(row.torrent_hash).toBe('abc123');
+      expect(store.transactions).toBe(1);
       expect(revalidatePath).toHaveBeenCalledWith('/needs-match');
     });
 
     it('rejects if request is not pending', async () => {
-      (prisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
-        const tx = {
-          request: {
-            findUnique: jest.fn().mockResolvedValue(fullRow({ status: 'fulfilled' })),
-          },
-        };
-        return await fn(tx);
-      });
+      const row = seedRequest({ status: 'fulfilled' });
 
-      await expect(linkTorrent(1, 'abc123')).rejects.toThrow(
+      await expect(linkTorrent(row.id, 'abc123')).rejects.toThrow(
         'Cannot transition from fulfilled to downloading'
       );
     });
   });
 });
-jest.mock('@/lib/import-flow', () => ({
-  defaultImportFlow: { requestImport: jest.fn() },
-}));

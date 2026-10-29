@@ -1,17 +1,14 @@
 import { createRequestService } from '../repository';
 
 import { makeFakeDrizzle, renderSql } from '../../../test-support/fake-drizzle';
-import { fixedNow } from './fake-prisma';
-
-type PrismaLike = Parameters<typeof createRequestService>[0]['prisma'];
+import { fixedNow } from '../../../test-support/request-service-fake';
 
 /**
- * Reads are on Drizzle now, so these tests inject a fake `db`; Prisma is only
- * present because the composed service still requires a write client.
+ * Reads are on Drizzle now, so these tests inject a scripted fake `db` and
+ * assert on the predicate each read rendered.
  */
 const makeService = (fake: ReturnType<typeof makeFakeDrizzle>) =>
   createRequestService({
-    prisma: {} as unknown as PrismaLike,
     db: fake.db,
     enqueueJob: jest.fn(),
     now: fixedNow,

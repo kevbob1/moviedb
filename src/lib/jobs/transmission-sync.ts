@@ -2,7 +2,6 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '../../../drizzle/db';
 import { jobs } from '../../../drizzle/schema';
-import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { requestService } from '@/lib/request-lifecycle';
 import type {
@@ -72,10 +71,10 @@ async function settleOutstanding(
 ): Promise<EnqueueTransmissionSyncResult> {
   if (payload.trigger === 'manual' && outstanding.status === 'pending'
     && !(isTransmissionSyncPayload(outstanding.payload) && outstanding.payload.trigger === 'manual')) {
-    await prisma.job.update({
-      where: { id: outstanding.id },
-      data: { payload: { trigger: 'manual' } },
-    });
+    await db
+      .update(jobs)
+      .set({ payload: { trigger: 'manual' }, updatedAt: new Date() })
+      .where(eq(jobs.id, outstanding.id));
   }
   logger.debug({ jobId: outstanding.id }, 'transmission_sync already outstanding, skipping enqueue');
   return {
@@ -85,11 +84,15 @@ async function settleOutstanding(
   };
 }
 
+/**
+ * The singleton guard is a partial unique index, so the conflict surfaces as
+ * Postgres' own unique-violation SQLSTATE (23505) rather than a Prisma error.
+ */
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object'
     && error !== null
     && 'code' in error
-    && error.code === 'P2002';
+    && error.code === '23505';
 }
 
 export async function enqueueTransmissionSync(
@@ -103,14 +106,21 @@ export async function enqueueTransmissionSync(
   // The fast path above is not a lock: a concurrent caller can insert between
   // the find and the create. The partial unique index
   // jobs_singleton_live_type_key (see prisma/migrations/20261020050000) turns
-  // that race into a P2002 instead of a duplicate row, so the loser reports
-  // queued: false rather than inserting twice.
+  // that race into a duplicate-key error instead of a duplicate row, so the
+  // loser reports queued: false rather than inserting twice.
   for (let attempt = 1; attempt <= MAX_ENQUEUE_ATTEMPTS; attempt++) {
     try {
-      const job = await prisma.job.create({
-        data: { type: JOB_TYPE, payload: { trigger: payload.trigger } },
-        select: { created_at: true },
-      });
+      const [job] = await db
+        .insert(jobs)
+        .values({
+          type: JOB_TYPE,
+          payload: { trigger: payload.trigger },
+          updatedAt: new Date(),
+        })
+        .returning({ created_at: jobs.createdAt });
+      if (!job) {
+        throw new Error('transmission_sync enqueue returned no row');
+      }
       logger.info('transmission_sync job enqueued');
       return { queued: true, status: 'pending', createdAt: job.created_at.toISOString() };
     } catch (error) {

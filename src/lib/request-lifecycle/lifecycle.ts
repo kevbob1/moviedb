@@ -1,10 +1,14 @@
-import { Prisma, PrismaClient } from '@/generated/prisma/client';
+import { and, eq, isNull } from 'drizzle-orm';
 
+import type { Db, Tx } from '../../../drizzle/db';
+import { requests } from '../../../drizzle/schema';
+import type { NewRequestRow } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
 import { createTmdbClient, TmdbClient } from '@/lib/tmdb';
 
 import {
   CreateRequestInput,
+  requestColumns,
   Request,
   toRequestModel,
   validateCreateRequestInput,
@@ -66,19 +70,18 @@ export const resolveSideEffects = (to: RequestStatus, now: () => Date): Transiti
 // ---------------------------------------------------------------------------
 
 /**
- * Shared client shape: both the root `PrismaClient` and the transaction client
- * handed to `$transaction(fn)` expose the same `request.findUnique` /
- * `request.update` surface, so one write path serves both the named verbs
- * (which write directly) and the batch verbs (which write inside a
- * transaction).
+ * Shared client shape: the root Drizzle client and the transaction handle
+ * handed to `db.transaction(fn)` expose the same `select` / `update` surface,
+ * so one write path serves both the named verbs (which write on the root
+ * client) and the batch verbs (which write inside a transaction).
  */
-export type TransitionClient = PrismaClient | Prisma.TransactionClient;
+export type TransitionClient = Pick<Db, 'select' | 'update'>;
 
 /**
  * Extra columns a transition may write alongside the FSM-resolved side
  * effects. Each field is optional so callers pass only what their transition
  * needs; the spread keeps the write atomic with the side effects in a single
- * `request.update`.
+ * `update`.
  */
 export interface TransitionExtras {
   torrent_hash?: string;
@@ -92,6 +95,28 @@ export type TransitionOutcome =
   | { ok: true; request: Request }
   | { ok: false; skipped: 'not_found' }
   | { ok: false; skipped: 'invalid_transition'; from: RequestStatus };
+
+/**
+ * Translate the FSM-resolved side effects (snake_case, the Request projection's
+ * vocabulary) into the column names Drizzle writes. `resolved_at` is only
+ * present on a fulfillment and `torrent_hash` only when the caller passes it,
+ * so both stay absent otherwise — matching the Prisma-era partial write.
+ */
+function transitionValues(
+  effects: TransitionSideEffects,
+  extras: TransitionExtras,
+): Partial<NewRequestRow> {
+  const values: Partial<NewRequestRow> = {
+    status: effects.status,
+    torrentProblem: effects.torrent_problem,
+    suggestionHash: effects.suggestion_hash,
+    suggestionScore: effects.suggestion_score,
+    suggestionComputedAt: effects.suggestion_computed_at,
+  };
+  if (effects.resolved_at !== undefined) values.resolvedAt = effects.resolved_at;
+  if (extras.torrent_hash !== undefined) values.torrentHash = extras.torrent_hash;
+  return values;
+}
 
 /**
  * The module's single FSM-aware write path. Every transition — a named verb or
@@ -116,7 +141,11 @@ export async function applyTransition(
   now: () => Date,
   extras: TransitionExtras = {},
 ): Promise<TransitionOutcome> {
-  const existing = await client.request.findUnique({ where: { id: reqId } });
+  const [existing] = await client
+    .select(requestColumns)
+    .from(requests)
+    .where(eq(requests.id, reqId))
+    .limit(1);
   if (!existing) {
     return { ok: false, skipped: 'not_found' };
   }
@@ -126,10 +155,17 @@ export async function applyTransition(
     return { ok: false, skipped: 'invalid_transition', from };
   }
 
-  const row = await client.request.update({
-    where: { id: reqId },
-    data: { ...resolveSideEffects(target, now), ...extras },
-  });
+  const [row] = await client
+    .update(requests)
+    .set(transitionValues(resolveSideEffects(target, now), extras))
+    .where(eq(requests.id, reqId))
+    .returning(requestColumns);
+
+  // The row can disappear between the read and the write (a concurrent cancel).
+  // Report it the same way as a missing read so the batch verbs keep counting.
+  if (!row) {
+    return { ok: false, skipped: 'not_found' };
+  }
 
   return { ok: true, request: toRequestModel(row) };
 }
@@ -139,7 +175,7 @@ export async function applyTransition(
 // ---------------------------------------------------------------------------
 
 export interface RequestLifecycleDeps {
-  prisma: PrismaClient;
+  db: Db;
   now: () => Date;
 }
 
@@ -151,14 +187,14 @@ export interface RequestLifecycle {
 }
 
 export function createRequestLifecycle({
-  prisma,
+  db,
   now,
 }: RequestLifecycleDeps): RequestLifecycle {
   /**
    * Internal FSM-aware transition helper. Used by every lifecycle verb:
-   * - `fulfillRequest` and `downloadRequest` call it directly via `prisma`.
-   * - `linkTorrent` calls it inside `prisma.$transaction` so the torrent_hash
-   *   write is atomic with the transition.
+   * - `fulfillRequest` and `downloadRequest` call it directly via `db`.
+   * - `linkTorrent` calls it inside `db.transaction` so the torrent_hash write
+   *   is atomic with the transition.
    *
    * It delegates to `applyTransition`, the module's single write path, and maps
    * what that reports to this call site's error modes: a missing Request throws
@@ -184,21 +220,21 @@ export function createRequestLifecycle({
   }
 
   function fulfillRequest(reqId: number): Promise<Request> {
-    return transitionToStatus(prisma, reqId, 'fulfilled');
+    return transitionToStatus(db, reqId, 'fulfilled');
   }
 
   function downloadRequest(reqId: number): Promise<Request> {
-    return transitionToStatus(prisma, reqId, 'downloading');
+    return transitionToStatus(db, reqId, 'downloading');
   }
 
   function linkTorrent(reqId: number, torrentHash: string): Promise<Request> {
-    return prisma.$transaction(async (tx) =>
+    return db.transaction(async (tx) =>
       transitionToStatus(tx, reqId, 'downloading', { torrent_hash: torrentHash }),
     );
   }
 
   async function cancelRequest(reqId: number): Promise<void> {
-    await prisma.request.delete({ where: { id: reqId } });
+    await db.delete(requests).where(eq(requests.id, reqId));
   }
 
   return {
@@ -214,13 +250,13 @@ export function createRequestLifecycle({
 // ---------------------------------------------------------------------------
 
 export type EnqueueJob = (
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   type: string,
-  payload: Prisma.InputJsonValue,
+  payload: unknown,
 ) => Promise<void>;
 
 export interface RequestIntakeDeps {
-  prisma: PrismaClient;
+  db: Db;
   enqueueJob: EnqueueJob;
   tmdb?: TmdbClient;
 }
@@ -230,8 +266,11 @@ export interface RequestIntake {
   createTvRequests(tmdbId: number, requestedBy: string): Promise<Request[]>;
 }
 
+/** The row shape `requestColumns` selects, i.e. what `toRequestModel` consumes. */
+type RequestColumnsRow = Parameters<typeof toRequestModel>[0];
+
 export function createRequestIntake({
-  prisma,
+  db,
   enqueueJob,
   tmdb,
 }: RequestIntakeDeps): RequestIntake {
@@ -241,12 +280,20 @@ export function createRequestIntake({
       throw new Error(validation.reason);
     }
 
-    const existing = await prisma.request.findFirst({
-      where: {
-        tmdb_id: input.tmdbId,
-        season_number: input.seasonNumber ?? null,
-      },
-    });
+    // `season_number = null` is `IS NULL` in SQL, not `= NULL`, so the
+    // duplicate check picks its predicate by whether a season was given.
+    const [existing] = await db
+      .select(requestColumns)
+      .from(requests)
+      .where(
+        and(
+          eq(requests.tmdbId, input.tmdbId),
+          input.seasonNumber == null
+            ? isNull(requests.seasonNumber)
+            : eq(requests.seasonNumber, input.seasonNumber),
+        ),
+      )
+      .limit(1);
     if (existing) {
       logger.info(
         { tmdbId: input.tmdbId, seasonNumber: input.seasonNumber, title: input.title, requestId: existing.id },
@@ -255,23 +302,28 @@ export function createRequestIntake({
       return toRequestModel(existing);
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const row = await tx.request.create({
-        data: {
-          tmdb_id: input.tmdbId,
+    const created = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(requests)
+        .values({
+          tmdbId: input.tmdbId,
           title: input.title,
-          poster_path: input.posterPath,
-          requested_by: input.requestedBy,
+          posterPath: input.posterPath,
+          requestedBy: input.requestedBy,
           status: 'pending',
-          media_type: input.mediaType,
-          season_number: input.seasonNumber ?? null,
-          release_date: input.releaseDate,
+          mediaType: input.mediaType,
+          seasonNumber: input.seasonNumber ?? null,
+          releaseDate: input.releaseDate,
           overview: input.overview,
-          genre_ids: input.genreIds ?? [],
-        },
-      });
+          genreIds: input.genreIds ?? [],
+        })
+        .returning(requestColumns);
 
-      await enqueueJob(tx, 'request_notification', { ...row } as Prisma.InputJsonValue);
+      if (!row) {
+        throw new Error('Request insert returned no row');
+      }
+
+      await enqueueJob(tx, 'request_notification', { ...row });
 
       return row;
     });
@@ -300,30 +352,43 @@ export function createRequestIntake({
     const details = await (tmdb ?? createTmdbClient()).tvDetails(tmdbId);
     const seasons = details.seasons.filter((s) => s.season_number > 0);
 
-    const rows = await prisma.$transaction(async (tx) => {
-      const created: Awaited<ReturnType<typeof tx.request.create>>[] = [];
+    const rows = await db.transaction(async (tx) => {
+      const created: RequestColumnsRow[] = [];
 
       for (const season of seasons) {
-        const existing = await tx.request.findFirst({
-          where: { tmdb_id: tmdbId, season_number: season.season_number },
-        });
+        const [existing] = await tx
+          .select(requestColumns)
+          .from(requests)
+          .where(
+            and(
+              eq(requests.tmdbId, tmdbId),
+              eq(requests.seasonNumber, season.season_number),
+            ),
+          )
+          .limit(1);
 
         if (existing) {
           created.push(existing);
           continue;
         }
 
-        const row = await tx.request.create({
-          data: {
-            tmdb_id: tmdbId,
+        const [row] = await tx
+          .insert(requests)
+          .values({
+            tmdbId,
             title: details.name,
-            poster_path: season.poster_path ?? null,
-            requested_by: requestedBy,
+            posterPath: season.poster_path ?? null,
+            requestedBy,
             status: 'pending',
-            media_type: 'tv',
-            season_number: season.season_number,
-          },
-        });
+            mediaType: 'tv',
+            seasonNumber: season.season_number,
+          })
+          .returning(requestColumns);
+
+        if (!row) {
+          throw new Error('Request insert returned no row');
+        }
+
         created.push(row);
       }
 
@@ -334,7 +399,7 @@ export function createRequestIntake({
         totalSeasons: seasons.length,
         posterPath: details.poster_path ?? null,
         releaseDate: details.first_air_date ?? null,
-      } as Prisma.InputJsonValue);
+      });
 
       return created;
     });
@@ -389,7 +454,7 @@ export interface SyncApplyResult {
 }
 
 export interface RequestJobSyncDeps {
-  prisma: PrismaClient;
+  db: Db;
   now: () => Date;
 }
 
@@ -418,7 +483,7 @@ export type RequestJobSyncWrites = Pick<
 >;
 
 export function createRequestJobSyncWrites({
-  prisma,
+  db,
   now,
 }: RequestJobSyncDeps): RequestJobSyncWrites {
   /**
@@ -439,7 +504,7 @@ export function createRequestJobSyncWrites({
 
     // One transaction for the whole batch: Postgres gives atomicity for free,
     // so a bad row aborts every decision rather than applying a partial batch.
-    await prisma.$transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       for (const decision of decisions) {
         if (decision.outcome === 'fulfilled') {
           const outcome = await applyTransition(tx, decision.requestId, 'fulfilled', now);
@@ -452,14 +517,15 @@ export function createRequestJobSyncWrites({
           continue;
         }
 
-        // `updateMany` reports zero rows for a Request deleted since the
+        // A conditional update reports zero rows for a Request deleted since the
         // observation instead of throwing, so one cancellation cannot take down
         // the decisions that follow it.
-        const stamped = await tx.request.updateMany({
-          where: { id: decision.requestId },
-          data: { torrent_problem: decision.problem },
-        });
-        if (stamped.count === 0) {
+        const stamped = await tx
+          .update(requests)
+          .set({ torrentProblem: decision.problem })
+          .where(eq(requests.id, decision.requestId))
+          .returning({ id: requests.id });
+        if (stamped.length === 0) {
           skipped++;
           logger.debug({ requestId: decision.requestId, reason: 'not_found' }, 'skipped problem sync decision');
         }
@@ -473,22 +539,16 @@ export function createRequestJobSyncWrites({
     if (entries.length === 0) return;
 
     const computedAt = now();
-    await prisma.$transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       for (const entry of entries) {
-        await tx.request.update({
-          where: { id: entry.requestId },
-          data: entry.suggestion
-            ? {
-                suggestion_hash: entry.suggestion.hash,
-                suggestion_score: entry.suggestion.score,
-                suggestion_computed_at: computedAt,
-              }
-            : {
-                suggestion_hash: null,
-                suggestion_score: null,
-                suggestion_computed_at: computedAt,
-              },
-        });
+        await tx
+          .update(requests)
+          .set({
+            suggestionHash: entry.suggestion ? entry.suggestion.hash : null,
+            suggestionScore: entry.suggestion ? entry.suggestion.score : null,
+            suggestionComputedAt: computedAt,
+          })
+          .where(eq(requests.id, entry.requestId));
       }
     });
   }
@@ -504,7 +564,7 @@ export function createRequestJobSyncWrites({
     if (entries.length === 0) return [];
 
     const linked: number[] = [];
-    await prisma.$transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       for (const entry of entries) {
         const outcome = await applyTransition(
           tx,

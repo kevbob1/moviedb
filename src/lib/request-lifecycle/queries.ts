@@ -12,7 +12,6 @@ import {
   type SQL,
 } from 'drizzle-orm';
 
-import type { PrismaClient } from '@/generated/prisma/client';
 import type { Db } from '../../../drizzle/db';
 import { requests } from '../../../drizzle/schema';
 
@@ -171,8 +170,10 @@ export const validateRequestedBy = (requestedBy: string): ValidationResult => {
 /**
  * Drizzle projection of the Request table in the snake_case shape
  * `toRequestModel` consumes, so the read path does not need a second mapper.
+ * Exported because the write path selects and returns the same shape inside its
+ * transactions — one projection, one mapper.
  */
-const requestColumns = {
+export const requestColumns = {
   id: requests.id,
   title: requests.title,
   tmdb_id: requests.tmdbId,
@@ -323,17 +324,11 @@ export interface RequestJobSyncReads {
 
 export interface RequestJobSyncReadsDeps {
   db: Db;
-  /**
-   * Only `retireResolved` still writes (a retention delete), so it stays on
-   * Prisma until the write half of the strangler lands.
-   */
-  prisma: PrismaClient;
   now: () => Date;
 }
 
 export function createRequestJobSyncReads({
   db,
-  prisma,
   now,
 }: RequestJobSyncReadsDeps): RequestJobSyncReads {
   /**
@@ -406,16 +401,18 @@ export function createRequestJobSyncReads({
     return rows.map(toRequestModel);
   }
 
-  /** Retention cleanup — a write, so it stays on Prisma for Phase 2a. */
+  /**
+   * Retention cleanup. Deletes rather than selects, so it lives on the write
+   * side of the same Drizzle client; `returning` makes the count exact without
+   * a second round trip.
+   */
   async function retireResolved(olderThanDays: number): Promise<number> {
     const cutoff = new Date(now().getTime() - olderThanDays * 24 * 60 * 60 * 1000);
-    const result = await prisma.request.deleteMany({
-      where: {
-        status: 'fulfilled',
-        resolved_at: { lt: cutoff },
-      },
-    });
-    return result.count;
+    const removed = await db
+      .delete(requests)
+      .where(and(eq(requests.status, 'fulfilled'), lt(requests.resolvedAt, cutoff)))
+      .returning({ id: requests.id });
+    return removed.length;
   }
 
   return {

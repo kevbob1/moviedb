@@ -1,30 +1,8 @@
-import { db } from '../../../../drizzle/db';
-import {
-  makeSelectChain,
-  renderSql,
-  type RecordedSelect,
-} from '../../../test-support/fake-drizzle';
-import { prisma } from '@/lib/prisma';
-import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
-import {
-  createTransmissionSync,
-  createTransmissionSyncHandler,
-  enqueueTransmissionSync,
-  TransmissionSyncDependencies,
-} from '../transmission-sync';
-
-jest.mock('../../../../drizzle/db', () => ({
-  db: { select: jest.fn() },
-}));
-
-jest.mock('@/lib/prisma', () => ({
-  prisma: {
-    job: {
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-  },
-}));
+jest.mock('../../../../drizzle/db', () => {
+  const { makeInMemoryDrizzle } = jest.requireActual('../../../test-support/fake-drizzle');
+  const fake = makeInMemoryDrizzle();
+  return { db: fake.db };
+});
 
 jest.mock('@/lib/logger', () => ({
   logger: {
@@ -35,22 +13,23 @@ jest.mock('@/lib/logger', () => ({
   },
 }));
 
-const selectMock = db.select as jest.Mock;
+import { db } from '../../../../drizzle/db';
+import { renderSql, storeOf } from '../../../test-support/fake-drizzle';
+import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
+import {
+  createTransmissionSync,
+  createTransmissionSyncHandler,
+  enqueueTransmissionSync,
+  TransmissionSyncDependencies,
+} from '../transmission-sync';
 
-/** Recorded outstanding-sync reads (`findOutstandingSync`), in call order. */
-const outstandingQueries: RecordedSelect[] = [];
-
-/** Queue the rows the next outstanding-sync read returns; `[]` means none. */
-function queueOutstanding(rows: Array<Record<string, unknown>>) {
-  const record: RecordedSelect = { kind: 'rows' };
-  outstandingQueries.push(record);
-  selectMock.mockReturnValueOnce(makeSelectChain(() => rows, record));
-}
+const store = storeOf(db);
 
 beforeEach(() => {
   jest.clearAllMocks();
-  selectMock.mockReset();
-  outstandingQueries.length = 0;
+  store.jobs.length = 0;
+  store.selects.length = 0;
+  store.writes.length = 0;
 });
 
 function makeFakeRequestService() {
@@ -457,155 +436,161 @@ describe('transmission_sync handler', () => {
 describe('enqueueTransmissionSync', () => {
   const createdAt = new Date('2026-09-05T11:00:00.000Z');
 
-  it('creates a transmission_sync job when none is outstanding', async () => {
-    queueOutstanding([]);
-    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 1, created_at: createdAt });
+  const insertedJobs = () => store.writes.filter((write) => write.op === 'insert');
 
+  it('creates a transmission_sync job when none is outstanding', async () => {
     const enqueued = await enqueueTransmissionSync();
 
-    expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: createdAt.toISOString() });
+    expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: expect.any(String) });
 
-    expect(outstandingQueries).toHaveLength(1);
-    const [query] = outstandingQueries;
+    // The outstanding check still asks the same question of the same index.
+    const [query] = store.selects;
     const where = renderSql(query.where);
     expect(where?.params).toEqual(['transmission_sync', 'pending', 'processing']);
     expect(where?.sql).toContain('"jobs"."type" = $1');
     expect(where?.sql).toContain('"jobs"."status" in ($2, $3)');
     expect(query.limit).toBe(1);
 
-    expect(prisma.job.create).toHaveBeenCalledWith({
-      data: { type: 'transmission_sync', payload: { trigger: 'scheduled' } },
-      select: { created_at: true },
-    });
+    expect(store.jobs).toHaveLength(1);
+    expect(store.jobs[0].type).toBe('transmission_sync');
+    expect(store.jobs[0].payload).toEqual({ trigger: 'scheduled' });
+    expect(store.jobs[0].status).toBe('pending');
+    expect(enqueued.createdAt).toBe(new Date(store.jobs[0].created_at as Date).toISOString());
   });
 
   it('skips when a sync job is already pending or processing', async () => {
-    queueOutstanding([{ id: 9, status: 'processing', created_at: createdAt }]);
+    store.jobs.push({
+      id: 9,
+      type: 'transmission_sync',
+      payload: { trigger: 'scheduled' },
+      status: 'processing',
+      attempts: 0,
+      max_attempts: 3,
+      error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      completed_at: null,
+    });
 
     const enqueued = await enqueueTransmissionSync();
 
     expect(enqueued).toEqual({ queued: false, status: 'processing', createdAt: createdAt.toISOString() });
-    expect(prisma.job.create).not.toHaveBeenCalled();
+    expect(insertedJobs()).toHaveLength(0);
   });
 
   it('upgrades an outstanding pending scheduled job to manual', async () => {
-    queueOutstanding([{
+    store.jobs.push({
       id: 12,
-      status: 'pending',
-      created_at: createdAt,
+      type: 'transmission_sync',
       payload: { trigger: 'scheduled' },
-    }]);
-    (prisma.job.update as jest.Mock).mockResolvedValue({ id: 12 });
+      status: 'pending',
+      attempts: 0,
+      max_attempts: 3,
+      error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      completed_at: null,
+    });
 
     const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
 
     expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
-    expect(prisma.job.update).toHaveBeenCalledWith({
-      where: { id: 12 },
-      data: { payload: { trigger: 'manual' } },
-    });
-    expect(prisma.job.create).not.toHaveBeenCalled();
+    expect(store.jobs[0].payload).toEqual({ trigger: 'manual' });
+    const [update] = store.writes.filter((write) => write.op === 'update');
+    expect(update.values).toEqual({ payload: { trigger: 'manual' }, updatedAt: expect.any(Date) });
+    expect(renderSql(update.where)?.params).toEqual([12]);
+    expect(insertedJobs()).toHaveLength(0);
   });
 
   it('does not upgrade an outstanding processing job', async () => {
-    queueOutstanding([{
+    store.jobs.push({
       id: 13,
-      status: 'processing',
-      created_at: createdAt,
+      type: 'transmission_sync',
       payload: { trigger: 'scheduled' },
-    }]);
+      status: 'processing',
+      attempts: 0,
+      max_attempts: 3,
+      error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      completed_at: null,
+    });
 
     const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
 
     expect(enqueued).toEqual({ queued: false, status: 'processing', createdAt: createdAt.toISOString() });
-    expect(prisma.job.update).not.toHaveBeenCalled();
-    expect(prisma.job.create).not.toHaveBeenCalled();
+    expect(store.writes).toHaveLength(0);
+    expect(store.jobs[0].payload).toEqual({ trigger: 'scheduled' });
   });
 
   it('stores a scheduled trigger in the job payload by default', async () => {
-    queueOutstanding([]);
-    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 10, created_at: createdAt });
-
     await enqueueTransmissionSync({ trigger: 'scheduled' });
 
-    expect(prisma.job.create).toHaveBeenCalledWith({
-      data: { type: 'transmission_sync', payload: { trigger: 'scheduled' } },
-      select: { created_at: true },
-    });
+    expect(store.jobs[0].payload).toEqual({ trigger: 'scheduled' });
   });
 
   it('stores a manual trigger in the job payload', async () => {
-    queueOutstanding([]);
-    (prisma.job.create as jest.Mock).mockResolvedValue({ id: 11, created_at: createdAt });
-
     await enqueueTransmissionSync({ trigger: 'manual' });
 
-    expect(prisma.job.create).toHaveBeenCalledWith({
-      data: { type: 'transmission_sync', payload: { trigger: 'manual' } },
-      select: { created_at: true },
-    });
+    expect(store.jobs[0].payload).toEqual({ trigger: 'manual' });
   });
 
   it('reports queued:false when a concurrent enqueue wins the unique-index race', async () => {
-    queueOutstanding([]);
-    queueOutstanding([{
+    store.jobs.push({
       id: 21,
-      status: 'pending',
-      created_at: createdAt,
+      type: 'transmission_sync',
       payload: { trigger: 'scheduled' },
-    }]);
-    (prisma.job.create as jest.Mock).mockRejectedValue(
-      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
-    );
+      status: 'pending',
+      attempts: 0,
+      max_attempts: 3,
+      error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      completed_at: null,
+    });
+    // Postgres' unique-violation SQLSTATE for the singleton index.
+    store.failNextWrite(Object.assign(new Error('duplicate key value'), { code: '23505' }));
 
     const enqueued = await enqueueTransmissionSync();
 
     expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
-    expect(prisma.job.create).toHaveBeenCalledTimes(1);
-    expect(outstandingQueries).toHaveLength(2);
+    expect(store.selects).toHaveLength(1);
+    expect(store.jobs).toHaveLength(1);
   });
 
   it('upgrades a race-winning scheduled job to manual', async () => {
-    queueOutstanding([]);
-    queueOutstanding([{
-      id: 22,
-      status: 'pending',
-      created_at: createdAt,
+    // The winner's insert lands between our find and our insert: our insert
+    // dies with a unique violation, and we upgrade the winner to manual.
+    store.raceNextInsert({
+      type: 'transmission_sync',
       payload: { trigger: 'scheduled' },
-    }]);
-    (prisma.job.create as jest.Mock).mockRejectedValue(
-      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
-    );
-    (prisma.job.update as jest.Mock).mockResolvedValue({ id: 22 });
+      status: 'pending',
+    });
 
     const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
 
-    expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
-    expect(prisma.job.update).toHaveBeenCalledWith({
-      where: { id: 22 },
-      data: { payload: { trigger: 'manual' } },
-    });
+    expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: expect.any(String) });
+    expect(store.jobs).toHaveLength(1);
+    expect(store.jobs[0].payload).toEqual({ trigger: 'manual' });
   });
 
   it('retries the insert when the race winner finished before it could be read', async () => {
-    queueOutstanding([]);
-    queueOutstanding([]);
-    (prisma.job.create as jest.Mock)
-      .mockRejectedValueOnce(Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }))
-      .mockResolvedValueOnce({ id: 23, created_at: createdAt });
+    store.failNextWrite(Object.assign(new Error('duplicate key value'), { code: '23505' }));
 
     const enqueued = await enqueueTransmissionSync();
 
-    expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: createdAt.toISOString() });
-    expect(prisma.job.create).toHaveBeenCalledTimes(2);
+    expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: expect.any(String) });
+    // Two reads: the fast path found the slot free, then the loser re-checked.
+    expect(store.selects).toHaveLength(2);
+    expect(store.jobs).toHaveLength(1);
   });
 
   it('rethrows non-unique-violation create failures', async () => {
-    queueOutstanding([]);
     const failure = new Error('connection refused');
-    (prisma.job.create as jest.Mock).mockRejectedValue(failure);
+    store.failNextWrite(failure);
 
     await expect(enqueueTransmissionSync()).rejects.toThrow('connection refused');
-    expect(prisma.job.create).toHaveBeenCalledTimes(1);
+    expect(store.jobs).toHaveLength(0);
+    expect(store.selects).toHaveLength(1);
   });
 });

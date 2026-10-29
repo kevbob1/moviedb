@@ -2,7 +2,7 @@ import { requestService } from '@/lib/request-lifecycle';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
 import { createTransmissionSync, TransmissionSyncDependencies } from '../transmission-sync';
 
-jest.mock('@/lib/prisma', () => ({ prisma: {} }));
+jest.mock('../../../../drizzle/db', () => ({ db: {} }));
 jest.mock('@/lib/request-lifecycle', () => ({
   requestService: {
     downloadingRequestsWithHashes: jest.fn(),

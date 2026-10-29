@@ -1,4 +1,3 @@
-import { PrismaClient } from '@/generated/prisma/client';
 import { TmdbClient } from '@/lib/tmdb';
 import { db as drizzleDb, type Db } from '../../../drizzle/db';
 
@@ -18,6 +17,7 @@ import {
   createRequestJobSyncReads,
   createRequestReads,
   RequestJobSyncReads,
+  RequestJobSyncReadsDeps,
   RequestReads,
   RequestReadsDeps,
 } from './queries';
@@ -42,9 +42,7 @@ export type { EnqueueJob } from './lifecycle';
  * this is the union shape callers pass to `createRequestService`.
  */
 export interface RequestServiceDeps {
-  /** Write client (Prisma remains the write path in Phase 2a). */
-  prisma: PrismaClient;
-  /** Read client; defaults to the Drizzle singleton. */
+  /** Drizzle client; defaults to the shared singleton. Serves reads and writes. */
   db?: Db;
   enqueueJob: EnqueueJob;
   now?: () => Date;
@@ -69,24 +67,20 @@ export type RequestService = RequestLifecycle & RequestIntake & RequestJobSync &
  * are joined, so the singleton returned by `index.ts` still exposes every verb.
  */
 export function createRequestService({
-  prisma,
   db = drizzleDb,
   enqueueJob,
   now = () => new Date(),
   tmdb,
 }: RequestServiceDeps): RequestService {
-  const lifecycleDeps: RequestLifecycleDeps = { prisma, now };
-  const intakeDeps: RequestIntakeDeps = { prisma, enqueueJob, tmdb };
-  const jobSyncWriteDeps: RequestJobSyncDeps = { prisma, now };
+  const lifecycleDeps: RequestLifecycleDeps = { db, now };
+  const intakeDeps: RequestIntakeDeps = { db, enqueueJob, tmdb };
+  const jobSyncWriteDeps: RequestJobSyncDeps = { db, now };
   const readsDeps: RequestReadsDeps = { db };
+  const jobSyncReadsDeps: RequestJobSyncReadsDeps = { db, now };
 
   const lifecycle: RequestLifecycle = createRequestLifecycle(lifecycleDeps);
   const intake: RequestIntake = createRequestIntake(intakeDeps);
-  const jobSyncReads: RequestJobSyncReads = createRequestJobSyncReads({
-    db,
-    prisma,
-    now,
-  });
+  const jobSyncReads: RequestJobSyncReads = createRequestJobSyncReads(jobSyncReadsDeps);
   const jobSync: RequestJobSync = {
     ...createRequestJobSyncWrites(jobSyncWriteDeps),
     ...jobSyncReads,

@@ -1,17 +1,14 @@
+import {
+  makeFakeDrizzle,
+  makeInMemoryDrizzle,
+  renderSql,
+} from '../../../test-support/fake-drizzle';
+import { fixedNow, makeService } from '../../../test-support/request-service-fake';
 import { createRequestService } from '../repository';
 
-import { makeFakeDrizzle, renderSql } from '../../../test-support/fake-drizzle';
-import {
-  asPrisma,
-  fixedNow,
-  makeFakePrisma,
-  makeService,
-} from './fake-prisma';
-
-/** Reads go through Drizzle now; writes still go through the Prisma fake. */
+/** Reads expose a recording seam, so they take the scripted fake. */
 const makeReadService = (fake: ReturnType<typeof makeFakeDrizzle>) =>
   createRequestService({
-    prisma: asPrisma(makeFakePrisma()),
     db: fake.db,
     enqueueJob: jest.fn(),
     now: fixedNow,
@@ -23,16 +20,9 @@ describe('request-lifecycle/jobsync', () => {
   });
 
   describe('applySyncDecisions', () => {
-    const makeJobService = (fake: ReturnType<typeof makeFakePrisma>) =>
-      createRequestService({
-        prisma: asPrisma(fake),
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
-
     it('applies a fulfilled decision with the full resolution column set', async () => {
-      const fake = makeFakePrisma();
-      const service = makeJobService(fake);
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -42,25 +32,25 @@ describe('request-lifecycle/jobsync', () => {
         mediaType: 'movie',
       });
       await service.downloadRequest(1);
-      fake.rows[0].torrent_problem = 'prior problem';
-      fake.rows[0].suggestion_hash = 'old-hash';
-      fake.rows[0].suggestion_score = 0.95;
-      fake.rows[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
+      fake.store.requests[0].torrent_problem = 'prior problem';
+      fake.store.requests[0].suggestion_hash = 'old-hash';
+      fake.store.requests[0].suggestion_score = 0.95;
+      fake.store.requests[0].suggestion_computed_at = new Date('2026-01-01T00:00:00Z');
 
       const result = await service.applySyncDecisions([{ requestId: 1, outcome: 'fulfilled' }]);
 
       expect(result).toEqual({ applied: [1], skipped: 0 });
-      expect(fake.rows[0].status).toBe('fulfilled');
-      expect(fake.rows[0].torrent_problem).toBeNull();
-      expect(fake.rows[0].resolved_at?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
-      expect(fake.rows[0].suggestion_hash).toBeNull();
-      expect(fake.rows[0].suggestion_score).toBeNull();
-      expect(fake.rows[0].suggestion_computed_at).toBeNull();
+      expect(fake.store.requests[0].status).toBe('fulfilled');
+      expect(fake.store.requests[0].torrent_problem).toBeNull();
+      expect((fake.store.requests[0].resolved_at as Date | null)?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
+      expect(fake.store.requests[0].suggestion_hash).toBeNull();
+      expect(fake.store.requests[0].suggestion_score).toBeNull();
+      expect(fake.store.requests[0].suggestion_computed_at).toBeNull();
     });
 
     it('applies a problem decision stamping torrent_problem only', async () => {
-      const fake = makeFakePrisma();
-      const service = makeJobService(fake);
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -76,14 +66,14 @@ describe('request-lifecycle/jobsync', () => {
       ]);
 
       expect(result).toEqual({ applied: [], skipped: 0 });
-      expect(fake.rows[0].torrent_problem).toBe('Transmission error: disk full');
-      expect(fake.rows[0].status).toBe('downloading');
-      expect(fake.rows[0].resolved_at).toBeNull();
+      expect(fake.store.requests[0].torrent_problem).toBe('Transmission error: disk full');
+      expect(fake.store.requests[0].status).toBe('downloading');
+      expect(fake.store.requests[0].resolved_at).toBeNull();
     });
 
     it('skips a verdict for a request that is gone and keeps the rest of the batch', async () => {
-      const fake = makeFakePrisma();
-      const service = makeJobService(fake);
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -100,13 +90,13 @@ describe('request-lifecycle/jobsync', () => {
       ]);
 
       expect(result).toEqual({ applied: [1], skipped: 1 });
-      expect(fake.rows[0].status).toBe('fulfilled');
-      expect(fake.rows[0].resolved_at?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
+      expect(fake.store.requests[0].status).toBe('fulfilled');
+      expect((fake.store.requests[0].resolved_at as Date | null)?.toISOString()).toBe('2026-06-15T12:00:00.000Z');
     });
 
     it('skips a fulfilled verdict for a request the operator already fulfilled', async () => {
-      const fake = makeFakePrisma();
-      const service = makeJobService(fake);
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -116,18 +106,18 @@ describe('request-lifecycle/jobsync', () => {
         mediaType: 'movie',
       });
       await service.fulfillRequest(1);
-      const resolvedAt = fake.rows[0].resolved_at;
+      const resolvedAt = fake.store.requests[0].resolved_at;
 
       const result = await service.applySyncDecisions([{ requestId: 1, outcome: 'fulfilled' }]);
 
       expect(result).toEqual({ applied: [], skipped: 1 });
-      expect(fake.rows[0].status).toBe('fulfilled');
-      expect(fake.rows[0].resolved_at).toEqual(resolvedAt);
+      expect(fake.store.requests[0].status).toBe('fulfilled');
+      expect(fake.store.requests[0].resolved_at).toEqual(resolvedAt);
     });
 
     it('skips a problem verdict for a request deleted before the batch ran', async () => {
-      const fake = makeFakePrisma();
-      const service = makeJobService(fake);
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
 
       await service.createRequest({
         tmdbId: 1,
@@ -143,16 +133,51 @@ describe('request-lifecycle/jobsync', () => {
       ]);
 
       expect(result).toEqual({ applied: [], skipped: 1 });
-      expect(fake.rows[0].torrent_problem).toBe('Transmission error: disk full');
+      expect(fake.store.requests[0].torrent_problem).toBe('Transmission error: disk full');
     });
 
     it('reports nothing applied when there is no verdict to apply', async () => {
-      const fake = makeFakePrisma();
-      const service = makeJobService(fake);
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
 
       await expect(service.applySyncDecisions([])).resolves.toEqual({ applied: [], skipped: 0 });
-      expect(fake.request.update).not.toHaveBeenCalled();
-      expect(fake.request.updateMany).not.toHaveBeenCalled();
+      expect(fake.store.writes).toHaveLength(0);
+      expect(fake.store.transactions).toBe(0);
+    });
+
+    it('rolls the whole batch back when one decision fails', async () => {
+      const fake = makeInMemoryDrizzle();
+      const { service } = makeService(fake);
+
+      await service.createRequest({
+        tmdbId: 1,
+        title: 'Test',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.createRequest({
+        tmdbId: 2,
+        title: 'Another',
+        posterPath: null,
+        requestedBy: 'Alice',
+        mediaType: 'movie',
+      });
+      await service.downloadRequest(1);
+      await service.downloadRequest(2);
+
+      // First verdict writes, the second one fails: the batch is atomic, so the
+      // first must not survive.
+      fake.store.failNextWrite(new Error('boom'));
+      await expect(
+        service.applySyncDecisions([
+          { requestId: 1, outcome: 'fulfilled' },
+          { requestId: 2, outcome: 'fulfilled' },
+        ]),
+      ).rejects.toThrow('boom');
+
+      expect(fake.store.requests[0].status).toBe('downloading');
+      expect(fake.store.requests[1].status).toBe('downloading');
     });
   });
 
@@ -239,7 +264,7 @@ describe('request-lifecycle/jobsync', () => {
 
   describe('recordSuggestionBatch', () => {
     it('writes suggestion columns for a present suggestion, stamped from the injected now', async () => {
-      const fake = makeFakePrisma();
+      const fake = makeInMemoryDrizzle();
       const { service } = makeService(fake);
       const request = await service.createRequest({
         tmdbId: 42,
@@ -253,13 +278,13 @@ describe('request-lifecycle/jobsync', () => {
         { requestId: request.id, suggestion: { hash: 'suggested-hash', score: 0.85 } },
       ]);
 
-      expect(fake.rows[0].suggestion_hash).toBe('suggested-hash');
-      expect(fake.rows[0].suggestion_score).toBe(0.85);
-      expect(fake.rows[0].suggestion_computed_at).toEqual(fixedNow());
+      expect(fake.store.requests[0].suggestion_hash).toBe('suggested-hash');
+      expect(fake.store.requests[0].suggestion_score).toBe(0.85);
+      expect(fake.store.requests[0].suggestion_computed_at).toEqual(fixedNow());
     });
 
     it('clears suggestion hash and score when no suggestion matched', async () => {
-      const fake = makeFakePrisma();
+      const fake = makeInMemoryDrizzle();
       const { service } = makeService(fake);
       const request = await service.createRequest({
         tmdbId: 42,
@@ -268,14 +293,14 @@ describe('request-lifecycle/jobsync', () => {
         requestedBy: 'tester',
         mediaType: 'movie',
       });
-      fake.rows[0].suggestion_hash = 'old-hash';
-      fake.rows[0].suggestion_score = 0.4;
+      fake.store.requests[0].suggestion_hash = 'old-hash';
+      fake.store.requests[0].suggestion_score = 0.4;
 
       await service.recordSuggestionBatch([{ requestId: request.id, suggestion: null }]);
 
-      expect(fake.rows[0].suggestion_hash).toBeNull();
-      expect(fake.rows[0].suggestion_score).toBeNull();
-      expect(fake.rows[0].suggestion_computed_at).toEqual(fixedNow());
+      expect(fake.store.requests[0].suggestion_hash).toBeNull();
+      expect(fake.store.requests[0].suggestion_score).toBeNull();
+      expect(fake.store.requests[0].suggestion_computed_at).toEqual(fixedNow());
     });
   });
 
@@ -304,26 +329,26 @@ describe('request-lifecycle/jobsync', () => {
 
   describe('autoLinkBatch', () => {
     it('links a pending request through the FSM side-effects and returns the id', async () => {
-      const fake = makeFakePrisma();
+      const fake = makeInMemoryDrizzle();
       const { service } = makeService(fake);
       await service.createRequest({ tmdbId: 1, title: 'Dune', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
-      fake.rows[0].suggestion_hash = 'old-hash';
-      fake.rows[0].suggestion_score = 0.5;
-      fake.rows[0].torrent_problem = 'stale problem';
+      fake.store.requests[0].suggestion_hash = 'old-hash';
+      fake.store.requests[0].suggestion_score = 0.5;
+      fake.store.requests[0].torrent_problem = 'stale problem';
 
       const linked = await service.autoLinkBatch([{ requestId: 1, torrentHash: 'h1' }]);
 
       expect(linked).toEqual([1]);
-      expect(fake.rows[0].status).toBe('downloading');
-      expect(fake.rows[0].torrent_hash).toBe('h1');
-      expect(fake.rows[0].torrent_problem).toBeNull();
-      expect(fake.rows[0].suggestion_hash).toBeNull();
-      expect(fake.rows[0].suggestion_score).toBeNull();
-      expect(fake.rows[0].suggestion_computed_at).toBeNull();
+      expect(fake.store.requests[0].status).toBe('downloading');
+      expect(fake.store.requests[0].torrent_hash).toBe('h1');
+      expect(fake.store.requests[0].torrent_problem).toBeNull();
+      expect(fake.store.requests[0].suggestion_hash).toBeNull();
+      expect(fake.store.requests[0].suggestion_score).toBeNull();
+      expect(fake.store.requests[0].suggestion_computed_at).toBeNull();
     });
 
     it('skips requests that are no longer pending without aborting the batch', async () => {
-      const fake = makeFakePrisma();
+      const fake = makeInMemoryDrizzle();
       const { service } = makeService(fake);
       await service.createRequest({ tmdbId: 1, title: 'A film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
       await service.createRequest({ tmdbId: 2, title: 'Another film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
@@ -335,16 +360,16 @@ describe('request-lifecycle/jobsync', () => {
       ]);
 
       expect(linked).toEqual([1]);
-      expect(fake.rows[0].torrent_hash).toBe('h1');
-      expect(fake.rows[1].torrent_hash).toBeNull();
+      expect(fake.store.requests[0].torrent_hash).toBe('h1');
+      expect(fake.store.requests[1].torrent_hash).toBeNull();
     });
 
     it('is a no-op for an empty batch', async () => {
-      const fake = makeFakePrisma();
+      const fake = makeInMemoryDrizzle();
       const { service } = makeService(fake);
 
       expect(await service.autoLinkBatch([])).toEqual([]);
-      expect(fake.$transaction).not.toHaveBeenCalled();
+      expect(fake.store.transactions).toBe(0);
     });
   });
 
@@ -386,22 +411,30 @@ describe('request-lifecycle/jobsync', () => {
 
   describe('retireResolved', () => {
     it('deletes fulfilled requests resolved before the retention cutoff', async () => {
-      const deleteManyMock = jest.fn().mockResolvedValue({ count: 4 });
-      const service = createRequestService({
-        prisma: { request: { deleteMany: deleteManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
+      const fake = makeInMemoryDrizzle({
+        requests: [
+          { status: 'fulfilled', resolvedAt: new Date('2026-06-01T12:00:00Z') },
+          { status: 'fulfilled', resolvedAt: new Date('2026-06-07T12:00:00Z') },
+          { status: 'fulfilled', resolvedAt: new Date('2026-06-12T12:00:00Z') },
+          { status: 'pending', resolvedAt: null },
+        ],
       });
+      const { service } = makeService(fake);
 
       const deleted = await service.retireResolved(7);
 
-      expect(deleted).toBe(4);
-      expect(deleteManyMock).toHaveBeenCalledTimes(1);
-      const callArgs = deleteManyMock.mock.calls[0][0];
-      expect(callArgs.where.status).toBe('fulfilled');
-      expect(callArgs.where.resolved_at).toHaveProperty('lt');
-      expect(callArgs.where.resolved_at.lt).toBeInstanceOf(Date);
-      expect(callArgs.where.resolved_at.lt.toISOString()).toBe('2026-06-08T12:00:00.000Z');
+      expect(deleted).toBe(2);
+      expect(fake.store.requests).toHaveLength(2);
+      const rendered = renderSql(
+        fake.store.writes.find((write) => write.op === 'delete')?.where,
+      );
+      expect(rendered?.params).toEqual([
+        'fulfilled',
+        // timestamp columns bind as ISO strings on the wire
+        '2026-06-08T12:00:00.000Z',
+      ]);
+      expect(rendered?.sql).toContain('"requests"."status" = $1');
+      expect(rendered?.sql).toContain('"requests"."resolved_at" < $2');
     });
   });
 });
