@@ -9,10 +9,10 @@
 
 ## Validation & Quality Checks
 
-**Always run validation checks before completing any changes.**
+**Run validation before completing any change to app code or dependencies.** (Tree byte-identical to the last green run counts as validated — cite that log instead of re-running.)
 
 ### Why validation matters
-Running validation checks offlines prevents:
+Running validation checks prevents:
 - **Under-the-hood bugs** caught by TypeScript builds
 - **Component errors** missed by linter
 - **Runtime crashes** from missing React directives
@@ -20,14 +20,14 @@ Running validation checks offlines prevents:
 
 ### Commands to run
 
-Validation is authoritative only when run inside the compose `web` container. Start the stack with `make dev` when it is not already running, then run:
+Validation is authoritative only inside the compose `web` container. `docker compose ps` (read-only) tells you if the stack is up; start it with `make dev` when needed, then run:
 
-**Pre-commit validation (run always before committing):**
+**Pre-commit validation:**
 ```bash
 make dev-exec npm run check
 ```
 
-Do not run `npm test`, `npm run build`, or any other Node/TypeScript validation command directly on the host. Host-side results are not valid validation for this repository and must not be reported as the validation result.
+Report only container results. Host-side `npm`, `npx`, `node`, `tsc`, `prisma`, `jest`, or `eslint` runs are expected to fail here — host Node drifts, host `DATABASE_URL` is wrong, and the dev image's `node_modules` lives in a container volume, not on host — so a host result is never signal and must not be reported as validation. If a host `node_modules/` directory exists, ignore it; never create or use one.
 
 This runs all checks in order:
 1. `db:generate-client` - Regenerate Prisma client
@@ -37,6 +37,18 @@ This runs all checks in order:
 5. `build` - Full Next.js production build
 
 **If any command fails inside the container, fix the issues before committing.** Report the exact `make dev-exec ...` command used and its result.
+
+### Acceptance checks for delegated work
+
+Verify delegated work with `make dev-exec npm run check` in-container. Never accept host-executed test/build/typecheck output as evidence for or against a change: those commands fail on host by design (see above), so a host failure is not a regression and must not block completion.
+
+For acceptance harnesses that can only run `npm`/`npx`/`node` commands on the host, use the `verify` forwarder script. It boots the compose stack if needed and runs the full check **inside** the `web` container, then prints a stable token:
+
+```
+check: run command="npm run verify" expect=VERIFY_OK
+```
+
+`npm run verify` is a forwarder only — it shells out to `make`, so no host `node_modules` is used and host Node drift is irrelevant. It is inert unless invoked; production Docker builds still run `npm run build`. Prefer it over host-executed checks, and still express delegation acceptance as plain-language criteria plus deliverables where a harness is not involved.
 
 ## Agent skills
 
@@ -104,9 +116,9 @@ If execution is canceled during Docker image export, rerun `./deploy.sh` with th
 
 ## Development Environment
 
-App code, tests, Prisma, and any operation that runs Node/TS or installs dependencies **MUST** run inside the docker compose `web` container. Never run `npm`, `npx`, `node`, `tsc`, `prisma`, `jest`, or `eslint` directly on the host — host Node drifts, host `DATABASE_URL` points at the compose `postgres` service (not a local DB), and the dev image's `node_modules` lives in an anonymous volume (not on host).
+App code, tests, Prisma, and any operation that runs Node/TS or installs dependencies run inside the compose `web` container — the Validation section above is the single source of truth for this rule.
 
-The Makefile + `compose.yaml` are the entry point. Never invoke `docker compose` directly for app code — go through `make`.
+The Makefile + `compose.yaml` are the entry point. Never invoke `docker compose` directly for app code — go through `make`. Read-only status checks (`docker compose ps`) are fine.
 
 **Long-running tasks** — start the stack first:
 
@@ -119,7 +131,7 @@ make dev-reset      # stop, drop pg-data volume
 make dev-rebuild    # rebuild dev images from scratch
 ```
 
-**One-shot commands** — `make dev-exec <cmd>` runs `<cmd>` inside the web container. Stack must be up.
+**One-shot commands** — `make dev-exec <cmd>` runs `<cmd>` inside the web container. Stack must be up. When the inner command takes its own flags, separate with `--` (`make dev-exec -- npm install --save-dev <pkg>`); without `--`, make swallows them.
 
 ```bash
 make dev-exec npm test                             # Jest
