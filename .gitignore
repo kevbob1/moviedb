@@ -79,7 +79,6 @@ yarn-error.log*
 tsconfig.tsbuildinfo
 next-env.d.ts
 .superpowers/
-src/generated/prisma/
 .worktrees/
 
 # Compiled migration script

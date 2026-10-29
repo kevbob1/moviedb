@@ -9,8 +9,8 @@ FROM base AS development
 ARG DEV_UID=1000
 ARG DEV_GID=1000
 WORKDIR /app
-COPY prisma ./prisma
-COPY prisma.config.ts ./
+COPY scripts ./scripts
+COPY src/lib/logger.ts ./src/lib/logger.ts
 COPY package.json package-lock.json ./
 RUN set -eu; \
     if getent group "$DEV_GID" >/dev/null; then \
@@ -27,6 +27,9 @@ RUN set -eu; \
 USER ${DEV_UID}:${DEV_GID}
 ENV HOME=/app
 RUN npm install
+# Compile the migration script so `node scripts/migrate.js` works in dev too
+# (same recipe as the builder stage below)
+RUN npx tsc scripts/migrate.ts --outDir . --esModuleInterop --module esnext --target es2020 --resolveJsonModule --ignoreConfig --skipLibCheck
 ENV PATH=/app/node_modules/.bin:$PATH
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
@@ -47,14 +50,8 @@ RUN npm ci --ignore-scripts
 FROM base AS builder
 WORKDIR /app
 
-# Set a placeholder DATABASE_URL for build time
-ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Generate Prisma client
-RUN npm run db:generate-client
 
 # Build Next.js (standalone output)
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -90,16 +87,16 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema and generated client
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
+# Copy Drizzle schema, migrations and config (migration authority)
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 
 # Copy compiled migration script and its local dependency
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.js ./scripts/migrate.js
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/logger.js ./src/lib/logger.js
 
-# Copy full node_modules for prisma migrate deploy (transitive deps too deep to enumerate)
+# Copy full node_modules for `node scripts/migrate.js` (drizzle-orm, pg, pino;
+# transitive deps too deep to enumerate)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs

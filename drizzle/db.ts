@@ -3,9 +3,9 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 /**
- * Drizzle client over node-postgres, mirroring src/lib/prisma.ts:
- * the connection pool is created once at module load and cached on globalThis
- * outside production so Next.js hot reload does not leak connections.
+ * Drizzle client over node-postgres: the connection pool is created once at
+ * module load and cached on globalThis outside production so Next.js hot
+ * reload does not leak connections.
  */
 const globalForDrizzle = globalThis as unknown as {
   drizzlePool: Pool | undefined;

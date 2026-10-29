@@ -25,18 +25,17 @@ services:
       args:
         DEV_UID: "${UID:-1000}"
         DEV_GID: "${GID:-1000}"
-    command: ["npx", "prisma", "migrate", "deploy"]
+    command: ["node", "scripts/migrate.js"]
     env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - ./src:/app/src:rw
-      - ./prisma:/app/prisma:rw
+      - ./drizzle:/app/drizzle:rw
+      - ./drizzle.config.ts:/app/drizzle.config.ts:ro
       - ./package.json:/app/package.json:ro
       - ./package-lock.json:/app/package-lock.json:ro
       - ./tsconfig.json:/app/tsconfig.json:ro
-      - ./prisma.config.ts:/app/prisma.config.ts:ro
     restart: "no"
 
   web:
@@ -58,13 +57,11 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./src:/app/src:rw
-      - ./prisma:/app/prisma:rw
       - ./public:/app/public:ro
       - ./package.json:/app/package.json:rw
       - ./package-lock.json:/app/package-lock.json:rw
       - ./tsconfig.json:/app/tsconfig.json:rw
       - ./tsconfig.test.json:/app/tsconfig.test.json:rw
-      - ./prisma.config.ts:/app/prisma.config.ts:rw
       - ./drizzle:/app/drizzle:rw
       - ./drizzle.config.ts:/app/drizzle.config.ts:rw
       - ./next.config.ts:/app/next.config.ts:rw

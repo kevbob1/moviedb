@@ -7,7 +7,6 @@ const config: Config = {
   clearMocks: true,
   collectCoverageFrom: [
     "src/lib/**/*.ts",
-    "!src/lib/prisma.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

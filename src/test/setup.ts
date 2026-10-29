@@ -30,16 +30,3 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
   revalidateTag: jest.fn(),
 }));
-
-jest.mock('../lib/prisma', () => ({
-  prisma: {
-    movie: {
-      deleteMany: jest.fn().mockResolvedValue(undefined),
-      delete: jest.fn(),
-      create: jest.fn(),
-      findUnique: jest.fn(),
-    },
-    $queryRaw: jest.fn(),
-    $disconnect: jest.fn().mockResolvedValue(undefined),
-  },
-}));

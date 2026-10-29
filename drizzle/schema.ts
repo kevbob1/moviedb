@@ -12,17 +12,16 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Drizzle mirror of prisma/schema.prisma (Request + Job).
- *
- * Phase 1 of the Prisma -> Drizzle strangler: additive only. Prisma remains the
- * migration authority; this schema must stay 1:1 with the live database so a
- * future `drizzle-kit generate` against an empty baseline stays a no-op.
+ * Drizzle schema for Request + Job — the migration authority since Phase 4 of
+ * the Prisma -> Drizzle strangler. `drizzle-kit generate` diffs this file
+ * against drizzle/migrations/meta and emits the next migration.
  *
  * Notes:
  * - status/media_type/job.type stay `text` (no pg enums) to match Prisma's String.
  * - timestamps are `timestamp(3)` without time zone, matching Prisma's DateTime.
- * - `jobs_singleton_live_type_key` is a partial unique index that Prisma cannot
- *   express in its datamodel (migration 20261020050000), hence raw `sql` here.
+ * - `jobs_singleton_live_type_key` is a partial unique index the old Prisma
+ *   datamodel could not express (historical migration 20261020050000), hence
+ *   raw `sql` here.
  */
 
 /** status: pending | downloading | fulfilled (see RequestStatus in src/lib/request-lifecycle/fsm.ts) */
@@ -64,7 +63,7 @@ export const jobs = pgTable(
     payload: jsonb("payload").notNull(),
     status: text("status").notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
-    // Prisma has no @map here: the live column really is camelCase "maxAttempts".
+    // No column mapping: the live column really is camelCase "maxAttempts".
     maxAttempts: integer("maxAttempts").notNull().default(3),
     error: text("error"),
     createdAt: timestamp("created_at", { precision: 3 }).notNull().defaultNow(),
@@ -76,8 +75,6 @@ export const jobs = pgTable(
     index("jobs_status_created_at_idx").on(table.status, table.createdAt),
     // Concurrency guard for singleton job types: partial unique index on (type)
     // WHERE type = 'transmission_sync' AND status IN ('pending','processing').
-    // Prisma cannot express partial indexes, so migration
-    // 20261020050000_add_job_singleton_unique_index owns it there.
     uniqueIndex("jobs_singleton_live_type_key")
       .on(table.type)
       .where(

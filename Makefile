@@ -33,7 +33,7 @@ dev-reset:   ## Stop stack, drop pg-data volume (fresh DB)
 #   make dev-exec npm test                 # run Jest
 #   make dev-exec npm run check            # full validation
 #   make dev-exec npm install motion        # add a dep
-#   make dev-exec npx prisma migrate dev   # Prisma ops
+#   make dev-exec npx drizzle-kit generate  # migration ops
 dev-exec:    ## Run a command in the web container (or shell if no args). Stack must be up.
 	@args="$(filter-out $@,$(MAKECMDGOALS))"; \
 	if [ -z "$$args" ]; then \

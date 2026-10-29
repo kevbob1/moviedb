@@ -1,2 +1,0 @@
--- This migration is now a no-op since init migration creates the complete table.
--- Keeping file for migration history integrity.

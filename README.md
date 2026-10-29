@@ -5,7 +5,7 @@ A Next.js application with PostgreSQL.
 ## Tech Stack
 
 - **Framework**: Next.js 16 + React 19
-- **Database**: PostgreSQL 18.4 + Prisma 5
+- **Database**: PostgreSQL 18.6 + Drizzle ORM
 - **Language**: TypeScript
 
 ## Prerequisites
@@ -16,7 +16,7 @@ A Next.js application with PostgreSQL.
 
 ### Using Make + Compose
 
-This project uses a top-level `Makefile` + `compose.yaml` for a consistent dev environment. The stack runs three services: `web` (Next.js), `postgres`, and `migrate` (one-shot Prisma deploy).
+This project uses a top-level `Makefile` + `compose.yaml` for a consistent dev environment. The stack runs three services: `web` (Next.js), `postgres`, and `migrate` (one-shot Drizzle migration, `node scripts/migrate.js`).
 
 1.  **Start the dev stack**:
     ```bash
@@ -37,13 +37,13 @@ This project uses a top-level `Makefile` + `compose.yaml` for a consistent dev e
 
 ### Running Commands in the Container
 
-Any operation that runs Node/TS code, Prisma, or installs dependencies **must** run inside the `web` container. Use `make dev-exec` (stack must be up — `make dev` in another shell):
+Any operation that runs Node/TS code, Drizzle, or installs dependencies **must** run inside the `web` container. Use `make dev-exec` (stack must be up — `make dev` in another shell):
 
 ```bash
 make dev-exec npm test                 # run Jest
 make dev-exec npm run check            # full validation
 make dev-exec npm install <package>    # add a dep
-make dev-exec npx prisma migrate dev   # Prisma ops
+make dev-exec npx drizzle-kit generate  # migration ops
 ```
 
 `make dev-exec` with no args drops into an interactive shell inside the web container.
@@ -62,20 +62,20 @@ make dev-status   # show container state
 
 ### Database Management
 
-Use `make dev-exec` to run Prisma CLI commands inside the container:
+Use `make dev-exec` to run migration commands inside the container:
 
 ```bash
-# Apply pending migrations (idempotent)
-make dev-exec c='npm run db:migrate'
+# Apply pending migrations (idempotent; the same path prod uses)
+make dev-exec npm run db:migrate
 
-# Create a new migration (dev)
-make dev-exec c='npm run db:migrate:dev -- --name your_migration_name'
+# Generate a migration from drizzle/schema.ts changes
+make dev-exec npm run db:generate
 
-# Regenerate Prisma client
-make dev-exec c='npm run db:generate-client'
+# Apply generated migrations in dev
+make dev-exec npm run db:migrate:dev
 
-# Open Prisma Studio
-make dev-exec c='npm run db:studio'
+# Browse data with Drizzle Studio
+make dev-exec npx drizzle-kit studio
 ```
 
 Or open a shell (`make dev-exec`) and run npm scripts directly.

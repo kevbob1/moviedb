@@ -27,14 +27,13 @@ Validation is authoritative only inside the compose `web` container. `docker com
 make dev-exec npm run check
 ```
 
-Report only container results. Host-side `npm`, `npx`, `node`, `tsc`, `prisma`, `jest`, or `eslint` runs are expected to fail here — host Node drifts, host `DATABASE_URL` is wrong, and the dev image's `node_modules` lives in a container volume, not on host — so a host result is never signal and must not be reported as validation. If a host `node_modules/` directory exists, ignore it; never create or use one.
+Report only container results. Host-side `npm`, `npx`, `node`, `tsc`, `drizzle-kit`, `jest`, or `eslint` runs are expected to fail here — host Node drifts, host `DATABASE_URL` is wrong, and the dev image's `node_modules` lives in a container volume, not on host — so a host result is never signal and must not be reported as validation. If a host `node_modules/` directory exists, ignore it; never create or use one.
 
 This runs all checks in order:
-1. `db:generate-client` - Regenerate Prisma client
-2. `lint` - ESLint validation (must have 0 warnings)
-3. `test` - Run all tests (must have 0 failures)
-4. `typecheck` - TypeScript compilation check
-5. `build` - Full Next.js production build
+1. `lint` - ESLint validation (must have 0 warnings)
+2. `test` - Run all tests (must have 0 failures)
+3. `typecheck` - TypeScript compilation check
+4. `build` - Full Next.js production build
 
 **If any command fails inside the container, fix the issues before committing.** Report the exact `make dev-exec ...` command used and its result.
 
@@ -116,7 +115,7 @@ If execution is canceled during Docker image export, rerun `./deploy.sh` with th
 
 ## Development Environment
 
-App code, tests, Prisma, and any operation that runs Node/TS or installs dependencies run inside the compose `web` container — the Validation section above is the single source of truth for this rule.
+App code, tests, Drizzle migrations, and any operation that runs Node/TS or installs dependencies run inside the compose `web` container — the Validation section above is the single source of truth for this rule.
 
 The Makefile + `compose.yaml` are the entry point. Never invoke `docker compose` directly for app code — go through `make`. Read-only status checks (`docker compose ps`) are fine.
 
@@ -137,7 +136,7 @@ make dev-rebuild    # rebuild dev images from scratch
 make dev-exec npm test                             # Jest
 make dev-exec npm run check                        # full validation (lint + test + typecheck + build)
 make dev-exec npm install <package>                # add a dep
-make dev-exec npx prisma migrate dev -- --name x   # Prisma ops
+make dev-exec npx drizzle-kit generate             # migration ops
 ```
 
 Run `make help` for the full target list. See `README.md` for setup.

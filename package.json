@@ -15,20 +15,16 @@
     "start": "next start",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:db": "dotenv -e .env.test -- prisma migrate deploy && jest",
-    "postinstall": "prisma generate",
-    "db:generate:migration": "prisma migrate dev --create-only",
-    "db:migrate:dev": "prisma migrate dev",
+    "test:db": "dotenv -e .env.test -- drizzle-kit migrate && jest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:dev": "drizzle-kit migrate",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "check": "npm run db:generate-client && npm run lint && npm run test && npm run typecheck && NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production npm run build",
+    "check": "npm run lint && npm run test && npm run typecheck && NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production npm run build",
     "verify": "make dev >/dev/null 2>&1; make dev-exec npm run check && echo VERIFY_OK",
     "db:migrate": "node scripts/migrate.js",
-    "db:migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
-    "db:migrate:status": "prisma migrate status",
-    "db:generate-client": "prisma generate",
-    "daily-summary": "tsx scripts/daily-summary.ts",
-    "db:studio": "prisma studio"
+    "db:migrate:test": "dotenv -e .env.test -- drizzle-kit migrate",
+    "daily-summary": "tsx scripts/daily-summary.ts"
   },
   "repository": {
     "type": "git",
@@ -41,8 +37,6 @@
   "type": "module",
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "7.10.0",
     "@viren070/parse-torrent-title": "^0.8.8",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
@@ -56,7 +50,6 @@
     "nodemailer": "^10.2.1",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
-    "prisma": "^7.10.0",
     "radix-ui": "^1.6.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -99,9 +92,7 @@
   },
   "allowScripts": {
     "@parcel/watcher@2.6.0": true,
-    "@prisma/engines@7.10.0": true,
     "esbuild@0.28.2": true,
-    "prisma@7.10.0": true,
     "unrs-resolver@1.12.2": true,
     "@swc/core@1.16.13": true
   }

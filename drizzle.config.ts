@@ -1,14 +1,15 @@
 import { defineConfig } from "drizzle-kit";
 
 /**
- * drizzle-kit config for Phase 1 of the Prisma -> Drizzle strangler.
+ * drizzle-kit config for the Prisma -> Drizzle strangler (Phase 4).
  *
- * Prisma (prisma/schema.prisma + prisma/migrations) is still the migration
- * authority; this config exists so `drizzle-kit generate` can prove parity.
- * Nothing in the app imports it.
+ * Drizzle is now the migration authority: `drizzle/migrations` is the source of
+ * truth and `scripts/migrate.ts` (compiled to scripts/migrate.js) applies it
+ * through drizzle-orm's node-postgres migrator. Nothing in the app imports this
+ * file.
  *
- * DATABASE_URL is read from the environment (same variable src/lib/prisma.ts
- * uses) — drizzle-kit does not load .env by itself.
+ * DATABASE_URL is read from the environment (same variable drizzle/db.ts uses)
+ * — drizzle-kit does not load .env by itself.
  */
 export default defineConfig({
   dialect: "postgresql",
