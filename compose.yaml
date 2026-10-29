@@ -65,6 +65,8 @@ services:
       - ./tsconfig.json:/app/tsconfig.json:rw
       - ./tsconfig.test.json:/app/tsconfig.test.json:rw
       - ./prisma.config.ts:/app/prisma.config.ts:rw
+      - ./drizzle:/app/drizzle:rw
+      - ./drizzle.config.ts:/app/drizzle.config.ts:rw
       - ./next.config.ts:/app/next.config.ts:rw
       - ./postcss.config.mjs:/app/postcss.config.mjs:rw
       - ./eslint.config.mjs:/app/eslint.config.mjs:rw
