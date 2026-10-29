@@ -1,3 +1,7 @@
+import { and, eq, inArray } from 'drizzle-orm';
+
+import { db } from '../../../drizzle/db';
+import { jobs } from '../../../drizzle/schema';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { requestService } from '@/lib/request-lifecycle';
@@ -42,11 +46,23 @@ interface OutstandingJob {
 /** Attempts allowed when a unique violation costs us the insert race. */
 const MAX_ENQUEUE_ATTEMPTS = 2;
 
-function findOutstandingSync(): Promise<OutstandingJob | null> {
-  return prisma.job.findFirst({
-    where: { type: JOB_TYPE, status: { in: ['pending', 'processing'] } },
-    select: { id: true, status: true, payload: true, created_at: true },
-  });
+async function findOutstandingSync(): Promise<OutstandingJob | null> {
+  const [row] = await db
+    .select({
+      id: jobs.id,
+      status: jobs.status,
+      payload: jobs.payload,
+      created_at: jobs.createdAt,
+    })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.type, JOB_TYPE),
+        inArray(jobs.status, ['pending', 'processing']),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }
 
 /** Every "not queued" exit funnels through here, including the race loser. */

@@ -1,11 +1,21 @@
 import { createRequestService } from '../repository';
 
+import { makeFakeDrizzle, renderSql } from '../../../test-support/fake-drizzle';
 import {
   asPrisma,
   fixedNow,
   makeFakePrisma,
   makeService,
 } from './fake-prisma';
+
+/** Reads go through Drizzle now; writes still go through the Prisma fake. */
+const makeReadService = (fake: ReturnType<typeof makeFakeDrizzle>) =>
+  createRequestService({
+    prisma: asPrisma(makeFakePrisma()),
+    db: fake.db,
+    enqueueJob: jest.fn(),
+    now: fixedNow,
+  });
 
 describe('request-lifecycle/jobsync', () => {
   beforeEach(() => {
@@ -148,100 +158,82 @@ describe('request-lifecycle/jobsync', () => {
 
   describe('queueStats', () => {
     it('counts needs-match and needs-attention requests with the right predicates', async () => {
-      const countMock = jest.fn().mockResolvedValue(3);
-      const service = createRequestService({
-        prisma: { request: { count: countMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
+      const fake = makeFakeDrizzle({ count: 3 });
+      const service = makeReadService(fake);
 
       const stats = await service.queueStats();
 
+      const [needsMatch, needsAttention] = fake.selects;
       expect(stats).toEqual({ needsMatch: 3, needsAttention: 3 });
-      expect(countMock).toHaveBeenNthCalledWith(1, {
-        where: { status: 'pending', torrent_hash: null },
-      });
-      expect(countMock).toHaveBeenNthCalledWith(2, {
-        where: { status: 'downloading', torrent_problem: { not: null } },
-      });
+      expect(fake.selects.map((select) => select.kind)).toEqual(['count', 'count']);
+      expect(renderSql(needsMatch.where)?.params).toEqual(['pending']);
+      expect(renderSql(needsMatch.where)?.sql).toContain('"requests"."status" = $1');
+      expect(renderSql(needsMatch.where)?.sql).toContain('"requests"."torrent_hash" is null');
+      expect(renderSql(needsAttention.where)?.params).toEqual(['downloading']);
+      expect(renderSql(needsAttention.where)?.sql).toContain('"requests"."status" = $1');
+      expect(renderSql(needsAttention.where)?.sql).toContain('"requests"."torrent_problem" is not null');
     });
   });
 
   describe('needs-match reads', () => {
     it('reads pending requests without a torrent in requested order by default', async () => {
-      const findManyMock = jest.fn().mockResolvedValue([]);
-      const service = createRequestService({
-        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
+      const fake = makeFakeDrizzle({ rows: [] });
+      const service = makeReadService(fake);
 
       await service.pendingRequestsForNeedsMatch();
 
-      expect(findManyMock).toHaveBeenCalledWith({
-        where: { status: 'pending', torrent_hash: null },
-        orderBy: { requested_at: 'desc' },
-      });
+      const [query] = fake.selects;
+      expect(renderSql(query.where)?.params).toEqual(['pending']);
+      expect(renderSql(query.where)?.sql).toContain('"requests"."status" = $1');
+      expect(renderSql(query.where)?.sql).toContain('"requests"."torrent_hash" is null');
+      expect(renderSql(query.orderBy)?.sql).toBe('"requests"."requested_at" desc');
     });
 
     it('applies the suggestion freshness policy when requested by the suggestion job', async () => {
-      const findManyMock = jest.fn().mockResolvedValue([]);
-      const service = createRequestService({
-        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
+      const fake = makeFakeDrizzle({ rows: [] });
+      const service = makeReadService(fake);
 
       await service.pendingRequestsForNeedsMatch({ applySuggestionAgeGate: true });
 
-      expect(findManyMock).toHaveBeenCalledWith({
-        where: {
-          status: 'pending',
-          torrent_hash: null,
-          OR: [
-            { suggestion_computed_at: { lt: new Date('2026-06-15T11:59:00.000Z') } },
-            { suggestion_computed_at: { equals: null } },
-          ],
-        },
-        orderBy: { requested_at: 'desc' },
-      });
+      const [query] = fake.selects;
+      const rendered = renderSql(query.where);
+      expect(rendered?.params).toEqual([
+        'pending',
+        // timestamp columns bind as ISO strings on the wire
+        '2026-06-15T11:59:00.000Z',
+      ]);
+      expect(rendered?.sql).toContain('"requests"."suggestion_computed_at" < $2');
+      expect(rendered?.sql).toContain('"requests"."suggestion_computed_at" is null');
+      expect(rendered?.sql).toContain(' or ');
     });
 
     it('reads downloading requests with torrent problems in requested order', async () => {
-      const findManyMock = jest.fn().mockResolvedValue([]);
-      const service = createRequestService({
-        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
+      const fake = makeFakeDrizzle({ rows: [] });
+      const service = makeReadService(fake);
 
       await service.downloadingRequestsWithTorrentProblems();
 
-      expect(findManyMock).toHaveBeenCalledWith({
-        where: { status: 'downloading', torrent_problem: { not: null } },
-        orderBy: { requested_at: 'desc' },
-      });
+      const [query] = fake.selects;
+      expect(renderSql(query.where)?.params).toEqual(['downloading']);
+      expect(renderSql(query.where)?.sql).toContain('"requests"."torrent_problem" is not null');
+      expect(renderSql(query.orderBy)?.sql).toBe('"requests"."requested_at" desc');
     });
 
     it('counts and reads each queue with the same predicate', async () => {
-      const countMock = jest.fn().mockResolvedValue(0);
-      const findManyMock = jest.fn().mockResolvedValue([]);
-      const service = createRequestService({
-        prisma: { request: { count: countMock, findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
+      const fake = makeFakeDrizzle({ count: 0, rows: [] });
+      const service = makeReadService(fake);
 
       await service.queueStats();
       await service.pendingRequestsForNeedsMatch();
       await service.downloadingRequestsWithTorrentProblems();
 
-      const counts = countMock.mock.calls.map((call) => call[0].where);
-      const reads = findManyMock.mock.calls.map((call) => call[0].where);
+      const [needsMatchCount, needsAttentionCount, needsMatchRead, needsAttentionRead] =
+        fake.selects;
 
-      expect(reads).toEqual(counts);
-      expect(counts[0]).toEqual({ status: 'pending', torrent_hash: null });
-      expect(counts[1]).toEqual({ status: 'downloading', torrent_problem: { not: null } });
+      expect(renderSql(needsMatchRead.where)).toEqual(renderSql(needsMatchCount.where));
+      expect(renderSql(needsAttentionRead.where)).toEqual(renderSql(needsAttentionCount.where));
+      expect(renderSql(needsMatchCount.where)?.params).toEqual(['pending']);
+      expect(renderSql(needsAttentionCount.where)?.params).toEqual(['downloading']);
     });
   });
 
@@ -289,18 +281,24 @@ describe('request-lifecycle/jobsync', () => {
 
   describe('claimedTorrentHashes', () => {
     it('returns the hash of every request that holds one, whatever its status', async () => {
-      const fake = makeFakePrisma();
-      const { service } = makeService(fake);
-      await service.createRequest({ tmdbId: 1, title: 'A film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
-      await service.createRequest({ tmdbId: 2, title: 'Another film', posterPath: null, requestedBy: 'tester', mediaType: 'movie' });
-      await service.linkTorrent(1, 'claimed-pending');
-      fake.rows[1].torrent_hash = 'claimed-fulfilled';
-      fake.rows[1].status = 'fulfilled';
+      const fake = makeFakeDrizzle({
+        rows: [
+          { torrent_hash: 'claimed-pending' },
+          { torrent_hash: 'claimed-fulfilled' },
+        ],
+      });
+      const service = makeReadService(fake);
 
       expect(await service.claimedTorrentHashes()).toEqual([
         'claimed-pending',
         'claimed-fulfilled',
       ]);
+
+      const rendered = renderSql(fake.selects[0].where);
+      // ADR-0009: status plays no part in the claim.
+      expect(rendered?.sql).toContain('"requests"."torrent_hash" is not null');
+      expect(rendered?.sql).not.toContain('status');
+      expect(rendered?.params).toEqual([]);
     });
   });
 
@@ -352,53 +350,37 @@ describe('request-lifecycle/jobsync', () => {
 
   describe('downloadingRequestsWithHashes', () => {
     it('returns only downloading requests with a non-null torrent hash', async () => {
-      const fake = makeFakePrisma();
-      const { service } = makeService(fake);
-      await service.createRequest({
-        tmdbId: 1,
-        title: 'Linked film',
-        posterPath: null,
-        requestedBy: 'Alice',
-        mediaType: 'movie',
+      const fake = makeFakeDrizzle({
+        rows: [
+          { id: 1, torrent_hash: 'hash1' },
+          { id: 2, torrent_hash: null },
+        ],
       });
-      await service.createRequest({
-        tmdbId: 2,
-        title: 'Hashless film',
-        posterPath: null,
-        requestedBy: 'Alice',
-        mediaType: 'movie',
-      });
-      await service.createRequest({
-        tmdbId: 3,
-        title: 'Pending film',
-        posterPath: null,
-        requestedBy: 'Alice',
-        mediaType: 'movie',
-      });
-      await service.linkTorrent(1, 'hash1');
-      await service.downloadRequest(2);
+      const service = makeReadService(fake);
 
       const found = await service.downloadingRequestsWithHashes();
 
       expect(found).toEqual([{ id: 1, torrent_hash: 'hash1' }]);
+
+      const rendered = renderSql(fake.selects[0].where);
+      expect(rendered?.params).toEqual(['downloading']);
+      expect(rendered?.sql).toContain('"requests"."status" = $1');
+      expect(rendered?.sql).toContain('"requests"."torrent_hash" is not null');
     });
   });
 
   describe('activeRequestsForSummary', () => {
     it('fetches pending and downloading requests ordered by requested_at desc', async () => {
-      const findManyMock = jest.fn().mockResolvedValue([]);
-      const service = createRequestService({
-        prisma: { request: { findMany: findManyMock } } as unknown as Parameters<typeof createRequestService>[0]['prisma'],
-        enqueueJob: jest.fn(),
-        now: fixedNow,
-      });
+      const fake = makeFakeDrizzle({ rows: [] });
+      const service = makeReadService(fake);
 
       await service.activeRequestsForSummary();
 
-      expect(findManyMock).toHaveBeenCalledWith({
-        where: { status: { in: ['pending', 'downloading'] } },
-        orderBy: { requested_at: 'desc' },
-      });
+      const [query] = fake.selects;
+      const rendered = renderSql(query.where);
+      expect(rendered?.params).toEqual(['pending', 'downloading']);
+      expect(rendered?.sql).toContain('"requests"."status" in ($1, $2)');
+      expect(renderSql(query.orderBy)?.sql).toBe('"requests"."requested_at" desc');
     });
   });
 

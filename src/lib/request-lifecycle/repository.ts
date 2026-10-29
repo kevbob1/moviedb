@@ -1,5 +1,6 @@
 import { PrismaClient } from '@/generated/prisma/client';
 import { TmdbClient } from '@/lib/tmdb';
+import { db as drizzleDb, type Db } from '../../../drizzle/db';
 
 import {
   createRequestIntake,
@@ -41,7 +42,10 @@ export type { EnqueueJob } from './lifecycle';
  * this is the union shape callers pass to `createRequestService`.
  */
 export interface RequestServiceDeps {
+  /** Write client (Prisma remains the write path in Phase 2a). */
   prisma: PrismaClient;
+  /** Read client; defaults to the Drizzle singleton. */
+  db?: Db;
   enqueueJob: EnqueueJob;
   now?: () => Date;
   tmdb?: TmdbClient;
@@ -66,20 +70,25 @@ export type RequestService = RequestLifecycle & RequestIntake & RequestJobSync &
  */
 export function createRequestService({
   prisma,
+  db = drizzleDb,
   enqueueJob,
   now = () => new Date(),
   tmdb,
 }: RequestServiceDeps): RequestService {
   const lifecycleDeps: RequestLifecycleDeps = { prisma, now };
   const intakeDeps: RequestIntakeDeps = { prisma, enqueueJob, tmdb };
-  const jobSyncDeps: RequestJobSyncDeps = { prisma, now };
-  const readsDeps: RequestReadsDeps = { prisma };
+  const jobSyncWriteDeps: RequestJobSyncDeps = { prisma, now };
+  const readsDeps: RequestReadsDeps = { db };
 
   const lifecycle: RequestLifecycle = createRequestLifecycle(lifecycleDeps);
   const intake: RequestIntake = createRequestIntake(intakeDeps);
-  const jobSyncReads: RequestJobSyncReads = createRequestJobSyncReads(jobSyncDeps);
+  const jobSyncReads: RequestJobSyncReads = createRequestJobSyncReads({
+    db,
+    prisma,
+    now,
+  });
   const jobSync: RequestJobSync = {
-    ...createRequestJobSyncWrites(jobSyncDeps),
+    ...createRequestJobSyncWrites(jobSyncWriteDeps),
     ...jobSyncReads,
   };
   const reads: RequestReads = createRequestReads(readsDeps);

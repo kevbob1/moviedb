@@ -1,3 +1,9 @@
+import { db } from '../../../../drizzle/db';
+import {
+  makeSelectChain,
+  renderSql,
+  type RecordedSelect,
+} from '../../../test-support/fake-drizzle';
 import { prisma } from '@/lib/prisma';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
 import {
@@ -7,10 +13,13 @@ import {
   TransmissionSyncDependencies,
 } from '../transmission-sync';
 
+jest.mock('../../../../drizzle/db', () => ({
+  db: { select: jest.fn() },
+}));
+
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     job: {
-      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -26,8 +35,22 @@ jest.mock('@/lib/logger', () => ({
   },
 }));
 
+const selectMock = db.select as jest.Mock;
+
+/** Recorded outstanding-sync reads (`findOutstandingSync`), in call order. */
+const outstandingQueries: RecordedSelect[] = [];
+
+/** Queue the rows the next outstanding-sync read returns; `[]` means none. */
+function queueOutstanding(rows: Array<Record<string, unknown>>) {
+  const record: RecordedSelect = { kind: 'rows' };
+  outstandingQueries.push(record);
+  selectMock.mockReturnValueOnce(makeSelectChain(() => rows, record));
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
+  selectMock.mockReset();
+  outstandingQueries.length = 0;
 });
 
 function makeFakeRequestService() {
@@ -435,16 +458,21 @@ describe('enqueueTransmissionSync', () => {
   const createdAt = new Date('2026-09-05T11:00:00.000Z');
 
   it('creates a transmission_sync job when none is outstanding', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    queueOutstanding([]);
     (prisma.job.create as jest.Mock).mockResolvedValue({ id: 1, created_at: createdAt });
 
     const enqueued = await enqueueTransmissionSync();
 
     expect(enqueued).toEqual({ queued: true, status: 'pending', createdAt: createdAt.toISOString() });
-    expect(prisma.job.findFirst).toHaveBeenCalledWith({
-      where: { type: 'transmission_sync', status: { in: ['pending', 'processing'] } },
-       select: { id: true, status: true, payload: true, created_at: true },
-    });
+
+    expect(outstandingQueries).toHaveLength(1);
+    const [query] = outstandingQueries;
+    const where = renderSql(query.where);
+    expect(where?.params).toEqual(['transmission_sync', 'pending', 'processing']);
+    expect(where?.sql).toContain('"jobs"."type" = $1');
+    expect(where?.sql).toContain('"jobs"."status" in ($2, $3)');
+    expect(query.limit).toBe(1);
+
     expect(prisma.job.create).toHaveBeenCalledWith({
       data: { type: 'transmission_sync', payload: { trigger: 'scheduled' } },
       select: { created_at: true },
@@ -452,7 +480,7 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('skips when a sync job is already pending or processing', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue({ id: 9, status: 'processing', created_at: createdAt });
+    queueOutstanding([{ id: 9, status: 'processing', created_at: createdAt }]);
 
     const enqueued = await enqueueTransmissionSync();
 
@@ -461,12 +489,12 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('upgrades an outstanding pending scheduled job to manual', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue({
+    queueOutstanding([{
       id: 12,
       status: 'pending',
       created_at: createdAt,
       payload: { trigger: 'scheduled' },
-    });
+    }]);
     (prisma.job.update as jest.Mock).mockResolvedValue({ id: 12 });
 
     const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
@@ -480,12 +508,12 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('does not upgrade an outstanding processing job', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue({
+    queueOutstanding([{
       id: 13,
       status: 'processing',
       created_at: createdAt,
       payload: { trigger: 'scheduled' },
-    });
+    }]);
 
     const enqueued = await enqueueTransmissionSync({ trigger: 'manual' });
 
@@ -495,7 +523,7 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('stores a scheduled trigger in the job payload by default', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    queueOutstanding([]);
     (prisma.job.create as jest.Mock).mockResolvedValue({ id: 10, created_at: createdAt });
 
     await enqueueTransmissionSync({ trigger: 'scheduled' });
@@ -507,7 +535,7 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('stores a manual trigger in the job payload', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    queueOutstanding([]);
     (prisma.job.create as jest.Mock).mockResolvedValue({ id: 11, created_at: createdAt });
 
     await enqueueTransmissionSync({ trigger: 'manual' });
@@ -519,14 +547,13 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('reports queued:false when a concurrent enqueue wins the unique-index race', async () => {
-    (prisma.job.findFirst as jest.Mock)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: 21,
-        status: 'pending',
-        created_at: createdAt,
-        payload: { trigger: 'scheduled' },
-      });
+    queueOutstanding([]);
+    queueOutstanding([{
+      id: 21,
+      status: 'pending',
+      created_at: createdAt,
+      payload: { trigger: 'scheduled' },
+    }]);
     (prisma.job.create as jest.Mock).mockRejectedValue(
       Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
     );
@@ -535,18 +562,17 @@ describe('enqueueTransmissionSync', () => {
 
     expect(enqueued).toEqual({ queued: false, status: 'pending', createdAt: createdAt.toISOString() });
     expect(prisma.job.create).toHaveBeenCalledTimes(1);
-    expect(prisma.job.findFirst).toHaveBeenCalledTimes(2);
+    expect(outstandingQueries).toHaveLength(2);
   });
 
   it('upgrades a race-winning scheduled job to manual', async () => {
-    (prisma.job.findFirst as jest.Mock)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: 22,
-        status: 'pending',
-        created_at: createdAt,
-        payload: { trigger: 'scheduled' },
-      });
+    queueOutstanding([]);
+    queueOutstanding([{
+      id: 22,
+      status: 'pending',
+      created_at: createdAt,
+      payload: { trigger: 'scheduled' },
+    }]);
     (prisma.job.create as jest.Mock).mockRejectedValue(
       Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
     );
@@ -562,9 +588,8 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('retries the insert when the race winner finished before it could be read', async () => {
-    (prisma.job.findFirst as jest.Mock)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
+    queueOutstanding([]);
+    queueOutstanding([]);
     (prisma.job.create as jest.Mock)
       .mockRejectedValueOnce(Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }))
       .mockResolvedValueOnce({ id: 23, created_at: createdAt });
@@ -576,7 +601,7 @@ describe('enqueueTransmissionSync', () => {
   });
 
   it('rethrows non-unique-violation create failures', async () => {
-    (prisma.job.findFirst as jest.Mock).mockResolvedValue(null);
+    queueOutstanding([]);
     const failure = new Error('connection refused');
     (prisma.job.create as jest.Mock).mockRejectedValue(failure);
 

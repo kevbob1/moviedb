@@ -1,4 +1,7 @@
-import { prisma } from '@/lib/prisma';
+import { desc, eq } from 'drizzle-orm';
+
+import { db } from '../../../drizzle/db';
+import { jobs } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
 import { requestService, Request, RequestService } from '@/lib/request-lifecycle';
 import { getAll, ping } from '@/lib/transmission';
@@ -42,11 +45,20 @@ const defaultDeps: NeedsMatchReadDeps = {
   requestService,
   getAll,
   ping,
-  findLatestTransmissionSync: () => prisma.job.findFirst({
-    where: { type: 'transmission_sync' },
-    orderBy: { created_at: 'desc' },
-    select: { status: true, error: true, created_at: true, completed_at: true },
-  }),
+  findLatestTransmissionSync: async () => {
+    const [row] = await db
+      .select({
+        status: jobs.status,
+        error: jobs.error,
+        created_at: jobs.createdAt,
+        completed_at: jobs.completedAt,
+      })
+      .from(jobs)
+      .where(eq(jobs.type, 'transmission_sync'))
+      .orderBy(desc(jobs.createdAt))
+      .limit(1);
+    return row ?? null;
+  },
 };
 
 export async function createNeedsMatchRead(
