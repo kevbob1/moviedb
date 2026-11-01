@@ -1,5 +1,5 @@
 import { availabilityFor, seasonsForMany } from '@/lib/jellyfin';
-import { requestService, RequestService } from '@/lib/request-lifecycle';
+import { requestService, type ImportIntakePort } from '@/lib/request-lifecycle';
 import { CreateRequestInput } from '@/lib/request-lifecycle/validators';
 import { createTmdbClient, TmdbClient } from '@/lib/tmdb';
 import { SeasonsResult } from '@/lib/jellyfin/catalog';
@@ -34,10 +34,15 @@ export interface SearchResult {
 export interface ImportFlowDependencies {
   tmdb: TmdbClient;
   jellyfin: JellyfinImportCatalog;
-  requestService: Pick<RequestService, 'createRequest' | 'createTvRequests'>;
+  /** Intake port; defaults to the singleton so production wiring is unchanged. */
+  requestService?: ImportIntakePort;
 }
 
-export function createImportFlow({ tmdb, jellyfin, requestService }: ImportFlowDependencies) {
+export function createImportFlow({
+  tmdb,
+  jellyfin,
+  requestService: intake = requestService,
+}: ImportFlowDependencies) {
   const seasonsCache = new Map<number, Promise<Season[]>>();
 
   /**
@@ -67,9 +72,9 @@ export function createImportFlow({ tmdb, jellyfin, requestService }: ImportFlowD
       ...(result.mediaType === 'tv' && seasonNumber !== 'all' ? { seasonNumber } : {}),
     };
     if (result.mediaType === 'tv' && seasonNumber === 'all') {
-      await requestService.createTvRequests(result.id, requestedBy);
+      await intake.createTvRequests(result.id, requestedBy);
     } else {
-      await requestService.createRequest(input);
+      await intake.createRequest(input);
     }
 
     // Availability is re-read rather than trusted from the caller's copy: the
@@ -96,5 +101,4 @@ export function createImportFlow({ tmdb, jellyfin, requestService }: ImportFlowD
 export const defaultImportFlow = createImportFlow({
   tmdb: createTmdbClient(),
   jellyfin: { availabilityFor, seasonsForMany },
-  requestService,
 });

@@ -2,26 +2,24 @@ import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
 import { ShowFulfilledSwitch } from '@/components/ShowFulfilledSwitch';
 import { availabilityFor } from '@/lib/jellyfin';
-import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
-
-/**
- * This page only reads the paged list, so it depends on that verb alone rather
- * than the full `RequestService` union.
- */
-const requestService: Pick<RequestService, 'listRequests'> = lifecycleService;
+import { requestService, type RequestListPort } from '@/lib/request-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RequestsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ page?: string; showFulfilled?: string }>;
-}) {
+export default async function RequestsPage(
+  {
+    searchParams,
+  }: {
+    searchParams: Promise<{ page?: string; showFulfilled?: string }>;
+  },
+  /** The list-read port; defaults to the singleton so route wiring is unchanged. */
+  requests: RequestListPort = requestService,
+) {
   const params = await searchParams;
   const page = parseInt(params.page || '1', 10) || 1;
   const includeResolved = params.showFulfilled === 'true';
 
-  const { rows, totalPages } = await requestService.listRequests({ page, includeResolved });
+  const { rows, totalPages } = await requests.listRequests({ page, includeResolved });
 
   const tmdbIds = rows.map(r => r.tmdb_id).filter((id): id is number => id !== null && id !== undefined);
   const jellyfinAvailabilityResult = await availabilityFor(tmdbIds);

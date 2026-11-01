@@ -3,10 +3,12 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../../../drizzle/db';
 import { jobs } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService } from '@/lib/request-lifecycle';
 import type {
   AutoLinkEntry,
-  RequestJobSync,
+  RequestSyncObservationPort,
+  RequestSyncPort,
+  RequestSyncSuggestionPort,
   SuggestionEntry,
   SyncDecision,
 } from '@/lib/request-lifecycle';
@@ -164,15 +166,8 @@ export interface SyncPassReport {
 }
 
 export interface TransmissionSyncDependencies {
-  requestService: Pick<
-    RequestJobSync,
-    | 'downloadingRequestsWithHashes'
-    | 'applySyncDecisions'
-    | 'pendingRequestsForNeedsMatch'
-    | 'recordSuggestionBatch'
-    | 'claimedTorrentHashes'
-    | 'autoLinkBatch'
-  >;
+  /** Sync-pass job port; defaults to the singleton so job wiring is unchanged. */
+  requestService?: RequestSyncPort;
   logger: SyncLogger;
   adapter: TransmissionAdapter;
   catalog?: TransmissionCatalog;
@@ -183,7 +178,7 @@ interface TransmissionSyncOptions {
 }
 
 export function createTransmissionSync({
-  requestService,
+  requestService = lifecycleService,
   logger,
   adapter,
   catalog,
@@ -251,7 +246,7 @@ async function observeLinkedTorrents({
   requestService,
   adapter,
 }: {
-  requestService: Pick<RequestJobSync, 'downloadingRequestsWithHashes' | 'applySyncDecisions'>;
+  requestService: RequestSyncObservationPort;
   adapter: TransmissionAdapter;
 }): Promise<{ downloading: number; fulfilled: number; problems: number; skipped: number }> {
   const downloading = await requestService.downloadingRequestsWithHashes();
@@ -329,10 +324,7 @@ async function computeSuggestions(
     catalog,
     logger,
   }: {
-    requestService: Pick<
-      RequestJobSync,
-      'pendingRequestsForNeedsMatch' | 'recordSuggestionBatch' | 'claimedTorrentHashes' | 'autoLinkBatch'
-    >;
+    requestService: RequestSyncSuggestionPort;
     catalog: TransmissionCatalog;
     logger: Pick<SyncLogger, 'info'>;
   },
@@ -419,7 +411,6 @@ async function computeSuggestions(
 
 export const transmissionSyncHandler: JobHandler<TransmissionSyncPayload | unknown> =
   createTransmissionSyncHandler({
-    requestService,
     logger,
     adapter: transmissionAdapter,
     catalog: transmissionCatalog,

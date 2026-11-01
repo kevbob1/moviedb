@@ -12,6 +12,17 @@ export type {
   SuggestionEntry,
   SyncDecision,
   AutoLinkEntry,
+  RequestListPort,
+  RequestDetailPort,
+  RequestActionsPort,
+  ImportIntakePort,
+  RequestSummaryPort,
+  RequestCleanupPort,
+  RequestQueueStatsPort,
+  RequestNeedsMatchPort,
+  RequestSyncObservationPort,
+  RequestSyncSuggestionPort,
+  RequestSyncPort,
 } from './repository';
 
 /**

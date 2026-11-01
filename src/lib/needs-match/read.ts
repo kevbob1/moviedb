@@ -3,7 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '../../../drizzle/db';
 import { jobs } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
-import { requestService, Request, RequestService } from '@/lib/request-lifecycle';
+import { requestService, type Request, type RequestNeedsMatchPort } from '@/lib/request-lifecycle';
 import { getAll, ping } from '@/lib/transmission';
 import { Torrent } from '@/lib/transmission/adapter';
 
@@ -32,10 +32,8 @@ interface LatestTransmissionSync {
 }
 
 export interface NeedsMatchReadDeps {
-  requestService: Pick<
-    RequestService,
-    'pendingRequestsForNeedsMatch' | 'downloadingRequestsWithTorrentProblems'
-  >;
+  /** Read port for the needs-match page; the default deps bind the singleton. */
+  requestService: RequestNeedsMatchPort;
   getAll: typeof getAll;
   ping: typeof ping;
   findLatestTransmissionSync: () => Promise<LatestTransmissionSync | null>;
