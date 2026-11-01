@@ -81,6 +81,10 @@ export function createRequestService({
   const lifecycle: RequestLifecycle = createRequestLifecycle(lifecycleDeps);
   const intake: RequestIntake = createRequestIntake(intakeDeps);
   const jobSyncReads: RequestJobSyncReads = createRequestJobSyncReads(jobSyncReadsDeps);
+  /**
+   * The writes spread carries `retireResolved` too: retention cleanup is a
+   * delete, so it is not part of the read surface `queries.ts` exposes.
+   */
   const jobSync: RequestJobSync = {
     ...createRequestJobSyncWrites(jobSyncWriteDeps),
     ...jobSyncReads,

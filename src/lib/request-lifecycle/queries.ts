@@ -319,7 +319,6 @@ export interface RequestJobSyncReads {
   pendingRequestsForNeedsMatch(options?: { applySuggestionAgeGate?: boolean }): Promise<Request[]>;
   downloadingRequestsWithTorrentProblems(): Promise<Request[]>;
   activeRequestsForSummary(): Promise<Request[]>;
-  retireResolved(olderThanDays: number): Promise<number>;
 }
 
 export interface RequestJobSyncReadsDeps {
@@ -401,20 +400,6 @@ export function createRequestJobSyncReads({
     return rows.map(toRequestModel);
   }
 
-  /**
-   * Retention cleanup. Deletes rather than selects, so it lives on the write
-   * side of the same Drizzle client; `returning` makes the count exact without
-   * a second round trip.
-   */
-  async function retireResolved(olderThanDays: number): Promise<number> {
-    const cutoff = new Date(now().getTime() - olderThanDays * 24 * 60 * 60 * 1000);
-    const removed = await db
-      .delete(requests)
-      .where(and(eq(requests.status, 'fulfilled'), lt(requests.resolvedAt, cutoff)))
-      .returning({ id: requests.id });
-    return removed.length;
-  }
-
   return {
     claimedTorrentHashes,
     downloadingRequestsWithHashes,
@@ -422,6 +407,5 @@ export function createRequestJobSyncReads({
     pendingRequestsForNeedsMatch,
     downloadingRequestsWithTorrentProblems,
     activeRequestsForSummary,
-    retireResolved,
   };
 }

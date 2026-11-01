@@ -1,4 +1,4 @@
-import { makeInMemoryDrizzle } from '../../../test-support/fake-drizzle';
+import { makeInMemoryDrizzle, renderSql } from '../../../test-support/fake-drizzle';
 import { makeService } from '../../../test-support/request-service-fake';
 import { InvalidTransitionError } from '../fsm';
 
@@ -141,6 +141,35 @@ describe('request-lifecycle/lifecycle', () => {
       await service.cancelRequest(1);
 
       expect(fake.store.requests).toHaveLength(0);
+    });
+  });
+
+  describe('retireResolved', () => {
+    it('deletes fulfilled requests resolved before the retention cutoff', async () => {
+      const fake = makeInMemoryDrizzle({
+        requests: [
+          { status: 'fulfilled', resolvedAt: new Date('2026-06-01T12:00:00Z') },
+          { status: 'fulfilled', resolvedAt: new Date('2026-06-07T12:00:00Z') },
+          { status: 'fulfilled', resolvedAt: new Date('2026-06-12T12:00:00Z') },
+          { status: 'pending', resolvedAt: null },
+        ],
+      });
+      const { service } = makeService(fake);
+
+      const deleted = await service.retireResolved(7);
+
+      expect(deleted).toBe(2);
+      expect(fake.store.requests).toHaveLength(2);
+      const rendered = renderSql(
+        fake.store.writes.find((write) => write.op === 'delete')?.where,
+      );
+      expect(rendered?.params).toEqual([
+        'fulfilled',
+        // timestamp columns bind as ISO strings on the wire
+        '2026-06-08T12:00:00.000Z',
+      ]);
+      expect(rendered?.sql).toContain('"requests"."status" = $1');
+      expect(rendered?.sql).toContain('"requests"."resolved_at" < $2');
     });
   });
 });

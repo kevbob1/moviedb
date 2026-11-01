@@ -1,7 +1,13 @@
 import { isOnJellyfin } from '@/lib/jellyfin';
 import { notFound } from 'next/navigation';
 import RequestDetail from './RequestDetail';
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
+
+/**
+ * This page only loads one Request by id, so it depends on that verb alone
+ * rather than the full `RequestService` union.
+ */
+const requestService: Pick<RequestService, 'requestById'> = lifecycleService;
 
 export default async function RequestPage({
   params,

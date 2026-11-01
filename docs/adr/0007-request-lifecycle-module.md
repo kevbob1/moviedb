@@ -109,3 +109,7 @@ The sync pass batches its verdicts through `jobsync.ts`: `applySyncDecisions` ap
 - `src/lib/request-lifecycle/` — the module.
 - `src/lib/jobs/transmission-sync.ts` — the cron; now consumes the module.
 - `src/components/{RequestCard,RequestListItem}.tsx` and `src/app/requests/[id]/RequestDetail.tsx` — consume `useRequestActions`.
+
+## Amendment
+
+2026-10-31 — `retireResolved(olderThanDays)`, the retention delete used by the cleanup cron, moved from the job-sync reads in `queries.ts` to the job-sync writes in `lifecycle.ts`; the composed `RequestService` still exposes it, and the seam now keeps delete verbs on the write side.

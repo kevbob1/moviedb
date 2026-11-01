@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
+
+/**
+ * This route only needs the queue counts, so it depends on that verb alone
+ * rather than the full `RequestService` union.
+ */
+const requestService: Pick<RequestService, 'queueStats'> = lifecycleService;
 
 export const dynamic = 'force-dynamic';
 

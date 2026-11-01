@@ -2,7 +2,13 @@ import RequestList from '@/components/RequestList';
 import { Pagination } from '@/app/components/Pagination';
 import { ShowFulfilledSwitch } from '@/components/ShowFulfilledSwitch';
 import { availabilityFor } from '@/lib/jellyfin';
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
+
+/**
+ * This page only reads the paged list, so it depends on that verb alone rather
+ * than the full `RequestService` union.
+ */
+const requestService: Pick<RequestService, 'listRequests'> = lifecycleService;
 
 export const dynamic = 'force-dynamic';
 

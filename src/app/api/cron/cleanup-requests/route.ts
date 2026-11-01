@@ -1,9 +1,15 @@
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
 import { requireCronAuth } from '@/lib/cron-auth';
+
+/**
+ * Retention cleanup is a job-sync write, so this cron depends on that verb
+ * alone rather than the full `RequestService` union.
+ */
+const requestService: Pick<RequestService, 'retireResolved'> = lifecycleService;
 
 export const dynamic = 'force-dynamic';
 

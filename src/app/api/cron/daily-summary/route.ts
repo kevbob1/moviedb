@@ -1,4 +1,4 @@
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
 import { sendDailySummary } from '@/lib/notifications';
 import type { NotificationRequest } from '@/lib/notifications';
 import { headers } from 'next/headers';
@@ -6,6 +6,12 @@ import { NextResponse } from 'next/server';
 import { withLogging } from '@/lib/with-logging';
 import { logger } from '@/lib/logger';
 import { requireCronAuth } from '@/lib/cron-auth';
+
+/**
+ * The summary cron only needs the active-request read, so it depends on that
+ * verb alone rather than the full `RequestService` union.
+ */
+const requestService: Pick<RequestService, 'activeRequestsForSummary'> = lifecycleService;
 
 function toNotificationRequests(requests: Awaited<ReturnType<typeof requestService.activeRequestsForSummary>>): NotificationRequest[] {
   return requests.map((r) => ({

@@ -4,7 +4,16 @@ import { defaultImportFlow, ImportResult } from '@/lib/import-flow';
 
 import { revalidatePath } from 'next/cache';
 
-import { requestService } from '@/lib/request-lifecycle';
+import { requestService as lifecycleService, type RequestService } from '@/lib/request-lifecycle';
+
+/**
+ * The actions call four named lifecycle verbs — nothing else on the seam —
+ * so they depend on that slice rather than the full `RequestService` union.
+ */
+const requestService: Pick<
+  RequestService,
+  'fulfillRequest' | 'downloadRequest' | 'cancelRequest' | 'linkTorrent'
+> = lifecycleService;
 
 export async function requestImport(
   result: ImportResult,

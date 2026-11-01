@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 
 import type { Db, Tx } from '../../../drizzle/db';
 import { requests } from '../../../drizzle/schema';
@@ -459,9 +459,10 @@ export interface RequestJobSyncDeps {
 }
 
 /**
- * The job layer's full verb set. The write verbs live here; the read verbs
- * (`claimedTorrentHashes` onward) are implemented in `queries.ts`. Callers
- * depend on this one name, composed by `repository.ts`.
+ * The job layer's full verb set. The write verbs live here (the batch verbs and
+ * `retireResolved`); the read verbs (`claimedTorrentHashes` through
+ * `activeRequestsForSummary`) are implemented in `queries.ts`. Callers depend
+ * on this one name, composed by `repository.ts`.
  */
 export interface RequestJobSync {
   applySyncDecisions(decisions: SyncDecision[]): Promise<SyncApplyResult>;
@@ -479,7 +480,7 @@ export interface RequestJobSync {
 /** The write-side slice of `RequestJobSync`. */
 export type RequestJobSyncWrites = Pick<
   RequestJobSync,
-  'applySyncDecisions' | 'recordSuggestionBatch' | 'autoLinkBatch'
+  'applySyncDecisions' | 'recordSuggestionBatch' | 'autoLinkBatch' | 'retireResolved'
 >;
 
 export function createRequestJobSyncWrites({
@@ -583,9 +584,24 @@ export function createRequestJobSyncWrites({
     return linked;
   }
 
+  /**
+   * Retention cleanup (ADR-0006). Deletes rather than selects, so it lives on
+   * the write side of the same Drizzle client; `returning` makes the count
+   * exact without a second round trip.
+   */
+  async function retireResolved(olderThanDays: number): Promise<number> {
+    const cutoff = new Date(now().getTime() - olderThanDays * 24 * 60 * 60 * 1000);
+    const removed = await db
+      .delete(requests)
+      .where(and(eq(requests.status, 'fulfilled'), lt(requests.resolvedAt, cutoff)))
+      .returning({ id: requests.id });
+    return removed.length;
+  }
+
   return {
     applySyncDecisions,
     recordSuggestionBatch,
     autoLinkBatch,
+    retireResolved,
   };
 }
