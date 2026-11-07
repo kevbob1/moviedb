@@ -92,7 +92,8 @@ const NOISE_TOKENS = new Set([
   'dv',
 ]);
 
-const MINIMUM_SUGGESTION_SCORE = 0.5;
+/** Below this score a candidate is not worth surfacing to an operator at all. */
+export const MINIMUM_SUGGESTION_SCORE = 0.5;
 
 /**
  * ADR-0009: a generated suggestion at or above this score links itself. The
@@ -100,6 +101,19 @@ const MINIMUM_SUGGESTION_SCORE = 0.5;
  * operator-confirmed suggestion.
  */
 export const AUTO_LINK_SCORE = 0.9;
+
+/**
+ * Which confidence band a score falls in. The UI reads this instead of
+ * duplicating the thresholds, so moving `AUTO_LINK_SCORE` moves the bands the
+ * operator sees too.
+ */
+export type SuggestionBand = 'auto' | 'confirm' | 'below-floor';
+
+export function suggestionBand(score: number): SuggestionBand {
+  if (score >= AUTO_LINK_SCORE) return 'auto';
+  if (score >= MINIMUM_SUGGESTION_SCORE) return 'confirm';
+  return 'below-floor';
+}
 
 function dropReleaseGroup(title: string): string {
   const lastDash = title.lastIndexOf('-');

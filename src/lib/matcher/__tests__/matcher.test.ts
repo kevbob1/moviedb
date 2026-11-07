@@ -1,4 +1,12 @@
-import { allocateMatches, MatchOutcome, MatchRequest, MatchTorrent } from '../index';
+import {
+  allocateMatches,
+  AUTO_LINK_SCORE,
+  MatchOutcome,
+  MatchRequest,
+  MatchTorrent,
+  MINIMUM_SUGGESTION_SCORE,
+  suggestionBand,
+} from '../index';
 import { matcherCorpus } from './fixtures/matcher-corpus';
 import { parseTorrentTitle } from '@viren070/parse-torrent-title';
 
@@ -35,6 +43,22 @@ function topHash(outcomes: MatchOutcome[], id: MatchRequest['id']): string | nul
   const outcome = outcomeFor(outcomes, id);
   return outcome && outcome.outcome !== 'none' ? outcome.hash : null;
 }
+
+describe('suggestionBand', () => {
+  it('reports the band at each threshold boundary', () => {
+    expect(suggestionBand(0.49)).toBe('below-floor');
+    expect(suggestionBand(0.5)).toBe('confirm');
+    expect(suggestionBand(0.89)).toBe('confirm');
+    expect(suggestionBand(0.9)).toBe('auto');
+  });
+
+  it('derives its boundaries from the exported thresholds', () => {
+    expect(suggestionBand(AUTO_LINK_SCORE)).toBe('auto');
+    expect(suggestionBand(AUTO_LINK_SCORE - 0.0001)).toBe('confirm');
+    expect(suggestionBand(MINIMUM_SUGGESTION_SCORE)).toBe('confirm');
+    expect(suggestionBand(MINIMUM_SUGGESTION_SCORE - 0.0001)).toBe('below-floor');
+  });
+});
 
 describe('allocateMatches', () => {
   describe('checked-in matcher corpus', () => {

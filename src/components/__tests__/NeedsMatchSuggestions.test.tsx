@@ -68,4 +68,21 @@ describe('NeedsMatchSuggestion', () => {
     expect(screen.getByRole('button', { name: /Accept suggested match/ })).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [0.9, 'border-emerald-500'],
+    [0.89, 'border-amber-500'],
+    [0.6, 'border-amber-500'],
+    [0.5, 'border-amber-500'],
+    [0.49, 'border-rose-500'],
+  ])('colours a %s score with the %s band', (score, borderClass) => {
+    render(
+      <NeedsMatchSuggestion
+        request={createRequest({ suggestion_hash: 'abc123', suggestion_score: score }) as Request & { suggestion_hash: string }}
+        torrents={[createTorrent()]}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveClass(borderClass);
+  });
 });

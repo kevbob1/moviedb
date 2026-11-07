@@ -6,14 +6,15 @@ import { linkTorrent } from '@/app/actions/request-actions';
 import { Button } from '@/components/ui/Button';
 import { Torrent } from '@/lib/transmission/adapter';
 import { Request } from '@/lib/request-lifecycle/presentation';
+import { SuggestionBand, suggestionBand } from '@/lib/matcher';
 
 type SuggestedRequest = Request & { suggestion_hash: string };
 
-function scoreBand(score: number): string {
-  if (score >= 0.8) return 'border-emerald-500 bg-emerald-500/10';
-  if (score >= 0.5) return 'border-amber-500 bg-amber-500/10';
-  return 'border-rose-500 bg-rose-500/10';
-}
+const BAND_CLASSES: Record<SuggestionBand, string> = {
+  auto: 'border-emerald-500 bg-emerald-500/10',
+  confirm: 'border-amber-500 bg-amber-500/10',
+  'below-floor': 'border-rose-500 bg-rose-500/10',
+};
 
 export function NeedsMatchSuggestion({ request, torrents }: { request: SuggestedRequest; torrents: Torrent[] }) {
   const router = useRouter();
@@ -37,7 +38,7 @@ export function NeedsMatchSuggestion({ request, torrents }: { request: Suggested
 
   return (
     <div
-      className={`mt-3 flex flex-col gap-3 rounded-xl border-l-4 p-3 sm:flex-row sm:items-center sm:justify-between ${scoreBand(score)}`}
+      className={`mt-3 flex flex-col gap-3 rounded-xl border-l-4 p-3 sm:flex-row sm:items-center sm:justify-between ${BAND_CLASSES[suggestionBand(score)]}`}
       role="status"
       aria-live="polite"
     >
