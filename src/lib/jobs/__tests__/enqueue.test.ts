@@ -234,4 +234,54 @@ describe('latestRun', () => {
   it('returns null when the type has never run', async () => {
     await expect(latestRun('transmission_sync')).resolves.toBeNull();
   });
+
+  it('reports a scheduled trigger', async () => {
+    seedSyncJob({ payload: { trigger: 'scheduled' }, status: 'pending' });
+
+    await expect(latestRun('transmission_sync')).resolves.toEqual({
+      status: 'pending',
+      queuedAt: createdAt.toISOString(),
+      finishedAt: null,
+      error: null,
+      trigger: 'scheduled',
+      terminal: false,
+    });
+  });
+
+  it('omits the trigger for a payload that is not an object', async () => {
+    seedSyncJob({ payload: null });
+
+    await expect(latestRun('transmission_sync')).resolves.toEqual({
+      status: 'pending',
+      queuedAt: createdAt.toISOString(),
+      finishedAt: null,
+      error: null,
+      terminal: false,
+    });
+  });
+
+  it('omits the trigger for a payload without one', async () => {
+    seedSyncJob({ payload: { unrelated: true } });
+
+    const run = await latestRun('transmission_sync');
+
+    expect(run).not.toHaveProperty('trigger');
+  });
+
+  it('omits an unrecognised trigger value', async () => {
+    seedSyncJob({ payload: { trigger: 'sideways' } });
+
+    const run = await latestRun('transmission_sync');
+
+    expect(run).not.toHaveProperty('trigger');
+  });
+
+  it('omits the trigger for job types other than transmission_sync', async () => {
+    seedSyncJob({ type: 'request_notification', payload: { trigger: 'manual' } });
+
+    const run = await latestRun('request_notification');
+
+    expect(run).not.toHaveProperty('trigger');
+    expect(run?.status).toBe('pending');
+  });
 });

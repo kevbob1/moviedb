@@ -8,6 +8,14 @@ const config: Config = {
   collectCoverageFrom: [
     "src/lib/**/*.ts",
   ],
+  coverageThreshold: {
+    global: {
+      statements: 95,
+      branches: 95,
+      functions: 95,
+      lines: 95,
+    },
+  },
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@viren070/parse-torrent-title$": "<rootDir>/node_modules/@viren070/parse-torrent-title/dist/index.js",

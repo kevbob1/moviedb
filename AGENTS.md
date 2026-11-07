@@ -32,8 +32,11 @@ Report only container results. Host-side `npm`, `npx`, `node`, `tsc`, `drizzle-k
 This runs all checks in order:
 1. `lint` - ESLint validation (must have 0 warnings)
 2. `test` - Run all tests (must have 0 failures)
-3. `typecheck` - TypeScript compilation check
-4. `build` - Full Next.js production build
+3. `coverage:patch` - Patch coverage gate: re-runs Jest with JSON coverage and requires >=95% of the lines added by the current diff to be covered (`scripts/patch-coverage.mjs`)
+4. `typecheck` - TypeScript compilation check
+5. `build` - Full Next.js production build
+
+The patch-coverage gate diffs the working tree against `merge-base(HEAD, origin/main)` (fallbacks: `origin/main`, `main`, `HEAD~1`; override with `BASE_REF=<ref>`). A change with no added lines passes. It needs `git` and the repo's `.git` inside the container: the `web` service mounts `./scripts/patch-coverage.mjs` and `./.git` (read-only) and the dev image installs `git`. If `git` is genuinely unavailable the gate prints a `SKIP` notice and exits 0 without measuring; a resolvable diff base is otherwise required.
 
 **If any command fails inside the container, fix the issues before committing.** Report the exact `make dev-exec ...` command used and its result.
 

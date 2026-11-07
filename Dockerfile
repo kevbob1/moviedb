@@ -9,6 +9,9 @@ FROM base AS development
 ARG DEV_UID=1000
 ARG DEV_GID=1000
 WORKDIR /app
+# git backs the patch-coverage gate (scripts/patch-coverage.mjs); compose mounts
+# the repo's .git read-only so the gate can diff inside the container.
+RUN apk add --no-cache git
 COPY scripts ./scripts
 COPY src/lib/logger.ts ./src/lib/logger.ts
 COPY package.json package-lock.json ./
