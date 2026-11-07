@@ -11,8 +11,9 @@ describe('TransmissionStatusBanner', () => {
         lastSync={{
           status: 'completed',
           error: null,
-          createdAt: '2026-09-05T10:00:00.000Z',
-          completedAt: '2026-09-05T10:01:00.000Z',
+          queuedAt: '2026-09-05T10:00:00.000Z',
+          finishedAt: '2026-09-05T10:01:00.000Z',
+          terminal: true,
         }}
       />
     );

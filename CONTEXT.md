@@ -41,14 +41,26 @@ A unit of asynchronous work enqueued in the `jobs` table and processed by a regi
 - `completed` — handler returned successfully (terminal)
 - `failed` — handler raised and retries exhausted, or no handler registered (terminal)
 
-A `processing` job that hasn't updated in 5 minutes is reaped back to `pending` (stuck-job recovery, see `src/lib/job-queue.ts`).
+A `processing` job that hasn't updated in 5 minutes is reaped back to `pending` (stuck-job recovery, see `src/lib/jobs/queue.ts`).
 
-**Type** values are open-set, registered at startup via `registerJobType(type, handler)`. Current registrations:
+All job-row SQL lives in the jobs module (`src/lib/jobs/`): `queue.ts` owns the processing machinery (sweep, claim, outcome writes), `enqueue.ts` owns both enqueue disciplines, `latest.ts` projects `JobRun`. Callers never touch the `jobs` table directly.
+
+**Type** values are open-set, registered at startup by `registerAllJobTypes()` — called from the process-jobs cron route, the single registration seam; job handlers register nothing themselves. Current registrations:
 - `request_notification` — email a user that their request was processed
 - `tv_series_request_notification` — TV-specific variant of the above
 - `transmission_sync` — observe linked torrents and drive `downloading → fulfilled`; enqueued (deduped) by `/api/cron/process-jobs` every run (ADR-0005)
 
 When referring to a Job's `type` in docs or logs, use the registered string verbatim.
+
+### JobRun
+The domain projection of one job run, returned by the jobs module's `latestRun(type)` and consumed by reads, pages, and client components: `{ status, queuedAt, finishedAt, error, trigger?, terminal }`. `queuedAt` ← `created_at`, `finishedAt` ← `completed_at`, `trigger` is lifted from the singleton payload when present, and `terminal` is `completed | failed`. The interface never exposes DB column names (`created_at`, `completed_at`) or the raw row shape — timestamps are ISO strings converted inside the module. There is deliberately no `startedAt`: the `jobs` table has no such column, and `status === 'processing'` covers it coarsely; if duration-per-run ever needs measuring, that is an explicit schema migration, not a naming accident.
+
+**Enqueue disciplines** are part of the jobs module's interface, per type:
+- `enqueue(type, payload)` — module-owned; per-type queue policy sits inside (`transmission_sync` is singleton-guarded by the partial unique index with manual-trigger upgrade and 23505 race retry; notification types are plain inserts with no coalescing). Callers never know the queue discipline of the job they enqueue.
+- `enqueueInTx(tx, type, payload)` — the transaction-threaded verb; its caller is the Request lifecycle module's intake (notification jobs commit atomically with the Request rows inside the caller's own transaction — see `createRequest` / `createTvRequests`). Request-lifecycle keeps receiving this as its injected `enqueueJob` dependency.
+- Payloads are typechecked per type via the `JobPayloads` map; stored payload shapes are unchanged (`request_notification` still spreads the snake_case request row).
+
+**Client seam.** Status vocabulary lives in the module: the `JobStatus` union, `jobStatusLabel`/`syncRunLabel` projections, and `terminal` on `JobRun`. Client components consume the projection and keep no hardcoded status sets; the poll cadence (5 s / 75 s timeout on `/needs-match`) stays a client concern. The needs-match read module receives `latestSyncRun` (`latestRun('transmission_sync')`) as an injected port.
 
 ### Sync pass
 The module-level unit of Transmission observation (ADR-0005) and suggestion computation (ADR-0008): one run of the `transmission_sync` job. A single pass refreshes the catalog cache, observes linked torrents (deciding `fulfilled` / `problem` per downloading Request), computes suggestions for unmatched pending Requests, and persists both batches through the `request-lifecycle` module's sync verbs. Its output is one `SyncPassReport` (`downloading`, `fulfilled`, `problems`, `pending`, `suggestions`, `autoLinked`, `medianScore`, `parserFailures`). `medianScore` covers every scored match, whether persisted as a suggestion or auto-linked. Owned by `src/lib/jobs/transmission-sync.ts`.
@@ -116,7 +128,11 @@ These are the deepening-skill vocabulary. Use them exactly when writing architec
 - `docs/adr/0008-auto-match-suggestions.md` — Suggestion-only auto-match for torrent↔request pairing
 - `docs/adr/0009-auto-link-high-confidence.md` — auto-link at ≥ 0.90 confidence
 - `docs/adr/0010-import-flow-module.md` — one module for the import flow (search → availability → request)
+- `docs/adr/0011-drizzle-migration-authority.md` — Drizzle is the migration authority (removes Prisma)
+- `docs/adr/0012-jobs-module.md` — one module for Job state (enqueue · latestRun · process)
 
 **Request lifecycle read surface:** the Request lifecycle module owns *all* Request state access behind the `RequestService` interface — not just writes. The operator-facing reads live on `reads.ts`: `listRequests({ page, includeResolved })` (newest-first page with `{ rows, total, totalPages }`; resolved excluded unless asked, page size internal) and `requestById(id)` (`null` when the row is gone). The job-facing reads live on `jobsync.ts`: `pendingRequestsForNeedsMatch()`, `downloadingRequestsWithHashes()`, `claimedTorrentHashes()`, `queueStats()` (needs-match / needs-attention counts), `downloadingRequestsWithTorrentProblems()`, `activeRequestsForSummary()` (pending+downloading for the daily summary). `retireResolved(olderThanDays)` (retention cleanup) is a delete, so it lives on the write side with the other job-sync writes in `lifecycle.ts`. This keeps the match/index/retention policy local to the module — the Requests pages cross the seam instead of importing query predicates.
 
 **Single write path:** every transition write — named verbs and the sync batch verbs — crosses `applyTransition` in `transitions.ts`, so FSM side-effects (`resolved_at`, `torrent_problem` clearing, suggestion clears) are applied uniformly. A batch verdict that no longer qualifies is skipped rather than thrown.
+
+**Job state module:** the jobs module (`src/lib/jobs/`) owns *all* job state behind one interface — `enqueue` / `enqueueInTx` / `latestRun` / `processPendingJobs` / `registerAllJobTypes` — with the per-type coalescing policy and the stuck-sweep/claim/retry machinery as implementation. No file outside the module contains jobs-table SQL; the needs-match read crosses the seam via the `latestSyncRun` port instead of selecting job rows; client components consume the `JobRun` projection (with `terminal`) instead of hardcoding status sets. See ADR-0012.

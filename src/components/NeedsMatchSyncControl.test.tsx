@@ -16,10 +16,11 @@ const syncTransmissionMock = jest.mocked(syncTransmission);
 const useRouterMock = jest.mocked(useRouter);
 
 const oldSync = {
-  status: 'completed',
+  status: 'completed' as const,
   error: null,
-  createdAt: '2026-09-05T10:00:00.000Z',
-  completedAt: '2026-09-05T10:01:00.000Z',
+  queuedAt: '2026-09-05T10:00:00.000Z',
+  finishedAt: '2026-09-05T10:01:00.000Z',
+  terminal: true,
 };
 
 function renderControl(lastSync = oldSync) {
@@ -50,8 +51,7 @@ describe('NeedsMatchSyncControl', () => {
   it('enqueues through the server action, refreshes immediately, and polls', async () => {
     syncTransmissionMock.mockResolvedValue({
       queued: true,
-      status: 'pending',
-      createdAt: '2026-09-05T11:00:00.000Z',
+      job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
     });
     renderControl();
 
@@ -73,8 +73,7 @@ describe('NeedsMatchSyncControl', () => {
   it('distinguishes an already-active sync', async () => {
     syncTransmissionMock.mockResolvedValue({
       queued: false,
-      status: 'processing',
-      createdAt: '2026-09-05T11:00:00.000Z',
+      job: { status: 'processing', queuedAt: '2026-09-05T11:00:00.000Z' },
     });
     renderControl();
 
@@ -88,8 +87,7 @@ describe('NeedsMatchSyncControl', () => {
   it.each(['completed', 'failed'] as const)('stops polling when the requested job is %s', async (status) => {
     syncTransmissionMock.mockResolvedValue({
       queued: true,
-      status: 'pending',
-      createdAt: '2026-09-05T11:00:00.000Z',
+      job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
     });
     const { rerender } = renderControl();
 
@@ -105,8 +103,9 @@ describe('NeedsMatchSyncControl', () => {
         lastSync={{
           status,
           error: status === 'failed' ? 'Transmission unavailable' : null,
-          createdAt: '2026-09-05T11:00:00.000Z',
-          completedAt: status === 'completed' ? '2026-09-05T11:01:00.000Z' : null,
+          queuedAt: '2026-09-05T11:00:00.000Z',
+          finishedAt: status === 'completed' ? '2026-09-05T11:01:00.000Z' : null,
+          terminal: true,
         }}
       />
     );
@@ -123,13 +122,11 @@ describe('NeedsMatchSyncControl', () => {
     syncTransmissionMock
       .mockResolvedValueOnce({
         queued: true,
-        status: 'pending',
-        createdAt: '2026-09-05T11:00:00.000Z',
+        job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
       })
       .mockResolvedValueOnce({
         queued: true,
-        status: 'pending',
-        createdAt: '2026-09-05T12:00:00.000Z',
+        job: { status: 'pending', queuedAt: '2026-09-05T12:00:00.000Z' },
       });
     const { rerender } = renderControl();
 
@@ -141,8 +138,9 @@ describe('NeedsMatchSyncControl', () => {
         lastSync={{
           status: terminalStatus,
           error: terminalStatus === 'failed' ? 'Transmission unavailable' : null,
-          createdAt: '2026-09-05T11:00:00.000Z',
-          completedAt: terminalStatus === 'completed' ? '2026-09-05T11:01:00.000Z' : null,
+          queuedAt: '2026-09-05T11:00:00.000Z',
+          finishedAt: terminalStatus === 'completed' ? '2026-09-05T11:01:00.000Z' : null,
+          terminal: true,
         }}
       />
     );
@@ -158,8 +156,9 @@ describe('NeedsMatchSyncControl', () => {
         lastSync={{
           status: 'pending',
           error: null,
-          createdAt: '2026-09-05T11:30:00.000Z',
-          completedAt: null,
+          queuedAt: '2026-09-05T11:30:00.000Z',
+          finishedAt: null,
+          terminal: false,
         }}
       />
     );
@@ -179,8 +178,7 @@ describe('NeedsMatchSyncControl', () => {
   it('does not stop on stale terminal props and times out without inventing failure', async () => {
     syncTransmissionMock.mockResolvedValue({
       queued: true,
-      status: 'pending',
-      createdAt: '2026-09-05T11:00:00.000Z',
+      job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
     });
     renderControl();
 

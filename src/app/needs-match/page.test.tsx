@@ -42,8 +42,7 @@ describe('NeedsMatchPage', () => {
   it('renders and wires the sync control when there are no requests', async () => {
     syncTransmissionMock.mockResolvedValue({
       queued: true,
-      status: 'pending',
-      createdAt: '2026-09-05T11:00:00.000Z',
+      job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
     });
 
     render(await NeedsMatchPage());

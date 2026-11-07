@@ -1,7 +1,3 @@
-import { and, eq, inArray } from 'drizzle-orm';
-
-import { db } from '../../../drizzle/db';
-import { jobs } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
 import { requestService as lifecycleService } from '@/lib/request-lifecycle';
 import type {
@@ -12,7 +8,7 @@ import type {
   SuggestionEntry,
   SyncDecision,
 } from '@/lib/request-lifecycle';
-import { registerJobType, JobHandler } from '@/lib/job-queue';
+import type { JobHandler, SyncPayload } from './contracts';
 import { TransmissionAdapter, TransmissionNotConfiguredError } from '@/lib/transmission/adapter';
 import {
   createTransmissionCatalog,
@@ -20,126 +16,6 @@ import {
 } from '@/lib/transmission/catalog';
 import { transmissionAdapter, transmissionCatalog } from '@/lib/transmission';
 import { allocateMatches } from '@/lib/matcher';
-
-const JOB_TYPE = 'transmission_sync';
-
-export type TransmissionSyncTrigger = 'scheduled' | 'manual';
-
-export interface TransmissionSyncPayload {
-  trigger: TransmissionSyncTrigger;
-}
-
-export type TransmissionSyncJobStatus = 'pending' | 'processing';
-
-export interface EnqueueTransmissionSyncResult {
-  queued: boolean;
-  status: TransmissionSyncJobStatus;
-  createdAt: string;
-}
-
-interface OutstandingJob {
-  id: number;
-  status: string;
-  payload: unknown;
-  created_at: Date;
-}
-
-/** Attempts allowed when a unique violation costs us the insert race. */
-const MAX_ENQUEUE_ATTEMPTS = 2;
-
-async function findOutstandingSync(): Promise<OutstandingJob | null> {
-  const [row] = await db
-    .select({
-      id: jobs.id,
-      status: jobs.status,
-      payload: jobs.payload,
-      created_at: jobs.createdAt,
-    })
-    .from(jobs)
-    .where(
-      and(
-        eq(jobs.type, JOB_TYPE),
-        inArray(jobs.status, ['pending', 'processing']),
-      ),
-    )
-    .limit(1);
-  return row ?? null;
-}
-
-/** Every "not queued" exit funnels through here, including the race loser. */
-async function settleOutstanding(
-  outstanding: OutstandingJob,
-  payload: TransmissionSyncPayload,
-): Promise<EnqueueTransmissionSyncResult> {
-  if (payload.trigger === 'manual' && outstanding.status === 'pending'
-    && !(isTransmissionSyncPayload(outstanding.payload) && outstanding.payload.trigger === 'manual')) {
-    await db
-      .update(jobs)
-      .set({ payload: { trigger: 'manual' }, updatedAt: new Date() })
-      .where(eq(jobs.id, outstanding.id));
-  }
-  logger.debug({ jobId: outstanding.id }, 'transmission_sync already outstanding, skipping enqueue');
-  return {
-    queued: false,
-    status: outstanding.status as TransmissionSyncJobStatus,
-    createdAt: outstanding.created_at.toISOString(),
-  };
-}
-
-/**
- * The singleton guard is a partial unique index, so the conflict surfaces as
- * Postgres' own unique-violation SQLSTATE (23505) rather than a Prisma error.
- */
-function isUniqueViolation(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && error.code === '23505';
-}
-
-export async function enqueueTransmissionSync(
-  payload: TransmissionSyncPayload = { trigger: 'scheduled' },
-): Promise<EnqueueTransmissionSyncResult> {
-  const outstanding = await findOutstandingSync();
-  if (outstanding) {
-    return settleOutstanding(outstanding, payload);
-  }
-
-  // The fast path above is not a lock: a concurrent caller can insert between
-  // the find and the create. The partial unique index
-  // jobs_singleton_live_type_key (see prisma/migrations/20261020050000) turns
-  // that race into a duplicate-key error instead of a duplicate row, so the
-  // loser reports queued: false rather than inserting twice.
-  for (let attempt = 1; attempt <= MAX_ENQUEUE_ATTEMPTS; attempt++) {
-    try {
-      const [job] = await db
-        .insert(jobs)
-        .values({
-          type: JOB_TYPE,
-          payload: { trigger: payload.trigger },
-          updatedAt: new Date(),
-        })
-        .returning({ created_at: jobs.createdAt });
-      if (!job) {
-        throw new Error('transmission_sync enqueue returned no row');
-      }
-      logger.info('transmission_sync job enqueued');
-      return { queued: true, status: 'pending', createdAt: job.created_at.toISOString() };
-    } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
-
-      const winner = await findOutstandingSync();
-      if (winner) {
-        return settleOutstanding(winner, payload);
-      }
-      // The winner finished before we could read it; the slot is free again.
-      if (attempt === MAX_ENQUEUE_ATTEMPTS) throw error;
-    }
-  }
-
-  // Unreachable: the loop either returns or throws.
-  throw new Error('transmission_sync enqueue exhausted its attempts');
-}
 
 /**
  * The pass's logging seam. Named so it can be narrowed without the `typeof logger`
@@ -221,7 +97,7 @@ export function createTransmissionSync({
 
 export function createTransmissionSyncHandler(
   dependencies: TransmissionSyncDependencies,
-): JobHandler<TransmissionSyncPayload | unknown> {
+): JobHandler<SyncPayload | unknown> {
   const transmissionSync = createTransmissionSync(dependencies);
   return {
     handle: async (payload) => {
@@ -231,7 +107,7 @@ export function createTransmissionSyncHandler(
   };
 }
 
-function isTransmissionSyncPayload(payload: unknown): payload is TransmissionSyncPayload {
+function isTransmissionSyncPayload(payload: unknown): payload is SyncPayload {
   return typeof payload === 'object'
     && payload !== null
     && 'trigger' in payload
@@ -409,11 +285,9 @@ async function computeSuggestions(
   };
 }
 
-export const transmissionSyncHandler: JobHandler<TransmissionSyncPayload | unknown> =
+export const transmissionSyncHandler: JobHandler<SyncPayload | unknown> =
   createTransmissionSyncHandler({
     logger,
     adapter: transmissionAdapter,
     catalog: transmissionCatalog,
   });
-
-registerJobType(JOB_TYPE, transmissionSyncHandler);

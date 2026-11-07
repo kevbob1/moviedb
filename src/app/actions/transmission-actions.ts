@@ -2,10 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { enqueueTransmissionSync } from '@/lib/jobs/transmission-sync';
+import { enqueue, type EnqueueResult } from '@/lib/jobs';
 
-export async function syncTransmission() {
-  const result = await enqueueTransmissionSync({ trigger: 'manual' });
+// A `'use server'` module may only export server actions, so the queue verb is
+// bound through this action rather than re-exported.
+export async function syncTransmission(): Promise<EnqueueResult> {
+  const enqueued = await enqueue('transmission_sync', { trigger: 'manual' });
   revalidatePath('/needs-match');
-  return result;
+  return enqueued;
 }

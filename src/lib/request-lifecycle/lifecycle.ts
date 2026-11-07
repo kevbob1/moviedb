@@ -6,6 +6,7 @@ import type { NewRequestRow } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
 import { createTmdbClient, TmdbClient } from '@/lib/tmdb';
 
+import type { JobPayloads, JobType } from '../jobs/contracts';
 import {
   CreateRequestInput,
   requestColumns,
@@ -249,10 +250,11 @@ export function createRequestLifecycle({
 // Intake
 // ---------------------------------------------------------------------------
 
-export type EnqueueJob = (
+/** The jobs module's transaction verb, injected into the intake seam. */
+export type EnqueueJob = <T extends JobType>(
   tx: Tx,
-  type: string,
-  payload: unknown,
+  type: T,
+  payload: JobPayloads[T],
 ) => Promise<void>;
 
 export interface RequestIntakeDeps {

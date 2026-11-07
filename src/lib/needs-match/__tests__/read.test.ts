@@ -1,7 +1,16 @@
 import { createNeedsMatchRead } from '@/lib/needs-match/read';
 
+const completedRun = {
+  status: 'completed' as const,
+  error: null,
+  queuedAt: '2024-01-02T00:00:00.000Z',
+  finishedAt: '2024-01-02T00:01:00.000Z',
+  trigger: 'scheduled' as const,
+  terminal: true,
+};
+
 describe('needs-match read', () => {
-  test('composes ordered requests, deduplicates attention rows, and selects the latest sync job', async () => {
+  test('composes ordered requests, deduplicates attention rows, and projects the latest sync run', async () => {
     const pending = [{ id: 1, title: 'Pending', status: 'pending', torrent_hash: null }];
     const attention = [
       { id: 1, title: 'Pending', status: 'downloading', torrent_problem: 'stalled' },
@@ -14,12 +23,7 @@ describe('needs-match read', () => {
       },
       getAll: jest.fn().mockResolvedValue([{ hash: 'abc', name: 'torrent', percentDone: 0, status: 0 }]),
       ping: jest.fn().mockResolvedValue({ configured: true, reachable: true }),
-      findLatestTransmissionSync: jest.fn().mockResolvedValue({
-        status: 'completed',
-        error: null,
-        created_at: new Date('2024-01-02T00:00:00Z'),
-        completed_at: new Date('2024-01-02T00:01:00Z'),
-      }),
+      latestSyncRun: jest.fn().mockResolvedValue(completedRun),
     });
 
     await expect(read).resolves.toEqual({
@@ -29,12 +33,7 @@ describe('needs-match read', () => {
       transmissionError: null,
       transmissionState: 'ok',
       torrentCount: 1,
-      lastSync: {
-        status: 'completed',
-        error: null,
-        createdAt: '2024-01-02T00:00:00.000Z',
-        completedAt: '2024-01-02T00:01:00.000Z',
-      },
+      lastSync: completedRun,
     });
   });
 
@@ -48,7 +47,7 @@ describe('needs-match read', () => {
       },
       getAll: jest.fn().mockRejectedValue(error),
       ping: jest.fn().mockResolvedValue({ configured: true, reachable: false, error: 'Connection refused' }),
-      findLatestTransmissionSync: jest.fn().mockResolvedValue(null),
+      latestSyncRun: jest.fn().mockResolvedValue(null),
     });
 
     await expect(read).resolves.toMatchObject({
@@ -70,7 +69,7 @@ describe('needs-match read', () => {
       },
       getAll: jest.fn().mockResolvedValue([]),
       ping: jest.fn().mockResolvedValue({ configured: false, reachable: false }),
-      findLatestTransmissionSync: jest.fn().mockResolvedValue(null),
+      latestSyncRun: jest.fn().mockResolvedValue(null),
     });
 
     await expect(read).resolves.toEqual({

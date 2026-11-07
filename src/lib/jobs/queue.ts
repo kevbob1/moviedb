@@ -1,19 +1,24 @@
 import { and, asc, eq, lt, sql } from 'drizzle-orm';
 
-import { db } from '../../drizzle/db';
-import { jobs } from '../../drizzle/schema';
-import { logger } from './logger';
+import { db } from '../../../drizzle/db';
+import { jobs } from '../../../drizzle/schema';
+import { logger } from '@/lib/logger';
+
+import type { JobHandler, JobPayloads, JobType } from './contracts';
 
 const STUCK_THRESHOLD_MINUTES = 5;
 const BATCH_SIZE = 10;
 
-export interface JobHandler<T> {
-  handle: (payload: T) => Promise<void>;
-}
+export type { JobHandler } from './contracts';
 
+// Keyed by string because a row read from the table is a plain string; only
+// registration is constrained to the known `JobType` set.
 const handlers = new Map<string, JobHandler<unknown>>();
 
-export function registerJobType<T>(type: string, handler: JobHandler<T>): void {
+export function registerJobType<T extends JobType>(
+  type: T,
+  handler: JobHandler<JobPayloads[T]>,
+): void {
   handlers.set(type, handler as JobHandler<unknown>);
 }
 

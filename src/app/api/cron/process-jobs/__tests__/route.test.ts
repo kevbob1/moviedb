@@ -1,29 +1,15 @@
 import { logger } from '@/lib/logger';
 
 const processPendingJobsMock = jest.fn();
-const registerJobTypeMock = jest.fn();
-const enqueueTransmissionSyncMock = jest.fn();
-
-const mockTransmissionSyncHandler = { handle: jest.fn() };
-const mockRequestNotificationHandler = { handle: jest.fn() };
-const mockTvSeriesRequestNotificationHandler = { handle: jest.fn() };
+const registerAllJobTypesMock = jest.fn();
+const enqueueMock = jest.fn();
 
 const headersMock = jest.fn();
 
-jest.mock('@/lib/job-queue', () => ({
+jest.mock('@/lib/jobs', () => ({
   processPendingJobs: (...args: unknown[]) => processPendingJobsMock(...args),
-  registerJobType: (...args: unknown[]) => registerJobTypeMock(...args),
-}));
-
-jest.mock('@/lib/jobs/transmission-sync', () => ({
-  enqueueTransmissionSync: (...args: unknown[]) => enqueueTransmissionSyncMock(...args),
-  transmissionSyncHandler: mockTransmissionSyncHandler,
-}));
-
-jest.mock('@/lib/jobs/request-notification', () => ({ requestNotificationHandler: mockRequestNotificationHandler }));
-
-jest.mock('@/lib/jobs/tv-series-request-notification', () => ({
-  tvSeriesRequestNotificationHandler: mockTvSeriesRequestNotificationHandler,
+  registerAllJobTypes: (...args: unknown[]) => registerAllJobTypesMock(...args),
+  enqueue: (...args: unknown[]) => enqueueMock(...args),
 }));
 
 jest.mock('next/headers', () => ({
@@ -44,26 +30,31 @@ interface MockResponse {
 }
 
 let GET: (req: Request) => Promise<MockResponse>;
-let registeredCalls: Array<[string, unknown]>;
+let registrationsAtImport = 0;
 
 beforeAll(() => {
   jest.isolateModules(() => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const route = require('../route');
     GET = route.GET;
+    // beforeEach clearAllMocks wipes counts, so snapshot the import-time call now
+    registrationsAtImport = registerAllJobTypesMock.mock.calls.length;
   });
-  registeredCalls = registerJobTypeMock.mock.calls.map(([type, handler]) => [type as string, handler]);
 });
 
 describe('process-jobs cron API', () => {
   const mockRequest = { url: 'http://localhost/api/cron/process-jobs', method: 'GET' } as unknown as Request;
+  const pendingEnqueue = {
+    queued: false,
+    job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.CRON_SECRET;
     headersMock.mockResolvedValue(new Headers());
     processPendingJobsMock.mockResolvedValue({ processed: 0, failed: 0 });
-    enqueueTransmissionSyncMock.mockResolvedValue({ queued: false });
+    enqueueMock.mockResolvedValue(pendingEnqueue);
   });
 
   afterEach(() => {
@@ -71,12 +62,8 @@ describe('process-jobs cron API', () => {
   });
 
   describe('handler registration', () => {
-    it('registers every job handler explicitly at import time', () => {
-      expect(registeredCalls).toEqual([
-        ['transmission_sync', mockTransmissionSyncHandler],
-        ['request_notification', mockRequestNotificationHandler],
-        ['tv_series_request_notification', mockTvSeriesRequestNotificationHandler],
-      ]);
+    it('registers every job handler once at import time', () => {
+      expect(registrationsAtImport).toBe(1);
     });
   });
 
@@ -124,28 +111,36 @@ describe('process-jobs cron API', () => {
 
   describe('transmission_sync enqueue', () => {
     it('enqueues a transmission_sync job before processing pending jobs', async () => {
-      enqueueTransmissionSyncMock.mockResolvedValue({ queued: true });
+      const enqueued = {
+        queued: true,
+        job: { status: 'pending', queuedAt: '2026-09-05T11:00:00.000Z' },
+      };
+      enqueueMock.mockResolvedValue(enqueued);
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
 
-      expect(enqueueTransmissionSyncMock).toHaveBeenCalled();
-      expect(enqueueTransmissionSyncMock.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(enqueueMock).toHaveBeenCalledWith('transmission_sync', { trigger: 'scheduled' });
+      expect(enqueueMock.mock.invocationCallOrder[0]).toBeLessThan(
         processPendingJobsMock.mock.invocationCallOrder[0]
       );
 
       const body = await response.json();
-      expect(body).toHaveProperty('transmissionSyncEnqueued', true);
+      expect(body).toHaveProperty('transmissionSyncEnqueued', enqueued);
     });
 
-    it('reports transmissionSyncEnqueued false when a sync is already outstanding', async () => {
-      enqueueTransmissionSyncMock.mockResolvedValue({ queued: false });
+    it('reports the outstanding job when a sync is already active', async () => {
+      const outstanding = {
+        queued: false,
+        job: { status: 'processing', queuedAt: '2026-09-05T10:59:00.000Z' },
+      };
+      enqueueMock.mockResolvedValue(outstanding);
 
       const response = await GET(mockRequest);
       expect(response.status).toBe(200);
 
       const body = await response.json();
-      expect(body).toHaveProperty('transmissionSyncEnqueued', false);
+      expect(body).toHaveProperty('transmissionSyncEnqueued', outstanding);
     });
   });
 

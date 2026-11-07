@@ -1,10 +1,4 @@
-import { processPendingJobs, registerJobType } from '@/lib/job-queue';
-import {
-  enqueueTransmissionSync,
-  transmissionSyncHandler,
-} from '@/lib/jobs/transmission-sync';
-import { requestNotificationHandler } from '@/lib/jobs/request-notification';
-import { tvSeriesRequestNotificationHandler } from '@/lib/jobs/tv-series-request-notification';
+import { enqueue, processPendingJobs, registerAllJobTypes } from '@/lib/jobs';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { withLogging } from '@/lib/with-logging';
@@ -13,20 +7,17 @@ import { requireCronAuth } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
-// The single registration seam: the handler map is populated here, explicitly,
-// rather than via an import-for-side-effects barrel. Registration is idempotent
-// (Map.set), so the modules' own module-level registrations harmlessly repeat.
-registerJobType('transmission_sync', transmissionSyncHandler);
-registerJobType('request_notification', requestNotificationHandler);
-registerJobType('tv_series_request_notification', tvSeriesRequestNotificationHandler);
+// The queue's single registration seam. Handlers live in the jobs module and
+// register nothing themselves; this route is the one place that wires them in.
+// Registration is idempotent (Map.set), so a route module reload is harmless.
+registerAllJobTypes();
 
 async function handler() {
   const unauthorized = requireCronAuth(await headers());
   if (unauthorized) return unauthorized;
 
   try {
-    const transmissionSyncResult = await enqueueTransmissionSync({ trigger: 'scheduled' });
-    const transmissionSyncEnqueued = transmissionSyncResult.queued;
+    const transmissionSyncEnqueued = await enqueue('transmission_sync', { trigger: 'scheduled' });
     const result = await processPendingJobs();
 
     return NextResponse.json({

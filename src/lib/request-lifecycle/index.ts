@@ -1,6 +1,6 @@
-import { jobs } from '../../../drizzle/schema';
+import { enqueueInTx } from '../jobs/enqueue';
 
-import { createRequestService, EnqueueJob, RequestService } from './repository';
+import { createRequestService, RequestService } from './repository';
 
 export { createRequestService } from './repository';
 export type {
@@ -35,12 +35,11 @@ export type { Request } from './projection';
 export type { RequestStatus } from './fsm';
 export { toRequestModel } from './projection';
 
-const defaultEnqueueJob: EnqueueJob = async (tx, type, payload) => {
-  // `updated_at` has no database default (Prisma's `@updatedAt` wrote it), so
-  // the insert supplies it explicitly.
-  await tx.insert(jobs).values({ type, payload, status: 'pending', updatedAt: new Date() });
-};
-
+/**
+ * The jobs module's transaction verb. Imported from its leaf rather than the
+ * module barrier: `jobs/index` pulls in the handlers, and the sync handler
+ * already depends on this module, so the barrier import would close a cycle.
+ */
 export const requestService: RequestService = createRequestService({
-  enqueueJob: defaultEnqueueJob,
+  enqueueJob: enqueueInTx,
 });

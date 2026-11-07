@@ -1,18 +1,8 @@
-import { desc, eq } from 'drizzle-orm';
-
-import { db } from '../../../drizzle/db';
-import { jobs } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
+import { latestRun, type JobRun } from '@/lib/jobs';
 import { requestService, type Request, type RequestNeedsMatchPort } from '@/lib/request-lifecycle';
 import { getAll, ping } from '@/lib/transmission';
 import { Torrent } from '@/lib/transmission/adapter';
-
-export interface NeedsMatchLastSync {
-  status: string;
-  error: string | null;
-  createdAt: string;
-  completedAt: string | null;
-}
 
 export interface NeedsMatchReadResult {
   requests: Request[];
@@ -21,14 +11,7 @@ export interface NeedsMatchReadResult {
   transmissionError: string | null;
   transmissionState: 'not_configured' | 'unreachable' | 'ok';
   torrentCount: number | null;
-  lastSync: NeedsMatchLastSync | null;
-}
-
-interface LatestTransmissionSync {
-  status: string;
-  error: string | null;
-  created_at: Date;
-  completed_at: Date | null;
+  lastSync: JobRun | null;
 }
 
 export interface NeedsMatchReadDeps {
@@ -36,27 +19,14 @@ export interface NeedsMatchReadDeps {
   requestService: RequestNeedsMatchPort;
   getAll: typeof getAll;
   ping: typeof ping;
-  findLatestTransmissionSync: () => Promise<LatestTransmissionSync | null>;
+  latestSyncRun: () => Promise<JobRun | null>;
 }
 
 const defaultDeps: NeedsMatchReadDeps = {
   requestService,
   getAll,
   ping,
-  findLatestTransmissionSync: async () => {
-    const [row] = await db
-      .select({
-        status: jobs.status,
-        error: jobs.error,
-        created_at: jobs.createdAt,
-        completed_at: jobs.completedAt,
-      })
-      .from(jobs)
-      .where(eq(jobs.type, 'transmission_sync'))
-      .orderBy(desc(jobs.createdAt))
-      .limit(1);
-    return row ?? null;
-  },
+  latestSyncRun: () => latestRun('transmission_sync'),
 };
 
 export async function createNeedsMatchRead(
@@ -72,7 +42,7 @@ export async function createNeedsMatchRead(
         error: error instanceof Error ? error.message : 'Unknown error',
       })),
     deps.ping(),
-    deps.findLatestTransmissionSync(),
+    deps.latestSyncRun(),
   ]);
 
   if (torrentsResult.error) {
@@ -100,14 +70,7 @@ export async function createNeedsMatchRead(
     transmissionError,
     transmissionState,
     torrentCount: torrentsResult.error ? null : torrentsResult.torrents.length,
-    lastSync: lastSyncJob
-      ? {
-          status: lastSyncJob.status,
-          error: lastSyncJob.error,
-          createdAt: lastSyncJob.created_at.toISOString(),
-          completedAt: lastSyncJob.completed_at?.toISOString() ?? null,
-        }
-      : null,
+    lastSync: lastSyncJob,
   };
 }
 

@@ -1,18 +1,12 @@
 import { Surface } from '@/components/ui/Surface';
-import { mapTransmissionSyncStatus } from '@/lib/jobs/transmission-sync-status';
-
-export interface TransmissionSyncInfo {
-  status: string;
-  error: string | null;
-  createdAt: string;
-  completedAt: string | null;
-}
+import type { JobRun } from '@/lib/jobs/contracts';
+import { syncRunLabel } from '@/lib/jobs/status';
 
 interface TransmissionStatusBannerProps {
   state: 'ok' | 'unreachable' | 'not_configured';
   error?: string | null;
   torrentCount: number | null;
-  lastSync: TransmissionSyncInfo | null;
+  lastSync: JobRun | null;
 }
 
 function timeAgo(iso: string): string {
@@ -52,7 +46,7 @@ export function TransmissionStatusBanner({ state, error, torrentCount, lastSync 
         <p className="text-xs text-muted-foreground">
           {lastSync ? (
             <>
-              Last sync {timeAgo(lastSync.completedAt ?? lastSync.createdAt)} · {mapTransmissionSyncStatus(lastSync.status)}
+              Last sync {timeAgo(lastSync.finishedAt ?? lastSync.queuedAt)} · {syncRunLabel(lastSync.status)}
               {lastSync.error && <span className="text-rose-300"> — {lastSync.error.split('\n')[0]}</span>}
             </>
           ) : (

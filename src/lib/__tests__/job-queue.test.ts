@@ -14,7 +14,8 @@ jest.mock('../logger', () => ({
 
 import { db } from '../../../drizzle/db';
 import { renderSql, storeOf } from '../../test-support/fake-drizzle';
-import { processJob, processPendingJobs, registerJobType } from '../job-queue';
+import type { JobType } from '../jobs/contracts';
+import { processJob, processPendingJobs, registerJobType } from '../jobs/queue';
 
 const store = storeOf(db);
 
@@ -48,7 +49,7 @@ describe('job-queue', () => {
   describe('registerJobType and processJob', () => {
     it('invokes the registered handler for a job type', async () => {
       const handler = jest.fn().mockResolvedValue(undefined);
-      registerJobType('test_type', { handle: handler });
+      registerJobType('test_type' as JobType, { handle: handler });
 
       const job = {
         id: 1,
@@ -91,7 +92,7 @@ describe('job-queue', () => {
   describe('processPendingJobs', () => {
     it('claims pending jobs and processes them', async () => {
       const handler = jest.fn().mockResolvedValue(undefined);
-      registerJobType('claim_test', { handle: handler });
+      registerJobType('claim_test' as JobType, { handle: handler });
 
       const job = seedJob({ type: 'claim_test', payload: { a: 1 } });
 
@@ -131,7 +132,7 @@ describe('job-queue', () => {
 
     it('marks a job as failed after max attempts', async () => {
       const handler = jest.fn().mockRejectedValue(new Error('SMTP down'));
-      registerJobType('fail_test', { handle: handler });
+      registerJobType('fail_test' as JobType, { handle: handler });
 
       const job = seedJob({ type: 'fail_test', attempts: 2, maxAttempts: 3 });
 
@@ -146,7 +147,7 @@ describe('job-queue', () => {
 
     it('resets to pending on failure when attempts remain', async () => {
       const handler = jest.fn().mockRejectedValue(new Error('transient'));
-      registerJobType('retry_test', { handle: handler });
+      registerJobType('retry_test' as JobType, { handle: handler });
 
       const job = seedJob({ type: 'retry_test', attempts: 1, maxAttempts: 3 });
 
@@ -170,7 +171,7 @@ describe('job-queue', () => {
 
     it('does not process a job another worker already claimed', async () => {
       const handler = jest.fn().mockResolvedValue(undefined);
-      registerJobType('skip_test', { handle: handler });
+      registerJobType('skip_test' as JobType, { handle: handler });
 
       // Fresh `updated_at`, so the stuck sweep leaves it alone and it is not
       // pending: another worker owns it.
