@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import RequestCard from '../RequestCard';
-import { RequestStatus } from '@/lib/request-lifecycle/fsm';
+import { RequestStatus } from '@/lib/request-lifecycle/presentation';
 
 jest.mock('next/image', () => ({
   __esModule: true,

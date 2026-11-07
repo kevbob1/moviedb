@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { cancelRequest, downloadRequest, fulfillRequest } from '@/app/actions/request-actions';
 import { logger } from '@/lib/logger';
-import { Request } from './projection';
+import { Request } from './presentation';
 
 interface UseRequestActionsOptions {
   request: Request;

@@ -1,7 +1,7 @@
 import {
   validateCreateRequestInput,
   validateRequestedBy,
-} from '../validators';
+} from '../presentation';
 
 describe('request-lifecycle/validators', () => {
   const baseInput = {

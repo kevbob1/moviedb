@@ -1,5 +1,5 @@
 import { makeInMemoryDrizzle } from '../../../test-support/fake-drizzle';
-import { applyTransition, TransitionClient } from '../transitions';
+import { applyTransition, TransitionClient } from '../lifecycle';
 
 const NOW = new Date('2026-06-15T12:00:00Z');
 const fixedNow = () => NOW;

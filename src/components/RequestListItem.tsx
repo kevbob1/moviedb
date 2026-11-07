@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-import { Request } from '@/lib/request-lifecycle';
+import { Request } from '@/lib/request-lifecycle/presentation';
 
 import RequestCard from './RequestCard';
 

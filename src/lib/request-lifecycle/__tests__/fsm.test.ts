@@ -4,7 +4,7 @@ import {
   getAllowedTransitions,
   InvalidTransitionError,
   resolveSideEffects,
-} from '../fsm';
+} from '../lifecycle';
 
 describe('request-lifecycle/fsm', () => {
   describe('REQUEST_TRANSITIONS', () => {

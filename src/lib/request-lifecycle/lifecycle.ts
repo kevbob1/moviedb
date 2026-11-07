@@ -8,19 +8,31 @@ import { createTmdbClient, TmdbClient } from '@/lib/tmdb';
 
 import type { JobPayloads, JobType } from '../jobs/contracts';
 import {
-  CreateRequestInput,
-  requestColumns,
-  Request,
   toRequestModel,
   validateCreateRequestInput,
   validateRequestedBy,
-} from './queries';
+  type CreateRequestInput,
+  type Request,
+  type RequestStatus,
+} from './presentation';
+import { requestColumns } from './queries';
+
+// ---------------------------------------------------------------------------
+// Presentation vocabulary
+// ---------------------------------------------------------------------------
+
+// Re-exported so existing importers of `./lifecycle` keep working. The
+// definitions live in the client-safe `./presentation` module.
+export {
+  toRequestModel,
+  validateCreateRequestInput,
+  validateRequestedBy,
+} from './presentation';
+export type { CreateRequestInput, Request, RequestStatus } from './presentation';
 
 // ---------------------------------------------------------------------------
 // FSM
 // ---------------------------------------------------------------------------
-
-export type RequestStatus = 'pending' | 'downloading' | 'fulfilled';
 
 export const REQUEST_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
   pending: ['downloading', 'fulfilled'],

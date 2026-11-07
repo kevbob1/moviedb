@@ -5,7 +5,7 @@ import {
   getAvailableActions,
   statusToPill,
   toRequestModel,
-} from '../projection';
+} from '../presentation';
 
 describe('request-lifecycle/projection', () => {
   describe('STATUS_CONFIG', () => {

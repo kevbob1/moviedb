@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 
 import RequestCard from '@/components/RequestCard';
-import { Request } from '@/lib/request-lifecycle';
+import { Request } from '@/lib/request-lifecycle/presentation';
 
 interface RequestDetailProps {
   request: Request;

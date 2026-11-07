@@ -1,6 +1,6 @@
 import { availabilityFor, seasonsForMany } from '@/lib/jellyfin';
 import { requestService, type ImportIntakePort } from '@/lib/request-lifecycle';
-import { CreateRequestInput } from '@/lib/request-lifecycle/validators';
+import { CreateRequestInput } from '@/lib/request-lifecycle/presentation';
 import { createTmdbClient, TmdbClient } from '@/lib/tmdb';
 import { SeasonsResult } from '@/lib/jellyfin/catalog';
 import { Season, SeasonRow, projectAvailability } from './availability';

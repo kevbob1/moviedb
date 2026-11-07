@@ -1,6 +1,6 @@
 import { makeInMemoryDrizzle, renderSql } from '../../../test-support/fake-drizzle';
 import { makeService } from '../../../test-support/request-service-fake';
-import { InvalidTransitionError } from '../fsm';
+import { InvalidTransitionError } from '../lifecycle';
 
 const seedRequest = async (fake: ReturnType<typeof makeInMemoryDrizzle>) => {
   const { service } = makeService(fake);

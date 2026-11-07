@@ -26,14 +26,32 @@ export type {
 } from './repository';
 
 /**
- * The caller-facing value object and its status union. The FSM, projection, and
- * validators are internal seams: callers that need those import from the file
- * that owns them (`./fsm`, `./projection`, `./validators`) rather than through
- * this barrier.
+ * Server barrier for the request-lifecycle module.
+ *
+ * Client components import UI vocabulary from `./presentation`, server code
+ * uses this barrier, and `./lifecycle` owns the write path.
  */
-export type { Request } from './projection';
-export type { RequestStatus } from './fsm';
-export { toRequestModel } from './projection';
+export {
+  STATUS_CONFIG,
+  actionToButtonVariant,
+  canCancel,
+  getAvailableActions,
+  statusToPill,
+  toRequestModel,
+  validateCreateRequestInput,
+  validateRequestedBy,
+} from './presentation';
+export type {
+  ActionKind,
+  ButtonVariant,
+  CreateRequestInput,
+  PillVariant,
+  Request,
+  RequestAction,
+  RequestStatus,
+  StatusConfig,
+  ValidationResult,
+} from './presentation';
 
 /**
  * The jobs module's transaction verb, reached through its barrier. The call is

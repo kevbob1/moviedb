@@ -2,13 +2,13 @@
 
 import Image from 'next/image';
 
-import { actionToButtonVariant, canCancel, getAvailableActions, STATUS_CONFIG, statusToPill } from '@/lib/request-lifecycle/projection';
+import { actionToButtonVariant, canCancel, getAvailableActions, STATUS_CONFIG, statusToPill } from '@/lib/request-lifecycle/presentation';
 import { useRequestActions } from '@/lib/request-lifecycle/use-request-actions';
 import { getGenreNames } from '@/lib/genres';
 import { Pill } from '@/components/ui/Pill';
 import { Button } from '@/components/ui/Button';
 import { Surface } from '@/components/ui/Surface';
-import { Request } from '@/lib/request-lifecycle';
+import { Request } from '@/lib/request-lifecycle/presentation';
 import { ReleaseDate } from './ReleaseDate';
 
 interface RequestCardProps {

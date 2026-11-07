@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { linkTorrent } from '@/app/actions/request-actions';
 import { Button } from '@/components/ui/Button';
 import { Torrent } from '@/lib/transmission/adapter';
-import { Request } from '@/lib/request-lifecycle';
+import { Request } from '@/lib/request-lifecycle/presentation';
 
 type SuggestedRequest = Request & { suggestion_hash: string };
 
