@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function NeedsMatchPage() {
   const {
-    requests,
-    needsAttention,
+    attention,
+    pending,
     torrents,
     transmissionError,
     transmissionState,
@@ -26,7 +26,7 @@ export default async function NeedsMatchPage() {
     />
   );
 
-  const total = requests.length;
+  const total = attention.length + pending.length;
 
   if (total === 0) {
     return (
@@ -52,9 +52,9 @@ export default async function NeedsMatchPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Needs Match</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {requests.length} request{requests.length !== 1 ? 's' : ''} need{requests.length === 1 ? 's' : ''} a torrent assigned
-            {needsAttention.length > 0 && (
-              <> — {needsAttention.length} need{needsAttention.length === 1 ? 's' : ''} attention</>
+            {total} request{total !== 1 ? 's' : ''} need{total === 1 ? 's' : ''} a torrent assigned
+            {attention.length > 0 && (
+              <> — {attention.length} need{attention.length === 1 ? 's' : ''} attention</>
             )}
           </p>
         </div>
@@ -63,7 +63,7 @@ export default async function NeedsMatchPage() {
 
       {banner}
 
-      <NeedsMatchView requests={requests} torrents={torrents} />
+      <NeedsMatchView attention={attention} pending={pending} torrents={torrents} />
     </main>
   );
 }

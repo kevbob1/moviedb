@@ -4,9 +4,25 @@ import { requestService, type Request, type RequestNeedsMatchPort } from '@/lib/
 import { getAll, ping } from '@/lib/transmission';
 import { Torrent } from '@/lib/transmission/adapter';
 
+/** A suggestion with the torrent name resolved against the Transmission list. */
+export interface MatchSuggestion {
+  hash: string;
+  name: string;
+  score: number;
+}
+
+/** A pending Request together with its computed suggestion, if it has one. */
+export type MatchRow = Request & { suggestion: MatchSuggestion | null };
+
+/** A downloading Request whose torrent needs operator attention. */
+export type AttentionRow = Request & {
+  problem: string;
+  linkedTorrentName: string | null;
+};
+
 export interface NeedsMatchReadResult {
-  requests: Request[];
-  needsAttention: Request[];
+  attention: AttentionRow[];
+  pending: MatchRow[];
   torrents: Torrent[];
   transmissionError: string | null;
   transmissionState: 'not_configured' | 'unreachable' | 'ok';
@@ -32,7 +48,7 @@ const defaultDeps: NeedsMatchReadDeps = {
 export async function createNeedsMatchRead(
   deps: NeedsMatchReadDeps = defaultDeps,
 ): Promise<NeedsMatchReadResult> {
-  const [requests, needsAttention, torrentsResult, pingResult, lastSyncJob] = await Promise.all([
+  const [requests, attentionRequests, torrentsResult, pingResult, lastSyncJob] = await Promise.all([
     deps.requestService.pendingRequestsForNeedsMatch(),
     deps.requestService.downloadingRequestsWithTorrentProblems(),
     deps.getAll()
@@ -60,12 +76,34 @@ export async function createNeedsMatchRead(
     ? null
     : (torrentsResult.error ?? pingResult.error ?? null);
 
+  // Join the two request lists against the fetched torrents once, here, so
+  // every client component receives names already embedded in its rows.
+  const torrentNameByHash = new Map(
+    torrentsResult.torrents.map((torrent) => [torrent.hash, torrent.name]),
+  );
+
+  const pending: MatchRow[] = requests.map((request) => ({
+    ...request,
+    suggestion: request.suggestion_hash
+      ? {
+          hash: request.suggestion_hash,
+          name: torrentNameByHash.get(request.suggestion_hash) ?? request.suggestion_hash,
+          score: request.suggestion_score ?? 0,
+        }
+      : null,
+  }));
+
+  const attention: AttentionRow[] = attentionRequests.map((request) => ({
+    ...request,
+    problem: request.torrent_problem ?? '',
+    linkedTorrentName: request.torrent_hash
+      ? (torrentNameByHash.get(request.torrent_hash) ?? request.torrent_hash)
+      : null,
+  }));
+
   return {
-    requests: [
-      ...requests,
-      ...needsAttention.filter((attention) => !requests.some((request) => request.id === attention.id)),
-    ],
-    needsAttention,
+    attention,
+    pending,
     torrents: torrentsResult.torrents,
     transmissionError,
     transmissionState,

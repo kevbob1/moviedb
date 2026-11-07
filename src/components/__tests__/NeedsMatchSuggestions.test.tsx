@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
 import { Request } from '@/lib/request-lifecycle';
-import { Torrent } from '@/lib/transmission/adapter';
+import type { MatchSuggestion } from '@/lib/needs-match/read';
 
 jest.mock('@/app/actions/request-actions', () => ({
   linkTorrent: jest.fn().mockResolvedValue(undefined),
@@ -26,13 +26,12 @@ const createRequest = (overrides: Partial<Request> = {}): Request => ({
   ...overrides,
 });
 
-const createTorrent = (overrides: Partial<Torrent> = {}): Torrent => ({
+const createSuggestion = (overrides: Partial<MatchSuggestion> = {}): MatchSuggestion => ({
   hash: 'abc123',
   name: 'Dune.2021.1080p.BluRay.x264',
-  percentDone: 0,
-  status: 0,
+  score: 0.83,
   ...overrides,
-} as Torrent);
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -40,12 +39,7 @@ beforeEach(() => {
 
 describe('NeedsMatchSuggestion', () => {
   it('refreshes after accepting the single-request suggestion card', async () => {
-    render(
-      <NeedsMatchSuggestion
-        request={createRequest({ suggestion_hash: 'abc123', suggestion_score: 0.83 }) as Request & { suggestion_hash: string }}
-        torrents={[createTorrent()]}
-      />
-    );
+    render(<NeedsMatchSuggestion request={createRequest()} suggestion={createSuggestion()} />);
 
     await userEvent.click(screen.getByRole('button', { name: /Accept suggested match/ }));
 
@@ -55,18 +49,20 @@ describe('NeedsMatchSuggestion', () => {
 
   it('shows a retryable error after the single-request suggestion fails', async () => {
     jest.mocked(linkTorrent).mockRejectedValueOnce(new Error('failed'));
-    render(
-      <NeedsMatchSuggestion
-        request={createRequest({ suggestion_hash: 'abc123', suggestion_score: 0.83 }) as Request & { suggestion_hash: string }}
-        torrents={[createTorrent()]}
-      />
-    );
+    render(<NeedsMatchSuggestion request={createRequest()} suggestion={createSuggestion()} />);
 
     await userEvent.click(screen.getByRole('button', { name: /Accept suggested match/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to accept suggestion. Please try again.');
     expect(screen.getByRole('button', { name: /Accept suggested match/ })).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('renders the embedded suggestion name and score', () => {
+    render(<NeedsMatchSuggestion request={createRequest()} suggestion={createSuggestion({ name: 'Embedded.Torrent.Name' })} />);
+
+    expect(screen.getByTitle('Embedded.Torrent.Name')).toHaveTextContent('Embedded.Torrent.Name');
+    expect(screen.getByText('Score: 0.83')).toBeInTheDocument();
   });
 
   it.each([
@@ -76,12 +72,7 @@ describe('NeedsMatchSuggestion', () => {
     [0.5, 'border-amber-500'],
     [0.49, 'border-rose-500'],
   ])('colours a %s score with the %s band', (score, borderClass) => {
-    render(
-      <NeedsMatchSuggestion
-        request={createRequest({ suggestion_hash: 'abc123', suggestion_score: score }) as Request & { suggestion_hash: string }}
-        torrents={[createTorrent()]}
-      />
-    );
+    render(<NeedsMatchSuggestion request={createRequest()} suggestion={createSuggestion({ score })} />);
 
     expect(screen.getByRole('status')).toHaveClass(borderClass);
   });

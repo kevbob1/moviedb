@@ -8,12 +8,17 @@ import { Surface } from '@/components/ui/Surface';
 import { NeedsMatchSuggestion } from '@/components/NeedsMatchSuggestions';
 import { ReleaseDate } from '@/components/ReleaseDate';
 import { Torrent } from '@/lib/transmission/adapter';
-import { Request } from '@/lib/request-lifecycle/presentation';
+import type { AttentionRow, MatchRow } from '@/lib/needs-match/read';
 
 interface NeedsMatchViewProps {
-  requests: Request[];
+  attention: AttentionRow[];
+  pending: MatchRow[];
   torrents: Torrent[];
 }
+
+type ViewRow =
+  | (AttentionRow & { kind: 'attention' })
+  | (MatchRow & { kind: 'pending' });
 
 function formatProgress(pct: number): string {
   return `${Math.round(pct * 100)}%`;
@@ -32,11 +37,17 @@ function statusLabel(status: number): string {
   return labels[status] ?? `Unknown (${status})`;
 }
 
-export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
+export function NeedsMatchView({ attention, pending, torrents }: NeedsMatchViewProps) {
   const router = useRouter();
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<number | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+
+  const rows: ViewRow[] = [
+    ...attention.map((row) => ({ ...row, kind: 'attention' as const })),
+    ...pending.map((row) => ({ ...row, kind: 'pending' as const })),
+  ];
+  const total = rows.length;
 
   const handleLink = async (requestId: number) => {
     if (!selectedHash) return;
@@ -66,43 +77,50 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
         <div className="min-w-0 flex-1 basis-0">
           <h2 className="mb-3 text-lg font-semibold text-foreground">
             Requests Needing Match
-            {requests.length > 0 && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">({requests.length})</span>
+            {total > 0 && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">({total})</span>
             )}
           </h2>
-          {requests.length === 0 ? (
+          {total === 0 ? (
             <p className="text-sm text-muted-foreground">All requests have been matched</p>
           ) : (
-            requests.map((request) => (
+            rows.map((row) => (
               <Surface
-                key={request.id}
+                key={`${row.kind}-${row.id}`}
                 elevation="raised"
-                className={`mb-3 p-3 sm:p-4 ${request.torrent_problem ? 'border border-rose-500/20' : ''}`}
+                className={`mb-3 p-3 sm:p-4 ${row.kind === 'attention' ? 'border border-rose-500/20' : ''}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-base font-semibold text-foreground">
-                      {request.title}
-                      {request.season_number && (
-                        <span className="ml-2 font-normal text-muted-foreground">Season {request.season_number}</span>
+                      {row.title}
+                      {row.season_number && (
+                        <span className="ml-2 font-normal text-muted-foreground">Season {row.season_number}</span>
                       )}
-                      {request.release_date && <ReleaseDate date={request.release_date} mediaType={request.media_type} />}
+                      {row.release_date && <ReleaseDate date={row.release_date} mediaType={row.media_type} />}
                     </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Requested by {request.requested_by}
+                      Requested by {row.requested_by}
                     </p>
-                    {request.torrent_problem && (
-                      <p className="mt-1 text-xs text-rose-300">{request.torrent_problem}</p>
+                    {row.kind === 'attention' && (
+                      <>
+                        <p className="mt-1 text-xs text-rose-300">{row.problem}</p>
+                        {row.linkedTorrentName && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Torrent: <span className="font-mono">{row.linkedTorrentName}</span>
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="flex min-h-8 flex-shrink-0 flex-nowrap justify-end gap-2">
-                    {request.torrent_problem ? (
+                    {row.kind === 'attention' ? (
                       <Button
                         size="sm"
                         variant="danger"
-                        loading={cancellingId === request.id}
-                        disabled={cancellingId === request.id}
-                        onClick={() => handleCancel(request.id)}
+                        loading={cancellingId === row.id}
+                        disabled={cancellingId === row.id}
+                        onClick={() => handleCancel(row.id)}
                       >
                         Cancel
                       </Button>
@@ -110,22 +128,21 @@ export function NeedsMatchView({ requests, torrents }: NeedsMatchViewProps) {
                       <Button
                         size="sm"
                         variant="primary"
-                        disabled={!selectedHash || linkingId === request.id}
-                        loading={linkingId === request.id}
-                        onClick={() => handleLink(request.id)}
+                        disabled={!selectedHash || linkingId === row.id}
+                        loading={linkingId === row.id}
+                        onClick={() => handleLink(row.id)}
                       >
                         Link
                       </Button>
                     )}
                   </div>
                 </div>
-                {request.suggestion_hash ? (
-                  <NeedsMatchSuggestion
-                    request={{ ...request, suggestion_hash: request.suggestion_hash }}
-                    torrents={torrents}
-                  />
-                ) : (
-                  <p className="mt-3 text-sm text-muted-foreground">No match found</p>
+                {row.kind === 'pending' && (
+                  row.suggestion ? (
+                    <NeedsMatchSuggestion request={row} suggestion={row.suggestion} />
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">No match found</p>
+                  )
                 )}
               </Surface>
             ))

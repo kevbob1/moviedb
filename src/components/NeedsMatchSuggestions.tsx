@@ -4,11 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { linkTorrent } from '@/app/actions/request-actions';
 import { Button } from '@/components/ui/Button';
-import { Torrent } from '@/lib/transmission/adapter';
 import { Request } from '@/lib/request-lifecycle/presentation';
 import { SuggestionBand, suggestionBand } from '@/lib/matcher';
-
-type SuggestedRequest = Request & { suggestion_hash: string };
+import type { MatchSuggestion } from '@/lib/needs-match/read';
 
 const BAND_CLASSES: Record<SuggestionBand, string> = {
   auto: 'border-emerald-500 bg-emerald-500/10',
@@ -16,18 +14,23 @@ const BAND_CLASSES: Record<SuggestionBand, string> = {
   'below-floor': 'border-rose-500 bg-rose-500/10',
 };
 
-export function NeedsMatchSuggestion({ request, torrents }: { request: SuggestedRequest; torrents: Torrent[] }) {
+export function NeedsMatchSuggestion({
+  request,
+  suggestion,
+}: {
+  request: Request;
+  suggestion: MatchSuggestion;
+}) {
   const router = useRouter();
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const torrentName = torrents.find((torrent) => torrent.hash === request.suggestion_hash)?.name ?? request.suggestion_hash;
-  const score = request.suggestion_score ?? 0;
+  const { hash, name: torrentName, score } = suggestion;
 
   const handleAccept = async () => {
     setError(null);
     setAccepting(true);
     try {
-      await linkTorrent(request.id, request.suggestion_hash);
+      await linkTorrent(request.id, hash);
       router.refresh();
     } catch {
       setError('Unable to accept suggestion. Please try again.');

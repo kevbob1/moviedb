@@ -4,6 +4,7 @@ import { NeedsMatchView } from '@/components/NeedsMatchView';
 import RequestCard from '@/components/RequestCard';
 import { Request } from '@/lib/request-lifecycle';
 import { Torrent } from '@/lib/transmission/adapter';
+import type { AttentionRow, MatchRow } from '@/lib/needs-match/read';
 
 jest.mock('@/app/actions/request-actions', () => ({
   linkTorrent: jest.fn().mockResolvedValue(undefined),
@@ -34,6 +35,20 @@ const createRequest = (overrides: Partial<Request> = {}): Request => ({
   ...overrides,
 });
 
+const createPendingRow = (overrides: Partial<MatchRow> = {}): MatchRow => ({
+  ...createRequest(),
+  suggestion: null,
+  ...overrides,
+});
+
+const createAttentionRow = (overrides: Partial<AttentionRow> = {}): AttentionRow => ({
+  ...createRequest(),
+  status: 'downloading',
+  problem: 'Torrent errored',
+  linkedTorrentName: null,
+  ...overrides,
+});
+
 const torrent: Torrent = {
   hash: 'abc123',
   name: 'Dune.2021.1080p.BluRay.x264',
@@ -46,12 +61,16 @@ beforeEach(() => {
 });
 
 describe('NeedsMatchView inline suggestions', () => {
-  it('renders each request once with its release year and inline suggestion', () => {
+  it('renders each request once with its release year and embedded suggestion', () => {
     render(
       <NeedsMatchView
-        requests={[
-          createRequest({ suggestion_hash: 'abc123', suggestion_score: 0.83, release_date: '2021-10-22' }),
-          createRequest({ id: 2, title: 'Arrival', suggestion_hash: null, release_date: '2016-01-29' }),
+        attention={[]}
+        pending={[
+          createPendingRow({
+            suggestion: { hash: 'abc123', name: torrent.name, score: 0.83 },
+            release_date: '2021-10-22',
+          }),
+          createPendingRow({ id: 2, title: 'Arrival', suggestion: null, release_date: '2016-01-29' }),
         ]}
         torrents={[torrent]}
       />
@@ -78,7 +97,7 @@ describe('NeedsMatchView inline suggestions', () => {
     render(
       <>
         <RequestCard request={request} />
-        <NeedsMatchView requests={[request]} torrents={[]} />
+        <NeedsMatchView attention={[]} pending={[createPendingRow({ release_date: '2024-01-01' })]} torrents={[]} />
       </>
     );
 
@@ -89,21 +108,35 @@ describe('NeedsMatchView inline suggestions', () => {
     expect(releaseYears[1].className).toBe(releaseYears[0].className);
   });
 
-  it('retains needs-attention details in the same request row', () => {
+  it('renders attention rows as attention rather than by torrent_problem truthiness', () => {
     render(
       <NeedsMatchView
-        requests={[createRequest({ status: 'downloading', torrent_problem: 'Torrent errored' })]}
+        attention={[
+          createAttentionRow({
+            problem: 'Torrent errored',
+            linkedTorrentName: 'Dune.2021.1080p.BluRay.x264',
+          }),
+        ]}
+        pending={[]}
         torrents={[]}
       />
     );
 
     expect(screen.getByText('Torrent errored')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    expect(screen.getByText('No match found')).toBeInTheDocument();
+    expect(screen.getByText('Dune.2021.1080p.BluRay.x264')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Link' })).not.toBeInTheDocument();
+    expect(screen.queryByText('No match found')).not.toBeInTheDocument();
   });
 
-  it('accepts the suggested torrent for the matching request', async () => {
-    render(<NeedsMatchView requests={[createRequest({ suggestion_hash: 'abc123' })]} torrents={[torrent]} />);
+  it('accepts the embedded suggestion for the matching request', async () => {
+    render(
+      <NeedsMatchView
+        attention={[]}
+        pending={[createPendingRow({ suggestion: { hash: 'abc123', name: torrent.name, score: 0.83 } })]}
+        torrents={[torrent]}
+      />
+    );
 
     await userEvent.click(screen.getByRole('button', { name: /Accept suggested match for Dune/ }));
 

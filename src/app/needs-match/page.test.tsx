@@ -29,8 +29,8 @@ describe('NeedsMatchPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     readNeedsMatchMock.mockResolvedValue({
-      requests: [],
-      needsAttention: [],
+      attention: [],
+      pending: [],
       torrents: [],
       transmissionError: null,
       transmissionState: 'ok',
