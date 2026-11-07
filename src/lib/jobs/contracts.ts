@@ -15,6 +15,14 @@ export interface SyncPayload {
   trigger: SyncTrigger;
 }
 
+/** The stored payload is untyped JSON; both enqueue and the handler narrow it here. */
+export function isTransmissionSyncPayload(payload: unknown): payload is SyncPayload {
+  return typeof payload === 'object'
+    && payload !== null
+    && 'trigger' in payload
+    && (payload.trigger === 'scheduled' || payload.trigger === 'manual');
+}
+
 /**
  * The notification job stores the created row verbatim (`{ ...row }` over
  * `requestColumns`), so its payload keys stay snake_case: they are stored data,

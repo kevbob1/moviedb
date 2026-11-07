@@ -1,4 +1,4 @@
-import { enqueueInTx } from '../jobs/enqueue';
+import { enqueueInTx } from '@/lib/jobs';
 
 import { createRequestService, RequestService } from './repository';
 
@@ -36,10 +36,10 @@ export type { RequestStatus } from './fsm';
 export { toRequestModel } from './projection';
 
 /**
- * The jobs module's transaction verb. Imported from its leaf rather than the
- * module barrier: `jobs/index` pulls in the handlers, and the sync handler
- * already depends on this module, so the barrier import would close a cycle.
+ * The jobs module's transaction verb, reached through its barrier. The call is
+ * deferred so binding the dependency does not depend on which of the two module
+ * bodies finishes evaluating first.
  */
 export const requestService: RequestService = createRequestService({
-  enqueueJob: enqueueInTx,
+  enqueueJob: (tx, type, payload) => enqueueInTx(tx, type, payload),
 });

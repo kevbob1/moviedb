@@ -18,9 +18,8 @@ import { storeOf } from '../../../test-support/fake-drizzle';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
 import {
   createTransmissionSync,
-  createTransmissionSyncHandler,
   TransmissionSyncDependencies,
-} from '../transmission-sync';
+} from '@/lib/sync-pass';
 
 const store = storeOf(db);
 
@@ -55,18 +54,7 @@ function syncFor(
   });
 }
 
-function handlerFor(
-  adapter: InMemoryTransmissionAdapter,
-  requestService: ReturnType<typeof makeFakeRequestService>,
-) {
-  return createTransmissionSyncHandler({
-    requestService: requestService as unknown as TransmissionSyncDependencies['requestService'],
-    logger: { debug: jest.fn(), info: jest.fn(), error: jest.fn() },
-    adapter,
-  });
-}
-
-describe('transmission_sync handler', () => {
+describe('transmission sync pass', () => {
   describe('completion happy path', () => {
     it('flips downloading → fulfilled when isFinished is true', async () => {
       const adapter = new InMemoryTransmissionAdapter({
@@ -397,35 +385,6 @@ describe('transmission_sync handler', () => {
       const requestService = makeFakeRequestService();
 
       await syncFor(adapter, requestService).run();
-
-      expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
-    });
-  });
-
-  describe('sync pass handler seam', () => {
-    it('runs the pass with the age gate ignored on a manual trigger', async () => {
-      const adapter = new InMemoryTransmissionAdapter();
-      const requestService = makeFakeRequestService();
-
-      await handlerFor(adapter, requestService).handle({ trigger: 'manual' });
-
-      expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: false });
-    });
-
-    it('retains the age gate on a scheduled trigger', async () => {
-      const adapter = new InMemoryTransmissionAdapter();
-      const requestService = makeFakeRequestService();
-
-      await handlerFor(adapter, requestService).handle({ trigger: 'scheduled' });
-
-      expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
-    });
-
-    it('falls back to the scheduled trigger for an unknown payload', async () => {
-      const adapter = new InMemoryTransmissionAdapter();
-      const requestService = makeFakeRequestService();
-
-      await handlerFor(adapter, requestService).handle({ something: 'else' });
 
       expect(requestService.pendingRequestsForNeedsMatch).toHaveBeenCalledWith({ applySuggestionAgeGate: true });
     });

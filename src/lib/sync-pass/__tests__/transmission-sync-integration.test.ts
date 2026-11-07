@@ -1,6 +1,6 @@
 import { requestService } from '@/lib/request-lifecycle';
 import { InMemoryTransmissionAdapter } from '@/lib/transmission/adapter';
-import { createTransmissionSync, TransmissionSyncDependencies } from '../transmission-sync';
+import { createTransmissionSync, TransmissionSyncDependencies } from '@/lib/sync-pass';
 
 jest.mock('../../../../drizzle/db', () => ({ db: {} }));
 jest.mock('@/lib/request-lifecycle', () => ({

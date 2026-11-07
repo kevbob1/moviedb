@@ -4,6 +4,7 @@ import { db, type Tx } from '../../../drizzle/db';
 import { jobs } from '../../../drizzle/schema';
 import { logger } from '@/lib/logger';
 
+import { isTransmissionSyncPayload } from './contracts';
 import type { JobPayloads, JobStatus, JobType, SyncPayload } from './contracts';
 
 export interface EnqueueResult {
@@ -41,13 +42,6 @@ async function findOutstandingSync(): Promise<OutstandingJob | null> {
     )
     .limit(1);
   return row ? { ...row, status: row.status as JobStatus } : null;
-}
-
-function isTransmissionSyncPayload(payload: unknown): payload is SyncPayload {
-  return typeof payload === 'object'
-    && payload !== null
-    && 'trigger' in payload
-    && (payload.trigger === 'scheduled' || payload.trigger === 'manual');
 }
 
 /** Every "not queued" exit funnels through here, including the race loser. */
