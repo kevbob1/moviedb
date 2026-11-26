@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { requestImport } from '@/app/actions/request-actions';
 import { RequestForm } from '@/components/RequestForm';
+import { ReleaseDate } from '@/components/ReleaseDate';
 import { Button } from '@/components/ui/Button';
 import { Pill } from '@/components/ui/Pill';
 import { Surface } from '@/components/ui/Surface';
@@ -89,7 +90,7 @@ export default function ImportPage() {
 function MovieResultCard({ result, requesting, onRequest, onCancel, onSubmit }: { result: ImportResult; requesting: boolean; onRequest: () => void; onCancel: () => void; onSubmit: (name: string) => Promise<void> }) {
   return <Surface elevation="raised" className="flex gap-3 p-3">
     {result.poster_path ? <div className="w-20 max-w-[35vw] flex-shrink-0"><Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.title ?? ''} width={80} height={120} sizes="80px" className="h-auto w-full rounded-lg" /></div> : <div className="aspect-[2/3] w-20 max-w-[35vw] flex-shrink-0 rounded-lg bg-surface" />}
-    <div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><h2 className="font-semibold">{result.title}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div><p className="text-sm text-muted-foreground">{result.overview}</p><div className="mt-2">{!result.onJellyfin && !requesting && <Button size="sm" onClick={onRequest}>Request</Button>}{requesting && <RequestForm isVisible onSubmit={onSubmit} onCancel={onCancel} />}</div></div>
+    <div className="min-w-0 flex-1"><div className="flex justify-between gap-2"><h2 className="font-semibold">{result.title}{result.release_date && <ReleaseDate date={result.release_date} />}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div><p className="text-sm text-muted-foreground">{result.overview}</p><div className="mt-2">{!result.onJellyfin && !requesting && <Button size="sm" onClick={onRequest}>Request</Button>}{requesting && <RequestForm isVisible onSubmit={onSubmit} onCancel={onCancel} />}</div></div>
   </Surface>;
 }
 
@@ -103,7 +104,7 @@ function TvResultCard({ result, requesting, onRequest, onCancel, onSubmit }: { r
   return <Surface elevation="raised" className="flex gap-3 p-3">
     {result.poster_path ? <div className="w-20 max-w-[35vw] flex-shrink-0"><Image src={`https://image.tmdb.org/t/p/w185${result.poster_path}`} alt={result.name ?? ''} width={80} height={120} sizes="80px" className="h-auto w-full rounded-lg" /></div> : <div className="aspect-[2/3] w-20 max-w-[35vw] flex-shrink-0 rounded-lg bg-surface" />}
     <div className="min-w-0 flex-1">
-      <div className="flex justify-between gap-2"><h2 className="font-semibold">{result.name}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div>
+      <div className="flex justify-between gap-2"><h2 className="font-semibold">{result.name}{result.first_air_date && <ReleaseDate date={result.first_air_date} />}</h2>{result.onJellyfin && <Pill variant="available" label="On Jellyfin" />}</div>
       <p className="text-sm text-muted-foreground">{result.overview}</p>
       {result.seasonError && <p role="status" className="mt-2 text-xs text-amber-200">Seasons unavailable: {result.seasonError}</p>}
       <div className="mt-3 space-y-2">
